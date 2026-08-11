@@ -1,0 +1,46 @@
+---
+description: CoNET-DLE / Decentralization Cluster 白皮书中英双语必须同步更新
+alwaysApply: true
+---
+
+# CoNET-DLE 白皮书：中英双语同步守则
+
+## 核心规则
+
+**`src/conet-layer2/src/whitepaper/` 下的 CoNET-DLE（Decentralization Cluster multi-chain）白皮书以中英成对存在；凡修改其中一语，必须在同一任务内同步更新另一语，使章节结构、技术断言、图表与版本号一致。**
+
+## 成对文件（单一事实来源）
+
+| 语言 | 路径 |
+|---|---|
+| **English（canonical 技术表述可优先）** | `src/conet-layer2/src/whitepaper/Decentralization Cluster multi-chain.md` |
+| **简体中文（须全文对等）** | `src/conet-layer2/src/whitepaper/Decentralization Cluster multi-chain.zh-CN.md` |
+
+两文件文首须保留互链（`Paired translation` / `成对译本`）与相同 **Revision** 标记。
+
+## 同步义务
+
+1. **同任务双写**：改 EN 必改 ZH；改 ZH 必改 EN。禁止「先改一语、回头再翻」。
+2. **结构对齐**：章节编号（§1…§16、附录）、表格行列、mermaid / ASCII 图、清单项数量一致；仅允许自然语言差异，不得一侧多出技术条款。
+3. **术语一致**：专有名保留英文或采用已固定译名（如 CoNET-DLE、DePIN、AddressPGP、OpenPGP、EIP-191、commit–reveal、ECVRF、PoH）；两侧含义不得漂移。
+4. **Revision**：任一侧实质修订时，两侧 **Revision** 同行更新（建议 `YYYY-MM` 或对话日）。
+5. **新增白皮书**：同目录新增设计文若需双语，须登记到本守则成对表，或明确标注「仅单语、无对等译本」。
+
+## AI 检查清单
+
+- [ ] 是否同时改了 EN 与 ZH 两个路径？
+- [ ] 章节 / 表 / 图 / checklist 是否两侧对齐？
+- [ ] Revision 与文首互链是否仍正确？
+- [ ] 是否未把实现细节只写进一语？
+
+## 严禁
+
+- ❌ 只更新英文或只更新中文
+- ❌ 中文版长期落后于英文版（或反之）仍声称「已完善白皮书」
+- ❌ 删除成对文件之一而不更新本守则
+- ❌ 在守则外另建第三份「真相对译本」造成三方漂移
+
+## 相关
+
+- 白皮书主题：并行原子多链 L2、加载于 CoNET DePIN 钱包地址 gossip、成熟密码学（§7）
+- UI 产品文案英语要求见 `ui-english.mdc`（**不**禁止本白皮书维护中文设计文档）
