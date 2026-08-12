@@ -4,7 +4,7 @@
 
 **Author:** Peter Xie  
 **First draft:** 2023  
-**Revision:** 2026-08-12ak (archive groups of 5 + seamless fission security model + NewChainQueue roulette + L1 1155 `archiveGroupId`; miner one-hook-per-group; DA (5,3); trade quotes still uncapped)
+**Revision:** 2026-08-12 (7-active + 2-standby archive groups + 5/7 archive quorum + bonded exit / inactivity penalties)
 
 **Paired translation (must stay in sync):** [`Decentralization Cluster multi-chain.zh-CN.md`](./Decentralization%20Cluster%20multi-chain.zh-CN.md)  
 **Sync rule:** `.cursor/rules/conet-layer2-whitepaper-bilingual-sync.mdc`
@@ -13,18 +13,18 @@
 
 ## Abstract
 
-**CoNET Distributed Ledger Expansion (CoNET-DLE)** is a clustered, lightweight **Layer-2-style ledger-expansion** system: **many parallel, event-based atomic chains** (architecture target: capacity grows with staking / archive shards, not with one shared tip), each block **proposed** by a **validator committee** drawn by the hosting **archive shard** (\(N_V=7\) drawn, **\(Q_V=5/7\)** signatures), then **finalized only** by that shard’s **Archive Certificate** (= **CommitQC** under a HotStuff-style two-phase quorum protocol, §5.2.1)—not by a single global tip, a single archive node, or a one-shot “collect \(Q_A\) signatures” race.
+**CoNET Distributed Ledger Expansion (CoNET-DLE)** is a clustered, lightweight **Layer-2-style ledger-expansion** system: **many parallel, event-based atomic chains** (architecture target: capacity grows with staking / archive shards, not with one shared tip), each event block **produced only by a validator committee** drawn by the hosting **archive shard** (\(N_V=7\) drawn, **\(Q_V=5/7\)** signatures), then **finalized only** by that shard’s Archive Certificate under the explicitly frozen **Tendermint-style PrevoteQC → PrecommitQC protocol** (§5.2.1). Archive nodes have **no block-production right**: they independently replay, quality-check, vote, and aggregate certificates over validator-produced candidates.
 
 - **Parallelism:** concurrent chains scale with staking and archive-plane fission; more capacity → more maintainable tips—not a claim of unbounded free speed.
 - **Atomic (per chain):** tip advance requires a **\(Q_V=5/7\)** validator attestation, then an **Archive Certificate** from the hosting shard (§6.5, §5.2.1).
-- **Event-only blocks:** **no event ⇒ no block.** Empty-slot mining is forbidden.
-- **L1 birth certificate:** creating a new chain **must** mint a **unique NFT** on CoNET L1; that NFT binds class (**asset**, **storage**, or **trade**), ownership, and—after genesis AC—**`archiveGroupId`** of the hosting **five-member archive group**, written by a **five-signature PlacementCertificate** (last signer executes; §5.2.0c). New-chain host is **NewChainQueue + load-aware roulette**, not hash(\(tokenId\)) mod \(S\).
+- **Event-only blocks:** **no event ⇒ no block.** Empty-slot mining and archive-produced control / anchor blocks are forbidden.
+- **L1 birth certificate:** creating a new chain **must** mint a **unique NFT** on CoNET L1; that NFT binds class (**asset**, **storage**, or **trade**), ownership, and—after genesis AC—**`archiveGroupId`** of the hosting **7-active + 2-standby archive group**, finalized by a **\(Q_{\mathrm{placement}}=Q_A=5/7\)** PlacementCertificate that **any relayer** may submit (§5.2.0c). New-chain host is the globally replicated **QUEUED / NewChainQueue + load-aware roulette**, not hash(\(tokenId\)) mod \(S\).
 - **Asset cap stays live:** each asset event **revalues** the tip; if balance **> 100 USDC**, outbound / excess **requires new chain(s)** (§4.6).
 - **Trade-class (atomic NFT-style sale):** users open a **trade** tip as an **L2 order / state coordinator** to list an existing **asset** or **storage** chain. Listing quote is **seller-set** (`quoteAsset` + `quoteAmount`) with **no ≤100 USDC oracle cap**—DLE **cannot** oracle NFT market value (§4.7). Tip advances via the frozen **Trade FSM** (`Open→Locked→SettleReady→…`, §10.2). **Final atomic delivery** (pay seller **and** move subject L1 NFT ownership) runs in one CoNET **L1 Settlement Contract** call; the trade tip then **closes**.
 - **Storage-class creator economy / private copyright delivery:** same thesis as Beamio **`CopyrightContentModule`**: owner fragments + seals a private assembly index to authorized DePIN miners; tip/L1 holds only hashes; buyers pay **conet-GB**, bind buyer PGP; **first-completer** miners deliver buyer-bound ciphertext; short-lived access URLs + periodic storage fees; plaintext never on-chain (§4.8).
 - **Copyright ZERO / version tree:** storage tips form a **lineage tree** (original + modifiers); each branch point is an **independent L1 NFT** listable via trade-class; the tip stores **social history** (likes, comments, citations) as a **Web of Trust** signal for auction valuation (§4.9).
 - **Storage sales ledger:** each storage tip keeps an append-only **sales-revenue journal** and **references** the parallel **asset-class** tip txs that actually move value (§4.10).
-- **Archive-plane fission + BFT finality:** as archive participants grow, the L2 archive plane **fissions** into **groups of 5** (\(S_e=\lfloor N_{\mathrm{active}}/5\rfloor\) as the capacity ladder: 10→2 groups, 15→3; the actual trigger is \(N_{\mathrm{active}}-5S_e\ge5\)); each new group uses **3 qualifying incumbents + 2 newly activated archives**, with monotonic never-reused `groupId`. New chains are **roulette-assigned** then bound on L1 1155; existing tips **stay** on `archiveGroupId` when \(S\) grows; a new group can read but cannot write pre-fission history; **MigrationCertificate** only for dissolve/re-home (§5.2). Each group finalizes tips via **PrepareQC → CommitQC (= AC)** with \(N_A=5\Rightarrow f=1,\,Q_A=4\) (formula \(f=\lfloor(N_A-1)/3\rfloor\), \(Q_A=\lfloor 2N_A/3\rfloor+1\)), lock/justify, and `membershipRoot` (§5.2.1)—**not** 5/5 unanimity on every block.
+- **Archive-plane fission + BFT finality:** let \(G_e\) be the L1-registered live-group count and \(U_e\) the number of eligible archives in `UnassignedPool`; a serviceable new group may form iff **\(U_e\ge9\)**. Every group receives **seven newly assigned, non-overlapping active voters plus two dedicated ordered standbys** selected with public randomness; existing groups keep their assignments and only witness formation / serve history. `groupId` is monotonic and never reused. New chains are roulette-assigned then bound on L1 1155; existing tips stay on `archiveGroupId`; **MigrationCertificate** is only for dissolve/re-home (§5.2). Each group finalizes validator-produced event blocks with the explicit Tendermint-style **PrevoteQC → PrecommitQC (= AC)** rule at \(N_A=7\Rightarrow f=2,\,Q_A=5\), and the whitepaper separately quantifies assumption breach \(P[X\ge3]\), quorum capture \(P[X\ge5]\), and any-shard risk (§5.2.1, §12.3.1a).
 - **Fees (dual denomination):** **storage-class** fees scale with **content** and settle in **conet-GB**; **asset-class / trade-class** event fees are **USDC**-denominated (**0.01%** of transferred / listed value). Of each **0.01%** event fee: **50% → hosting archive shard**, **50% → \(Q_V\) accepting validators** (§13).
 
 **Transport premise:** CoNET-DLE is loaded on **CoNET DePIN**. Control and data-plane gossip use **wallet addresses (EOA) as network identity**, not IP addresses. Messages are end-to-end encrypted (OpenPGP) and relayed through entry/mailbox nodes that **cannot read plaintext**.
@@ -79,7 +79,7 @@ Staking miners choose how many chains to underwrite based on their compute and n
 ### 3.1 Parallel atomic ledgers
 
 - **Parallelism (design target):** the network hosts **many** independent atomic chains; capacity scales with staking / archive-plane width, not with a shared global tip—**not** a marketing claim of “infinite free TPS.”
-- **Atomic (per chain):** within one chain, tip advance requires a **\(Q_V=5/7\)** validator-committee attestation, then an **Archive Certificate** (= CommitQC) from the hosting archive shard (§6.5, §5.2.1)—**not** “100% agreement of every maintenance role.”
+- **Atomic (per chain):** within one chain, tip advance requires a **\(Q_V=5/7\)** validator-committee attestation, then an **Archive Certificate** (= PrecommitQC) from the hosting archive shard (§6.5, §5.2.1)—**not** “100% agreement of every maintenance role.”
 - **Bounded blast radius:** compromise or crisis on one chain does not halt unrelated chains; **asset** tips further bound **direct** cash blast (≤ 100 USDC).
 - **Miner-scale growth:** each additional honest miner expands how many chains the network can underwrite **at the same time**; larger roulette pools can **lower** attacker share \(p\)—capture risk still needs \(P_{\mathrm{prop}}\) / \(P_{\mathrm{year}}\) (§12.3.1).
 
@@ -91,14 +91,14 @@ If there is no event (transaction / state-change / storage write request), **no 
 
 A chain is not secured by “the entire network voting every slot,” but by a **two-layer** path: a **small, randomly drawn validator committee** for the **current block proposal**, then **archive-shard BFT** that issues an **Archive Certificate**—the only object that makes the tip final (§5.2.1, §6.5).
 
-**Security root (product freeze):** the validator committee is the **proposal layer** (\(N_V=7\) drawn, deposit needs **\(Q_V=5\)** of **7** signatures); it does **not** alone constitute finality. Finality requires an **Archive Certificate (= CommitQC)** from the hosting shard’s HotStuff-style two-phase protocol (§5.2.1). No single archive node may accept, reject, roll back, or archive a tip unilaterally. **v1 does not use \(Q_V=5/5\)**—full-committee unanimity is rejected because one offline / timed-out / malicious signer can stall every round (§6.5).
+**Security root (product freeze):** the validator committee is the **only block-production / proposal layer** (\(N_V=7\) drawn, deposit needs **\(Q_V=5\)** of **7** signatures); it does **not** alone constitute finality. Finality requires an **Archive Certificate (= PrecommitQC)** from the hosting shard’s Tendermint-style two-vote protocol (§5.2.1). Archive nodes never produce blocks and no single archive may accept, reject, roll back, or archive a tip unilaterally. **v1 does not use \(Q_V=5/5\)**—full-committee unanimity is rejected because one offline / timed-out / malicious signer can stall every round (§6.5).
 
 **Canonical per-block path (product freeze):**
 
 1. A **new event** appears on the chain (**no event ⇒ no block**).
 2. The hosting **archive shard** (round coordinator + peers) draws **\(N_V=7\)** validators plus **\(S_{\mathrm{sb}}=2\)** standbys from the **on-demand miner waiting queue**.
 3. The committee **votes**; on **≥ \(Q_V=5\)** accept signatures within \(T_{\mathrm{vote}}\), it **submits** the block / attestation set.
-4. Archives **Mode A** replay the FSM on the DepositBundle; if **qualified**, they run **PrepareQC → CommitQC (= AC)** and **archive**; else **ArbitrationPool** → **RejectCommitQC** / reselect under the same lock rules (§6.3, §9).
+4. Archives **Mode A** replay the validator-produced DepositBundle; if **qualified**, they run **PrevoteQC → PrecommitQC (= AC)** and **archive**; else **ArbitrationPool** → **CandidateRejectCertificate** / reselect (§6.3, §9).
 
 Dishonest or timed-out members are replaced under §6.5 liveness rules; stake is at risk for equivocation / unjustified refuse. Many such committees run **in parallel** across chains, so confirmation latency is a **tiny committee** quorum plus a **small-shard** archive quorum—not a planet-wide slot.
 
@@ -112,8 +112,8 @@ Classical blockchain design is often framed as an **impossible triangle**: at mo
 
 | Trilemma corner | Classical single-tip pain | CoNET-DLE response (conditional) |
 | --- | --- | --- |
-| **Scalability** | One tip’s TPS / gas market saturates | **Event-based** blocks + **small-group parallel consensus** across many tips + **archive-plane fission** (groups of 5, §5.2) → **aggregate** bandwidth can grow with active ledgers and shards; **per-tip** latency still bounded by \(T_{\mathrm{vote}}\), reselections, and archive quorum—not “more miners ⇒ always faster” |
-| **Security** | Scaling often weakens economic finality or trusts sequencers | Remains **conditional**: archive HotStuff-style **CommitQC/AC** (\(f=\lfloor(N_A-1)/3\rfloor\), \(Q_A=\lfloor 2N_A/3\rfloor+1\)); committee \(Q_V=5/7\) + \(P_{\mathrm{prop}}\) / \(P_{\mathrm{year}}\) (§12.3.1); \(E_C\le E_{\max}\) (§12.3.2); L1 settle / NFT; DA; asset-tip **direct** blast ≤**100 USDC** (not “collusion motive → 0”); client key-domain isolation (§4.5, §12.9) |
+| **Scalability** | One tip’s TPS / gas market saturates | **Event-based** blocks + **small-group parallel consensus** across many tips + **archive-plane fission** (7 active + 2 standbys, §5.2) → **aggregate** bandwidth can grow with active ledgers and shards; **per-tip** latency still bounded by \(T_{\mathrm{vote}}\), reselections, and archive quorum—not “more miners ⇒ always faster” |
+| **Security** | Scaling often weakens economic finality or trusts sequencers | Remains **conditional**: archive Tendermint-style **PrevoteQC / PrecommitQC (= AC)** at \(N_A=7,f=2,Q_A=5\); committee \(Q_V=5/7\) + \(P_{\mathrm{prop}}\) / \(P_{\mathrm{year}}\) (§12.3.1); archive-group \(P_{\ge3}\), \(P_{\ge5}\), and any-shard risk (§12.3.1a); \(E_C\le E_{\max}\) (§12.3.2); L1 settle / NFT; DA; asset-tip **direct** blast ≤**100 USDC**; client key-domain isolation (§4.5, §12.9) |
 | **Decentralization** | Full-node / validator hardware & capital barriers concentrate power | **Role-split**, on-demand participants **need not sync all chain data**—still subject to stake, anti-grinding bonds, and honest-shard assumptions |
 
 **Not claimed:** mathematical dissolution of the trilemma; unbounded free TPS; collusion motive → 0; observers cannot correlate; more miners ⇒ every transaction gets faster.
@@ -155,8 +155,8 @@ Use these layers **strictly**—do not treat them as synonyms:
 | L2 | **Micro-ledger** | Informal synonym for a tip’s event history under the class FSM—**not** a separate product. Prefer **tip**. |
 | L3 | **Event FSM / state machine** | The frozen per-class transition table (§10). Tips have **no VM**; Mode A archives **replay** the FSM. |
 | L4 | **Block / tip height** | One accepted event step on a tip (proposal → \(Q_V\) → AC). **No event ⇒ no block.** |
-| L5 | **Archive shard** | The BFT committee that issues PrepareQC / CommitQC(=AC) for tips it hosts. |
-| L6 | **Validator committee** | Per-block \(N_V=7\), \(Q_V=5/7\) **proposal** layer—**not** tip finality. |
+| L5 | **Archive shard** | The non-block-producing BFT committee that independently replays validator candidates and issues PrevoteQC / PrecommitQC (= AC). |
+| L6 | **Validator committee** | Per-block \(N_V=7\), \(Q_V=5/7\) **block-production / proposal** layer—**not** tip finality. |
 
 ### 4.1 Chain creation gate (mandatory L1 NFT)
 
@@ -166,7 +166,7 @@ Creating a new DLE chain is **not** a free L2-only act. The creator **must first
 | --- | --- |
 | **Uniqueness** | One NFT id ↔ one DLE chain; no anonymous genesis without L1 mint. |
 | **Class (ternary)** | At mint / configure time the chain is fixed as **exactly one** of: **asset-class**, **storage-class**, or **trade-class**. |
-| **Ownership / archive placement** | Owner and fee payer hooks bind to the NFT id. **New-chain host** is NewChainQueue + roulette into a live five-member group, then L1 **`archiveGroupId[tokenId]`** (§5.2)—**not** `tokenId mod S` and **not** hash residue. Later events follow the L1 pointer. **Canonical owner** of any DLE chain is **CoNET L1 `ownerOf(nftId)`**. |
+| **Ownership / archive placement** | Owner and fee payer hooks bind to the NFT id. **New-chain host** is NewChainQueue + roulette into a live 7-active + 2-standby group, then L1 **`archiveGroupId[tokenId]`** (§5.2)—**not** `tokenId mod S` and **not** hash residue. Later events follow the L1 pointer. **Canonical owner** of any DLE chain is **CoNET L1 `ownerOf(nftId)`**. |
 | **Asset deposit (asset-class only)** | L1 assets are deposited as **ingress collateral / funding**; valuation uses the **L1 oracle**; total value **must not exceed 100 USDC-equivalent**. The **≤ 100 USDC** bound is **re-checked on every asset event** via oracle revaluation; over-cap outbound requires a **new chain** (§4.6). |
 | **Trade subject (trade-class only)** | Genesis binds a **subject** asset- or storage-class NFT id to list for sale; **L1 Settlement Contract** atomically pays seller and transfers **that subject’s** L1 ownership (§4.7). |
 
@@ -237,7 +237,7 @@ settleTrade(
 
 In **one** CoNET L1 transaction the contract **MUST**:
 
-1. Verify the **DLE Archive Certificate (= CommitQC)** under the rules below (tip identity, SettleReady typed payload, DA binding, `membershipRoot`, ≥ \(Q_A\) **EIP-712** commit signatures—§5.2.1).
+1. Verify the **DLE Archive Certificate (= PrecommitQC)** under the rules below (tip identity, SettleReady typed payload, DA binding, `membershipRoot`, ≥ \(Q_A\) **EIP-712** precommit signatures—§5.2.1).
 2. Verify **quote** (`quoteAsset` + `quoteAmount`), **nonce**, **deadline**, and **buyer** against the AC-committed listing / match fields. **Do not** oracle-value the subject NFT or enforce a ≤100 USDC quote cap.
 3. Transfer **escrowed payment** to the seller (or release seller’s claim atomically with step 4).
 4. Transfer **`subjectNftId`** to `buyer` (from seller / freeze escrow that held the NFT).
@@ -434,7 +434,7 @@ Product freeze: a storage tip is not only content + social history—it is also 
 
 - **Ownership** is defined by the **L1 NFT** (`ownerOf`) plus local genesis rules; trade settle updates **subject** ownership on L1 (§4.7). Storage **access** sales update purchase / delivery records, not NFT owner (§4.8). **Forks** mint a new NFT under the modifier; parent ownership is unchanged (§4.9). **Sales books** live on the storage tip and **reference** parallel asset-class txs (§4.10).
 - **Limited functionality (no tip VM):** genesis binds **exactly one class** (**asset** / **storage** / **trade**) and that class’s **frozen event schema** / transition table (§6.3, §10). Tips do **not** host a general-purpose VM or user-deployed programs. Chains do **not** freely message each other (isolation by design). Trade tips bind a subject id; cross-tip matching uses index / matcher tasks, not free cross-chain calls. Storage tips host content-index hashes, purchase/delivery events, **parent lineage**, **social event** records, and a **sales-revenue journal** with **asset-tip references** (§4.8–§4.10). Arbitrary application workflows compose tips + L1 at the **application layer**.
-- **Security source:** stake + random **small-group** selection + **archive-shard BFT** (HotStuff-style PrepareQC→CommitQC=AC, §5.2.1) + **L1 NFT** binding; asset chains additionally inherit the **≤ 100 USDC** economic bound; trade listings use **seller-set quotes** (no NFT oracle) with **atomic delivery only via L1 `settleTrade`** (§4.7); storage content delivery relies on **PGP fragmentation + buyer re-encryption** so public tip observers never receive plaintext (§4.8); social valuation relies on **signed WoT history**, not forgeable counters (§4.9); revenue claims require **linkable AC-finalized asset-class events** (§4.10).
+- **Security source:** stake + random **small-group** selection + non-block-producing **archive-shard BFT** (Tendermint-style PrevoteQC→PrecommitQC=AC, §5.2.1) + **L1 NFT** binding; asset chains additionally inherit the **≤ 100 USDC** economic bound; trade listings use **seller-set quotes** (no NFT oracle) with **atomic delivery only via L1 `settleTrade`** (§4.7); storage content delivery relies on **PGP fragmentation + buyer re-encryption** so public tip observers never receive plaintext (§4.8); social valuation relies on **signed WoT history**, not forgeable counters (§4.9); revenue claims require **linkable AC-finalized asset-class events** (§4.10).
 - **Fee denomination (frozen):** **storage-class** content / access / retention fees → **conet-GB**; **asset-class / trade-class** tip event fees → **USDC** at **0.01%**, split **50% hosting archive / 50% \(Q_V\) validators** (§13). Asset-class tips remain the parallel **value rails** under the oracle ≤100 USDC cap.
 
 ### 4.4 Role map
@@ -443,8 +443,8 @@ Product freeze: a storage tip is not only content + social history—it is also 
 flowchart TB
   subgraph ArchiveShard["Hosting archive shard BFT"]
     Coord[ArchiveCoordinator round-robin]
-    Prep[PrepareQC]
-    AC[CommitQC equals AC]
+    Prep[PrevoteQC]
+    AC[PrecommitQC equals AC]
     PoH[PoH local clocks]
     Pool[Participant waiting pool]
   end
@@ -553,30 +553,43 @@ Classical public ledgers leak **who owns how much** because a user’s economic 
 ### 5.1 Pledge archive nodes
 
 - Global **full nodes** for the DLE plane: store chains and complete state needed for quality checks.
-- Participate in **per-shard BFT**: quality-check deposited blocks; **propose** accept or reject; **prepare-vote / commit-vote** toward CommitQC (= AC) or RejectCommitQC under lock/justify rules (§5.2.1).
+- Replicate the global **QUEUED / NewChainQueue** admission pool; detect assignments for their own `groupId`; select the on-demand validator committee; serve authenticated history/state proofs to that committee; receive its signature / DepositBundle pool; independently replay and quality-check the candidate (§5.2.0, §6.3).
+- Participate in **per-shard Tendermint-style BFT** without producing blocks: prevote / precommit only over validator-produced candidates. A single archive may withhold its own vote and propose a `CandidateRejectCertificate`, but **cannot unilaterally veto** a globally queued request or an already-finalized tip (§5.2.1).
 - Peer networking among archive nodes is primarily for **archive discovery and archive consensus**; they do not freely accept arbitrary role-node gossip as peers.
 - Expose **RPC** only to authorized participants and chain owners. Clients treat a tip as final **only** when they hold a verifiable **Archive Certificate**—not when a single archive RPC claims success.
 - Run **Proof of History (PoH)** sequences **locally** as a verifiable sequencing clock / anti-rollback aid (see §7.9). **Canonical** waiting-pool and tip event order is **not** established by PoH alone—it requires **archive quorum certificates** (§5.2.1).
 
-### 5.2 Archive node groups (clusters) — groups of 5
+### 5.2 Archive node groups (clusters) — 7 active + 2 dedicated standbys
 
-Archive nodes register on CoNET via **NFT**, each obtaining a unique token ID. As **archive participants increase**, the **entire L2 archive plane** does **not** stay one monolithic cluster: it **fissions** into **parallel groups of five** so load and gossip bandwidth scale with participation.
+Archive nodes register on CoNET via **NFT**, each obtaining a unique token ID. As **archive participants increase**, the **entire L2 archive plane** does **not** stay one monolithic cluster: it **fissions** into parallel groups, each containing **seven active voters and two dedicated ordered standbys**, so load and gossip bandwidth scale with participation while planned exit has a ready handoff path.
 
-**Canonical fission ladder (product freeze):** group size \(G=5\). Plane width
+**Canonical fission variables (product freeze):** active voting size \(N_A=7\), dedicated standby size \(S_A=2\), and total assigned identities per fully serviceable group \(G=9\). The prior symbol \(S_e\) was overloaded as both a derived capacity and “already-created groups”; that contradictory definition is removed.
+
+| Symbol | Normative meaning |
+| --- | --- |
+| \(G_e\) | Number of L1-registered **live** archive groups in epoch \(e\) |
+| \(U_e\) | Number of bonded, activated, cooldown-complete archives in **UnassignedPool**, not present in any live consensus roster |
+| \(A_g\) | Exact seven-member active consensus roster of live group \(g\) |
+| \(S_g\) | Exact two-member ordered standby roster; synced and challenge-ready, but non-voting until L1 promotion |
+| \(N_{\mathrm{eligible}}\) | Eligible archive identities, assigned or unassigned; \(\lfloor N_{\mathrm{eligible}}/9\rfloor\) is a fully serviceable capacity upper bound—not the created-group count |
 
 \[
-S_e \;=\; \bigl\lfloor N_{\mathrm{active}}/5\bigr\rfloor
+\mathrm{canFormGroup}\iff U_e\ge9,
+\qquad
+G_{e+1}=G_e+1.
 \]
 
-Examples: **10** bonded archives → **2** groups; **15** → **3** groups. Remainder \(N_{\mathrm{active}}\bmod 5\) stay in **UnassignedPool** until five more can form a group. A group **MUST NOT** take **new-chain** assignment unless \(N_A=5\). Existing tips on a degraded group may continue ACs while \(N_A\ge 4\) (§5.2.1); below 4, stop new ACs (read-only / migrate / L1 escape).
+Examples: once formation certificates complete, **18** eligible archives can support **2** groups and **27** can support **3**. At steady state with full disjoint active and standby rosters, \(N_{\mathrm{eligible}}=9G_e+U_e\). A group **MUST NOT** take a new-chain assignment unless it has all seven active voters and two ready standbys. Existing tips may continue only with five signatures from the current seven-member `membershipRoot`; fewer than five stalls rather than lowering quorum (read-only / replace / migrate / L1 escape).
 
-**Fission trigger and monotonic group numbers (product freeze):**
+**Roster independence and monotonic group numbers (product freeze):**
 
 \[
-\mathrm{canFission}\iff N_{\mathrm{active}}-5S_e\ge 5
+\forall i:\;m_i^{\mathrm{active\ or\ standby}}\le1,
+\qquad
+\forall g\ne h:\;|A_g\cap A_h|=0.
 \]
 
-where \(S_e\) is the number of already-created groups. A new group is created only when at least five active archives remain after accounting for the current \(S_e\) groups. `groupId` is globally monotonic: a newly created group MUST use a number greater than every existing group, MUST NOT reuse a dissolved number, and MUST be registered through L1 `nextGroupId`. For example, after groups `0` and `1` exist, the next group is `2`; after `2` exists, the next is `3`.
+An archive NFT may be assigned to at most one live group in either its active or standby roster. History replication or temporary sync service does **not** make a node a member of the receiving group. `groupId` is globally monotonic: a newly created group MUST use a number greater than every existing group, MUST NOT reuse a dissolved number, and MUST be registered through L1 `nextGroupId`.
 
 **Seamless-fission history rule (product freeze):** at the fission checkpoint, every existing group keeps a read-only, verifiable copy of the pre-fission history, but write / finality authority for each chain remains with that chain’s recorded historical owner. The newly created group has **no authority to maintain pre-fission history**. It may serve copies, DA recovery, and audit proofs only; it may not issue a competing AC, alter the old state, or migrate the old history by itself.
 
@@ -589,19 +602,46 @@ where \(S_e\) is the number of already-created groups. A new group is created on
 | Field | Meaning |
 | --- | --- |
 | `groupId` | Globally monotonic integer; the next group MUST be greater than all prior group ids and is never reused |
-| `groupKeyHash` | \(H(\texttt{"dle.archive.group.v1"}\,\|\,e\,\|\,\mathrm{groupId}\,\|\,\mathrm{membershipRoot})\) — public fingerprint of the five archive NFT ids + keys |
-| `membershipRoot` | Merkle / hash of the **exactly five** bonded archive members (same object as §5.2.1) |
+| `groupKeyHash` | \(H(\texttt{"dle.archive.group.v1"}\,\|\,e\,\|\,\mathrm{groupId}\,\|\,\mathrm{membershipRoot}\,\|\,\mathrm{standbyRoot})\) — public fingerprint of the active and standby archive NFT ids + keys |
+| `membershipRoot` | Merkle / hash of the **exactly seven** bonded active voters (same object as §5.2.1) |
+| `standbyRoot` | Ordered commitment to the **exactly two** dedicated, synced, readiness-proven non-voting standbys |
 
-Archive nodes **do not** pick a group by grinding an archive NFT residue. When the fission trigger is met, the source group is selected by public L1 randomness, then exactly **three incumbent archives** from that source group and exactly **two newly activated archives** from `UnassignedPool` are selected. The five members are sorted and roulette-selected using L1 beacon randomness in the same family as §7.8. A new group MUST NOT be formed entirely from new archives. Unbonded / cooldown archive NFTs **do not** enter a group and **cannot** sign ACs.
+Archive nodes **do not** pick a group by grinding an archive NFT residue. When \(U_e\ge9\), public L1 finalized randomness selects **nine distinct eligible archives from UnassignedPool**: seven active voters and two dedicated ordered standbys. Selection MUST enforce distinct archive NFTs and SHOULD enforce distinct operator, key-management, cloud/ASN, and jurisdiction fault domains across all nine. Existing assigned members do not leave their source group or become assigned to the new group. Unbonded / cooldown archive NFTs do not enter either roster and cannot sign ACs.
 
-An **incumbent archive** is not merely an archive that once signed. It MUST have been an active member of the source group from that group’s creation through the fission checkpoint and must have participated in every required vote for that group during that interval, excluding periods before it joined, draws in which it was not selected, and protocol-recognized fault exclusions. It MUST have no unresolved equivocation, unjustified refusal, slash, or cooldown. The membership certificate MUST carry verifiable vote-log proofs for this predicate.
+For continuity, L1 randomness designates an existing **witness group** whose \(Q_A\) members attest the frozen `poolRoot`, selection proof, fission checkpoint, and history snapshot root. Witnessing does not transfer membership or grant the new group authority over old tips. At bootstrap, the L1 archive registry substitutes for the witness group.
+
+**Global QUEUED pool and archive duties (product freeze):**
+
+1. A user MAY submit a signed `QUEUED` new-ledger request to **any active archive node**. `requestId = H(canonicalRequest)` makes retransmission idempotent.
+2. The receiving node MUST validate admission syntax, return a signed receipt, gossip the request to the full archive plane, and relay/sponsor its canonical enqueue to the L1 NewChainQueue. Before the L1 enqueue event, the item is pending gossip only and cannot be assigned.
+3. Every active archive node maintains the same eventually replicated QUEUED set and mirrors the L1 canonical sequence. No single archive’s wall clock or local omission defines order.
+4. Before assignment, archives compact the L1-ordered prefix into an **ArchiveQueueCheckpoint**. Each live group first emits a `GroupQueueAttestation` signed by ≥\(Q_A=5\) of its seven active members; a checkpoint is global only after attestations from
+   \[
+   Q_G=\left\lfloor\frac{2G_e}{3}\right\rfloor+1
+   \]
+   distinct live groups over the same `{fromSeq,toSeq,poolRoot,epoch}`. This is “joint maintenance” without requiring every archive to be online. A minority group cannot invent, delete, or reorder an L1-enqueued request.
+5. Roulette consumes only a finalized ArchiveQueueCheckpoint and creates an L1 `assignmentId` / `attemptNonce`. Each group extracts only QUEUED items whose current assignment names its `groupId`.
+6. The assigned archive group draws the on-demand validator committee from that group’s waiting queue, serves authenticated historical state / proof queries, and receives the committee’s signed DepositBundle pool.
+7. Every assigned archive independently replays and quality-checks the validator-produced candidate. It may refuse its own vote and submit evidence for a `CandidateRejectCertificate`; final rejection requires \(Q_A\) and cannot undo an existing AC.
+
+```text
+ArchiveQueueCheckpoint = {
+  epoch, fromSeq, toSeq, poolRoot,
+  l1NewChainQueueBlockHash,
+  liveGroupRegistryRoot,
+  groupAttestationRoot
+} + attestations from ≥ QG live groups,
+    each backed by ≥ QA member signatures
+```
+
+Checkpoint signatures certify ordering / completeness of the L1 enqueue prefix; they do not create a ledger block, assign a host by themselves, or finalize a tip.
 
 **New-chain host assignment (product freeze) — not hash(\(tokenId\)).**
 
-1. User mints the chain’s **L1 ERC-1155** (class + ownership) and enqueues a **new-ledger request** into **NewChainQueue**.
-2. Requests are **sorted** by a public commitment (request hash / enqueue proof)—not by a single archive’s wall clock.
-3. Verifiable **roulette** maps the sorted batch onto live groups (\(N_A=5\)), optionally **load-weighted** (inverse of each group’s live tip count) under public \(R_e\) so no group is a grindable hotspot.
-4. The assigned group runs genesis (§6.2): draw \(N_V=7+2\), \(Q_V=5/7\), Mode A replay, **PrepareQC → CommitQC (= AC)**.
+1. User mints the chain’s **L1 ERC-1155** (class + ownership) and submits the signed request to any archive; all archives replicate it, while the L1 **NewChainQueue** event is the canonical enqueue.
+2. Requests are sorted by the L1 sequence + public request commitment and frozen in an ArchiveQueueCheckpoint—not by a single archive’s wall clock.
+3. Verifiable roulette consumes that checkpoint and maps the sorted batch onto fully serviceable live groups (\(N_A=7,S_A=2\)), optionally load-weighted under public \(R_e\).
+4. The assigned group runs genesis (§6.2): draw \(N_V=7+2\), \(Q_V=5/7\); the validators produce the candidate, then archives perform Mode A replay and the §5.2.1 PrevoteQC → PrecommitQC (= AC) path without producing another block.
 5. After genesis AC, the group binds **`archiveGroupId[tokenId] = groupId`** on the **same L1 ERC-1155** (§5.2.0c). Subsequent events **MUST** be hosted by that L1-recorded group—**not** recomputed from `tokenId` hash.
 
 **Why not hash placement for new chains:** a seller / attacker must not choose the host group by minting until a residue matches a captured group. Roulette + L1 write makes host assignment a **public random draw at enqueue time**; the 1155 slot is the **canonical** pointer clients and miners follow.
@@ -618,66 +658,93 @@ An **incumbent archive** is not merely an archive that once signed. It MUST have
 
 ```text
 MembershipFormationCertificate = {
-  newGroupId, sourceGroupId,
-  oldMemberCount: 3,
-  newMemberCount: 2,
-  oldMemberHistoryProofs,
-  newMemberActivationProofs,
-  sourceMembershipRoot, newMembershipRoot,
-  fissionCheckpointAC, fissionEpoch,
-  groupKeyHash
-} + source-group quorum signatures + L1 registration
+  newGroupId, witnessGroupId, fissionEpoch,
+  poolRoot, selectionSeed, selectionProof,
+  selectedActiveArchiveNftIds[7],
+  selectedStandbyArchiveNftIds[2],
+  selectedOperatorDomainCommitments[9],
+  activeMemberActivationProofs[7],
+  standbyReadinessProofs[2],
+  newMembershipRoot, newStandbyRoot, groupKeyHash,
+  fissionCheckpointAC, historySnapshotRoot,
+  readinessRoot, formationDeadline
+} + ≥ QA=5/7 witness-group signatures
+  + ≥ QA=5/7 selected-active acceptance signatures
+  + both selected-standby acceptance/readiness signatures
+  + L1 registration
 ```
 
-The two new archives may have joined the archive plane recently, but MUST complete bond, activation, and cooldown requirements before entering the active five-member roster. The three incumbents provide continuity; they do not grant the new group authority over the source group’s old chain history.
+All seven active archives and both dedicated standbys MUST complete bond, activation, cooldown, history synchronization, and readiness challenges before the group becomes live or accepts a new chain. The active acceptance quorum is \(Q_A=5/7\); both standby readiness signatures are mandatory because standby availability is an exit/liveness precondition, not consensus authority. Existing groups provide continuity through checkpoint/history commitments; they do not copy permanent active or standby members into the new group.
 
-**Load balance & bandwidth:** each group has an **independent** waiting queue, **local** PoH clock, and archive BFT. Aggregate **event bandwidth** grows with \(S_e\) (more groups of five), not with a single archive gossip mesh.
+**Load balance & bandwidth:** QUEUED admission is globally replicated, while each group has an **independent on-demand-miner waiting queue**, local PoH clock, and archive BFT. Aggregate event execution bandwidth grows with \(G_e\); the global QUEUED mirror carries request metadata and assignment proofs, not every group’s full execution traffic.
 
-**Economics:** five-member groups keep per-node fee share meaningful; more groups → more parallel tips underwritable.
+**Economics:** each group’s archive reward must fund active storage/service, timely precommit work, and standby readiness. More disjoint groups increase parallel tip capacity; security must not be weakened merely to increase per-node fee share.
 
 #### 5.2.0c L1 ERC-1155 `archiveGroupId` bind (product freeze)
 
-After the assigned group **finalizes genesis AC**, it **MUST** write the host group onto the chain’s CoNET L1 **ERC-1155** (the same birth-certificate contract as §4.1):
+Roulette first reserves an assignment on the chain’s CoNET L1 **ERC-1155**; after the assigned group finalizes genesis AC, any relayer may finalize that reservation:
 
 ```text
-setArchiveGroup(tokenId, groupId, groupKeyHash, genesisAC, placementCert)
+reserveArchiveGroup(
+  tokenId, groupId, groupKeyHash,
+  assignmentId, attemptNonce, deadline, assignmentProof
+)
+
+finalizeArchiveGroup(
+  tokenId, assignmentId, attemptNonce,
+  genesisAC, placementCert
+)
 ```
 
 | Rule | Normative requirement |
 | --- | --- |
-| **Who votes** | The **five** members of the assigned group. Product intent: collect **all five** EIP-712 signatures on a **PlacementCertificate** binding `tokenId`, `groupId`, `groupKeyHash`, `genesisAC.hash`, `membershipRoot`. |
-| **L1 minimum** | L1 **MUST** verify the five signatures recover to the five addresses in `membershipRoot` (or an L1-checkpointed group roster). **Rejected:** a single archive writing `archiveGroupId` alone. |
-| **Last signer executes** | The **last** of the five to sign is the **designated L1 executor**: that archive submits `setArchiveGroup`. This is the only **default** writer for that bind. |
-| **Anti-grief fallback** | If the last signer does not land a successful L1 tx within \(T_{\mathrm{l1submit}}\), **any** of the five holding the complete five-sig certificate **MAY** submit the same calldata (idempotent). L1 rejects a second bind for the same `tokenId`. |
-| **Timeout / re-roulette** | If five signatures are not collected within \(T_{\mathrm{place}}\), **do not** stall mint forever: return the request to NewChainQueue and **re-roulette** to another live group (prior group members under cooldown for this `tokenId`). |
+| **Placement quorum** | \(Q_{\mathrm{placement}}=Q_A=5/7\). Placement signatures bind `tokenId`, `requestId`, `assignmentId`, `attemptNonce`, `groupId`, `groupKeyHash`, `genesisAC.hash`, `membershipEpoch`, `membershipRoot`, and `deadline`. Seven-of-seven has no extra finality power. |
+| **Who submits** | **Any relayer** holding a valid PlacementCertificate may submit. Signatures are an address-sorted set; “last signer” has no security, leadership, reward, or execution meaning. |
+| **L1 minimum** | L1 MUST verify ≥\(Q_A\) distinct signatures against the checkpointed roster and that the reservation is current, unexpired, and matches the exact genesis AC. A lone archive signature is insufficient. |
+| **Idempotence** | The first valid finalize transaction sets `archiveGroupId[tokenId]`; duplicate submissions of the same assignment are no-ops / rejected without changing state. |
+| **Standby readiness** | Both dedicated standbys must already be readiness-proven before the group is assignment-eligible. They do not sign PlacementCertificate and do not delay `BOUND` once the active 5/7 certificate exists. |
+| **Timeout / re-roulette** | If no valid \(Q_A\) certificate lands by `deadline`, L1 marks the reservation `EXPIRED`, increments `attemptNonce`, and re-roulettes. Every old partial certificate and old genesis AC is non-canonical and cryptographically unusable for a later attempt. The random seed binds the new nonce. |
 | **Canonical host** | After a successful bind, `archiveGroupId[tokenId]` on L1 is the **sole** host pointer. Tip ACs **MUST** carry matching `archiveShardId` / `groupId`. Clients **MUST NOT** infer host from `tokenId` hash. |
-| **What L1 stores** | `groupId` + `groupKeyHash` (and optional `membershipEpoch`). Full five-key roster may live in MembershipCheckpoint; the 1155 slot is the per-chain pointer. L1 MUST also enforce monotonic `groupId`, `nextGroupId`, the `3 old + 2 new` formation rule, and the source-group history proof. |
+| **What L1 stores** | Current assignment state, `attemptNonce`, `groupId`, `groupKeyHash`, `membershipEpoch`, `membershipRoot`, `standbyRoot`, deadline, and final bind status. Full roster may live in MembershipCheckpoint. L1 also enforces monotonic `groupId`, disjoint 7-active + 2-standby formation, and the formation/history witness proof. |
 
-**Tip AC vs placement votes (do not confuse):** ongoing tip finality remains HotStuff **\(Q_A=4\)** of \(N_A=5\) (\(f=1\))—**not** 5/5 unanimity on every block (§5.2.1, same liveness reason as rejecting \(Q_V=5/5\)). The **five-signature PlacementCertificate** is a **rare L1 bind** (genesis / re-home), not the per-height AC rule.
+**Placement state machine (product freeze):**
+
+```text
+QUEUED
+  → RESERVED(assignmentId, attemptNonce, groupId, deadline)
+  → GENESIS_AC
+  → BOUND                 // QA=5/7 PlacementCertificate, any relayer
+
+RESERVED | GENESIS_AC --deadline--> EXPIRED
+  → attemptNonce + 1
+  → re-roulette
+```
+
+**Tip AC vs placement votes (do not confuse):** both use the current archive quorum \(Q_A=5/7\), but they certify different objects. Tip finality uses PrevoteQC → PrecommitQC; PlacementCertificate binds one genesis AC to one current L1 assignment. Neither requires 7/7 unanimity.
 
 ### 5.2.1 Archive-shard BFT & Archive Certificate (product freeze)
 
 The waiting pool, roulette draw, quality check, accept/reject, rollback, and archival **run on the hosting archive shard**—but the **security root is not a single archive operator**. Each shard is a classical partially synchronous BFT committee. **Quorum size alone is not a protocol:** without the lock / justify state machine below, collecting \(Q_A\) signatures does **not** constitute complete BFT.
 
-**Product freeze:** Archive finality is a **HotStuff-style two-phase quorum certificate protocol** (Jolteon / two-chain HotStuff family) on the hosting shard. An **Archive Certificate (AC)** is a **CommitQC** (≥ \(Q_A\) commit votes) over a tip block. There is **no** globally observable “first \(Q_A\) wins”; uniqueness follows from **locks + QC chaining + no conflicting votes** at the same height/round role.
+**Protocol baseline (product freeze):** archive finality uses the **Tendermint consensus state machine**—Proposal reference → Prevote → Precommit—adapted only to certify an externally produced candidate. Archive nodes have **no block-production right**. The \(N_V=7\) validator committee is the only role that builds the event block / DepositBundle; the archive coordinator may only nominate an immutable `candidateId` already present in ArchiveIngressPool. This specification does **not** claim Jolteon, DiemBFT-v4, two-chain HotStuff, or Basic HotStuff inheritance.
 
 | Symbol | Definition |
 | --- | --- |
 | \(N_A\) | Active bonded archive members of the shard (count under current `membershipRoot`) |
 | \(f\) | Byzantine bound: \(f=\big\lfloor(N_A-1)/3\big\rfloor\) (require \(f \ge 1\)) |
 | \(Q_A\) | Quorum size: \(Q_A=\big\lfloor 2N_A/3\big\rfloor+1\) |
-| **Product floor** | Live group **target** \(N_A=G=5\) (hence \(f=1\), \(Q_A=4\)). **New-chain** assignment requires \(N_A=5\). Existing tips: continue ACs while \(N_A\ge 4\); below 4 the group **must not** issue new ACs (read-only / migrate / L1 escape). |
+| **Product floor** | Fixed active roster \(N_A=7\) (hence \(f=2\), \(Q_A=5\)) plus two dedicated standbys. New-chain assignment requires all 7 active + 2 ready standbys. Existing tips require 5 signatures from the current seven-member root; fewer than 5 means no new AC (read-only / replace / migrate / L1 escape). |
 
-When \(N_A=3f+1\) exactly, \(Q_A=2f+1\) as in the classical formula. Active \(N_A\) **need not** stay forever exactly \(3f+1\); after join/leave/slash, recompute \(f\) and \(Q_A\) from the formulas. Quorum intersection still yields \(|Q_1\cap Q_2|\ge f+1\): under ≤\(f\) Byzantine members and honest nodes that never double-sign conflicting votes at the same role, two conflicting CommitQCs require ≥1 honest double-sign.
+Here \(N_A=3f+1\) and \(Q_A=2f+1\). Two 5-of-7 quorums intersect in at least three members, so under the \(f=2\) bound at least one intersection member is honest. **Do not lower or recompute \(Q_A\) because a member is offline, slashed, or exiting:** until an atomic L1 membership update, signatures remain checked against the same seven-member `membershipRoot` and \(Q_A=5\). Safety assumes at most \(f\) Byzantine members, durable anti-double-vote state, and DLS partial synchrony for liveness.
 
 **Two layers:**
 
 | Layer | Role | Quorum |
 | --- | --- | --- |
-| **Validator committee** | Propose tip block; deposit needs **\(Q_V=5\)** of **\(N_V=7\)** | **\(Q_V = 5/7\)** (§6.5)—**not** a full HotStuff on the tip |
-| **Archive shard** | **Sole finality layer** — quality check + archival | **PrepareQC → CommitQC (= AC)** with \(Q_A\) |
+| **Validator committee** | Sole producer of the tip block; deposit needs **\(Q_V=5\)** of **\(N_V=7\)** | **\(Q_V = 5/7\)** (§6.5)—proposal / production, not finality |
+| **Archive shard** | **Sole finality layer** — independent replay + quality check + archival; **no block production** | **PrevoteQC → PrecommitQC (= AC)** with \(Q_A\) |
 
-“Simple majority alone,” “unanimous archive set,” “one-shot collect \(Q_A\) signatures without locks,” and “\(Q_V=5/5\) validator unanimity” are **not** the product rule.
+“Simple majority alone,” “unanimous archive set,” “one-shot collect \(Q_A\) signatures without locks,” “archive-produced blocks,” and “\(Q_V=5/5\) validator unanimity” are **not** the product rule.
 
 **Membership (product freeze).** Every Proposal / QC / AC **must** bind:
 
@@ -686,66 +753,230 @@ When \(N_A=3f+1\) exactly, \(Q_A=2f+1\) as in the classical formula. Active \(N_
 | `membershipEpoch` | Shard roster version |
 | `membershipRoot` | Commitment (Merkle / hash) to the active archive NFT + key set |
 
-Only signatures from members in that root count toward \(Q_A\). Unbonded / cooldown archive NFTs **do not** count in \(N_A\) and **cannot** sign. Roster changes require a **MembershipUpdateCertificate** (≥ \(Q_A\) of the **old** set) and/or **L1-forced** update (slash / governance). Fission remapping still uses **MigrationCertificate** (§5.2.2). After slash, recompute \(f,Q_A\); if \(N_A<4\), stop new ACs.
+Only signatures from active members in that root count toward \(Q_A\). Standbys, unbonded, or cooldown archive NFTs **cannot** sign before an L1 promotion. Roster changes require the checkpointed **MembershipUpdateCertificate** below (≥5/7 of the old active set) or an evidence-backed L1-forced replacement. Fission remapping still uses **MigrationCertificate** (§5.2.2). A removed or unavailable identity does not lower quorum; fewer than five current-root signatures stops new ACs.
 
-**Messages (per `(chainNftId, height)`, with `decision ∈ {accept, reject}`):**
+#### 5.2.1a Normal archive exit, standby promotion, and atomic roster switch
+
+Archive-node exit is a **bonded service handoff** and is distinct from a chain owner’s AssetVault `forceWithdraw`. A planned exit follows:
 
 ```text
-ArchiveProposal = {
-  chainNftId, height, blockHash, decision,
-  selectionLogRef, daRoot, round, archiveShardId,
+ACTIVE
+  → EXIT_REQUESTED
+  → DRAINING
+  → STANDBY_SYNCING
+  → HANDOVER_READY
+  → MEMBERSHIP_SWITCHED
+  → UNBONDING
+  → EXITED
+```
+
+| State / rule | Normative requirement |
+| --- | --- |
+| `ACTIVE → EXIT_REQUESTED` | The outgoing identity submits a unique L1 `exitNonce`; the request does not release voting, storage, DA, challenge-response, or history duties. |
+| `DRAINING` | Finish assigned rounds and preserve the latest AC/checkpoint/DA; an exit request is not permission to stop signing or power off. |
+| `STANDBY_SYNCING` | Promote `standby[0]` by default; it must sync current history/state/DA and `lastAC`, then prove readiness. |
+| `HANDOVER_READY` | Planned exit may finalize only if both standbys were ready before promotion. After `standby[0]` enters active duty, old `standby[1]` moves first and one ready reserve remains; assignment eligibility resumes only after a new second standby is filled. |
+| `MEMBERSHIP_SWITCHED` | Any relayer atomically submits a valid `MembershipUpdateCertificate`; old root deactivates while new membership/standby roots activate. At most one active slot changes per `membershipEpoch`, preserving six-of-seven overlap. |
+| `UNBONDING → EXITED` | The old identity remains inside evidence, rebuttal, and slashing windows; stake unlocks only after pending liability ends. Pre-switch evidence discovered later remains slashable. |
+
+**Emergency forced replacement.** A forced replacement does **not** require the outgoing node’s signature. Planned exit requires two ready standbys when handoff begins. A proven emergency may promote the only ready standby to recover five-signature liveness, but the degraded group immediately freezes new-chain assignments until a second standby restores the 7+2 invariant. Before the L1 switch, quorum remains five and the old identity remains fully duty-bound.
+
+```text
+MembershipUpdateCertificate = {
+  groupId, exitNonce,
+  oldMembershipEpoch, newMembershipEpoch,
+  oldMembershipRoot, newMembershipRoot,
+  oldStandbyRoot, newStandbyRoot,
+  outgoingArchiveNftId, incomingArchiveNftId,
+  activationHeight, checkpointRef, lastArchiveCertificateRef,
+  standbyReadinessRoot, evidenceWindowEnd
+} + ≥ 5/7 old-active signatures
+  + incoming-member acceptance/readiness signature
+```
+
+Any relayer may submit the certificate to L1; the membership/standby roots switch atomically at `activationHeight`. During forced replacement, the old active roster’s 5/7 approval may be supplied by non-accused members. If the shard cannot form five signatures, it must use an evidence-backed L1 forced-governance / migration path rather than lowering quorum. After switching, the old identity remains slashable for pre-switch conduct throughout the evidence and unbonding window.
+
+#### 5.2.1b Verifiable non-participation, ArchiveInactivityCertificate, and graduated penalties
+
+**Forced shutdown is non-participation.** Power loss, network loss, operator shutdown, or other intent does not erase the bonded availability obligation before `MEMBERSHIP_SWITCHED`; motive may affect evidence interpretation but not whether service was delivered. Availability failure is nevertheless not equivocation and must not receive the same penalty.
+
+**Verifiable non-participation includes:**
+
+- missing a timely `Prevote(value|nil)`, `Precommit(value|nil)`, or protocol-required nil vote;
+- failing a deterministic availability challenge;
+- failing pre-sign DA possession, assigned-chunk opening, or history/state/DA service;
+- repeated absence from assigned coordination, voting, storage, or handoff duties.
+
+**The following counts as participation and cannot be slashed merely for absence from the final AC:** a valid `Prevote(nil)` / `Precommit(nil)`, evidence-backed rejection, or a timely valid signature omitted by an aggregator.
+
+```text
+ArchiveInactivityCertificate = {
+  groupId, membershipEpoch, membershipRoot,
+  accusedArchiveNftId,
+  missedHeightsRoundsSteps[],
+  participationBitmap,
+  availabilityChallenge, responseDeadline,
+  qcAcRefs[], evidenceHash,
+  rebuttalDeadline
+} + ≥ 5/7 current-active signatures
+```
+
+The accused may rebut within the challenge window using timely signed votes, receipt attestations, or valid challenge responses. Aggregator omission or relay delay does not prove inactivity when timely verifiable receipt evidence exists. The normative penalty ordering is
+
+\[
+0 < B_{\mathrm{miss}} \ll B_{\mathrm{abrupt}}
+  \ll B_{\mathrm{da\_fraud}}
+  < B_{\mathrm{equivocation}} \le 100\%.
+\]
+
+Exact fractions, rolling-window thresholds, rebuttal duration, and unbonding duration are governance parameters. No single archive or minority may declare another inactive; the evidence-bound 5/7 certificate and L1 challenge window are mandatory.
+
+| Violation | Minimum consequence |
+| --- | --- |
+| One-off / light verified absence | No service, vote, or readiness reward for the missed duty; availability strike and optional small \(B_{\mathrm{miss}}\) slash. |
+| Availability-challenge default / repeated absence | Accumulated strikes, longer cooldown, small slash, and replacement review. |
+| Shutdown before `MEMBERSHIP_SWITCHED` | Larger \(B_{\mathrm{abrupt}}\) slash, forced replacement, and longer unbonding; not automatically treated as equivocation. |
+| DA fraud | Severe \(B_{\mathrm{da\_fraud}}\) slash, freeze affected height, and begin recovery / migration. |
+| Double-prevote / double-precommit / conflicting AC | Highest \(B_{\mathrm{equivocation}}\) slash up to 100% and permanent or long-term exclusion. |
+
+**Consensus value and conflict domain (product freeze).** v1 archive consensus finalizes only an **accepted validator-produced candidate**. Rejection is a separate evidence certificate below and is not a second ledger value.
+
+```text
+ArchiveConsensusDomain = {
+  protocolVersion: "dle.archive.tendermint.v1",
+  l1ChainId, archiveGroupId,
   membershipEpoch, membershipRoot,
-  justifyQC          // highest PrepareQC or CommitQC justifying this round
+  chainNftId, tipHeight, attemptNonce
 }
 
-Prepare vote  → aggregate ≥ QA prepare votes → PreparedQC
-Commit vote   → aggregate ≥ QA commit votes  → CommitQC = AC
+ArchiveValue = {
+  decision: ACCEPT,
+  candidateId, validatorProducedBlockHash,
+  parentBlockHash, parentStateRoot,
+  selectionLogRef, validatorBundleHash,
+  tipStateRoot, daRoot,
+  erasureCodingVersion, chunkCount,
+  recoveryThreshold, chunkAssignmentRoot
+}
+
+valueHash =
+  H("CoNET-DLE-ArchiveValue-v1" ||
+    canonicalEncode(ArchiveConsensusDomain, ArchiveValue))
 ```
 
+The `decision` field is deliberately inside `valueHash`; the same validator block cannot be signed as both accept and reject in independent domains. In v1, `decision=REJECT` is forbidden in `ArchiveValue` and uses `CandidateRejectCertificate`. If a later version makes reject a ledger value, it MUST use this same conflict domain and consume the same tip height.
+
+**Round proposal (a reference, not a block):**
+
 ```text
-AC = CommitQC = {
-  chainNftId, height, blockHash, decision,
-  selectionLogRef, daRoot, round, archiveShardId,
+ArchiveRoundProposal = {
+  chainNftId, tipHeight, round,
+  candidateId, valueHash,
+  validRound, validPrevoteQCRef,
+  coordinator, archiveGroupId,
   membershipEpoch, membershipRoot,
-  prepareQCRef,          // hash or embedded PreparedQC
-  tipStateRoot,          // tip account / balance commitment after this height
-  // Verifiable DA binding (normative — not a verbal promise):
-  erasureCodingVersion,  // e.g. "dle.rs.v1"
-  chunkCount,            // n
-  recoveryThreshold,     // k
-  chunkAssignmentRoot    // Merkle root: member → chunk indices for this height
-} + ≥ QA distinct archive EIP-712 commit signatures
+  roundChangeCertificateRef?
+}
 ```
 
-A commit vote / AC asserts: (1) the committee deposited a valid **\(Q_V=5/7\)** attestation set (for accept); (2) the signing archive **independently replayed** the class-fixed FSM transition for this tip (**Mode A**, §6.3)—**not** signature-only trust of the committee; (3) quality invariants hold (§4.6–§4.10, §6.3); (4) the signer **holds** the required erasure shares under the DA rules below (pre-sign download)—**signing alone is not DA**; (5) the vote obeyed **lock / justify** rules below.
+The coordinator selects only among validator-produced candidates already in ArchiveIngressPool. It may not create, mutate, reorder, or add an event block. Any node may relay the coordinator’s signed proposal bytes; only the deterministic coordinator for `(chainNftId, tipHeight, round)` may originate them.
 
-**Lock / justify (minimum product rules):**
+**Persistent safety state (per chain tip height):**
 
 ```text
-lockedQC := highest QC the node has locked on (PreparedQC lock / CommitQC per HotStuff)
-
-node may prepare-vote for proposal B  iff
-  B extends lockedQC  OR  proposal.justifyQC.round > lockedQC.round
-
-node must not prepare-vote two different blockHashes at the same (height, round)
-node must not commit-vote two conflicting payloads at the same (height, round)
+currentRound
+lockedValueHash, lockedRound
+validValueHash, validRound
+signedPrevote[round], signedPrecommit[round]
 ```
 
-- **New round:** advance only with a **TimeoutQC (TC)** (≥ \(Q_A\) nil / timeout votes after \(T_{\mathrm{archiveRound}}\)) or a higher `justifyQC`. The new coordinator **must** carry the shard’s highest known PrepareQC / CommitQC as `justifyQC`.
-- **Unlock:** only when `justifyQC.round > lockedQC.round`—never because “another proposal appeared.”
-- **Canonical tip at a height:** the **highest-round AC (CommitQC)** that satisfies lock and parent-justify rules. **Not** “whoever aggregated \(Q_A\) first in wall-clock gossip.”
-- **L1 escape:** \(T_{\mathrm{archiveRound}}\) / TC is **normal** round progress. Persistent absence of any AC for a live tip still uses bonded **`ArchiveCensorshipChallenge`** after \(T_{\mathrm{archive}}\) (below)—round timeout ≠ immediate L1 challenge.
+Before transmitting a vote, the archive MUST atomically persist its exact EIP-712 vote bytes. A restart reloads this state; deleting local vote state does not legalize a second vote. A node MUST NOT prevote or precommit two different values at the same `(domain, tipHeight, round, step)`.
 
-**No sticky leader.** Each selection-log / epoch round deterministically orders archive NFT ids and picks a **coordinator** that may assemble roulette evidence and propose. Local PoH ticks may label proposals; **coordinator eligibility and canonical round identity** come from attested selection-log / QC fields—not from any single node’s PoH chain. The coordinator has **no** unilateral veto or finality power. Any member may broadcast a proposal that carries a valid `justifyQC`; acceptance is by the QC rules above—not by a race to aggregate raw signatures.
+**Prevote / Precommit rules (normative):**
 
-**Conflicting tips / dual certificates.** Under the honest-\(f\) assumption + lock rules, there is **at most one** valid AC per `(chainNftId, height)`. If two conflicting ACs both appear to satisfy the rules (equivocation / honest bug):
+```text
+onProposal(P):
+  verify coordinator, membership, candidate, valueHash,
+         validator QV bundle, Mode-A replay, DA, validRound proof
 
-1. Double-signing (conflicting prepare or commit at the same height/round role) archive members are **slashed** and removed via membership update.
-2. Residual fork choice is resolved on **CoNET L1** via a dispute / checkpoint contract: exactly one surviving tip; tips **without** an AC **never** count toward spendable balances.
+  if P invalid or candidate unavailable:
+      persist-and-broadcast Prevote(nil, P.round)
+  else if lockedValueHash == nil or lockedValueHash == P.valueHash:
+      persist-and-broadcast Prevote(P.valueHash, P.round)
+  else if P.validRound > lockedRound
+          and valid PrevoteQC(P.valueHash, P.validRound):
+      persist-and-broadcast Prevote(P.valueHash, P.round)
+  else:
+      persist-and-broadcast Prevote(lockedValueHash, P.round)
 
-**Network partition (safety over liveness).** Only a connected component that can form **PrepareQC and CommitQC** (≥ \(Q_A\) each) may finalize. A minority partition **cannot** finalize. If both sides have **< \(Q_A\)**, the tip **stalls** (liveness pause)—it does **not** fork into two finals. Clients ignore single-node RPC claims without a verifiable AC.
+onPrevoteQC(QC, round):
+  if QC.valueHash != nil:
+      validValueHash, validRound = QC.valueHash, round
+      lockedValueHash, lockedRound = QC.valueHash, round
+      persist-and-broadcast
+        Precommit(QC.valueHash, round, prevoteQCRef=H(QC))
+  else:
+      lockedValueHash, lockedRound = nil, -1
+      persist-and-broadcast Precommit(nil, round, prevoteQCRef=H(QC))
 
-**Reject / rollback.** Dissolving a deposited tip and forcing reselection requires a **RejectCommitQC** (same two-phase protocol with `decision=reject`)—so one archive cannot censor by unilateral “reject.”
+onPrevoteTimeout(round):
+  if no QA PrevoteQC:
+      persist-and-broadcast Precommit(nil, round, prevoteQCRef=nil)
+
+onPrecommitQC(QC, round):
+  if QC.valueHash != nil:
+      finalize ArchiveCertificate(QC.valueHash, round)
+  else:
+      enter round + 1
+```
+
+Every non-nil Precommit vote signs the exact `prevoteQCRef`; a PrecommitQC is invalid unless all included votes bind the same valid PrevoteQC, domain, round, height, membership root, and value hash.
+
+**Archive Certificate:**
+
+```text
+ArchiveCertificate = {
+  domain, value, valueHash,
+  round, prevoteQC, precommitQC
+}
+```
+
+An AC is valid only when both QCs contain ≥\(Q_A\) distinct current members and bind the same non-nil `valueHash`. It asserts: a valid \(Q_V=5/7\) validator DepositBundle exists; every archive signer independently replayed the fixed FSM; quality invariants hold; precommit signers hold the required reconstructible DA set; and all vote/lock rules were obeyed.
+
+**Round change / TimeoutQC (TC).** Timeout messages are Tendermint pacemaker evidence, not an unlock shortcut:
+
+```text
+TimeoutVote = Sign(
+  domain, tipHeight, round, step,
+  lockedRound, lockedValueHash,
+  validRound, validValueHash,
+  highestPrevoteQCRef
+)
+
+TC(round, step) = QA distinct TimeoutVotes for the same round/step
+```
+
+The next coordinator MUST propose `validValueHash` from the highest valid non-nil `validRound` reported with a verifiable PrevoteQC; ties must name the same value or constitute slashable evidence. A TC alone never unlocks a value. Nodes advance only after a valid QC/TC or the Tendermint step timeout with the required vote evidence; timers grow after GST. \(T_{\mathrm{archiveRound}}\) / TC is ordinary round progress, while persistent no-AC progress uses `ArchiveCensorshipChallenge`.
+
+**No block-producing archive leader.** The rotating archive **coordinator** is only a candidate-reference and certificate assembler. It has no block-production, candidate-mutation, unilateral veto, or finality power. If it is silent, the group advances round; archives never manufacture an empty event or anchor block.
+
+**Candidate rejection / quality veto.**
+
+```text
+CandidateRejectCertificate = {
+  chainNftId, tipHeight,
+  candidateId, attemptNonce,
+  reasonCode, evidenceHash,
+  archiveGroupId,
+  membershipEpoch, membershipRoot
+} + ≥ QA distinct archive EIP-712 signatures
+```
+
+Each archive may independently fail quality checks, refuse to vote for the candidate, and publish evidence. Only a \(Q_A\) CandidateRejectCertificate removes that candidate / committee attempt and permits reselection. It does not advance tip height, is not an AC, cannot reverse a finalized AC, and cannot remove the QUEUED request itself. This is the group’s collective veto; **no single archive has veto power**.
+
+**Conflicting finals.** Under the ≤\(f\) assumption and lock rules there is at most one valid AC per `(chainNftId, tipHeight)`. Two apparently valid conflicting ACs are a **safety violation**, not a “pick the higher round” fork-choice: freeze the tip, slash provable double-prevote / double-precommit signers, and resolve via the L1 dispute/checkpoint path.
+
+**Network partition (safety over liveness).** Only a component able to form both QCs (≥\(Q_A\) each) may finalize. A minority cannot finalize; if no component reaches \(Q_A\), the tip stalls rather than forks. Clients ignore single-node RPC claims without a verifiable AC.
 
 **Archive censorship (L1 escape hatch — no AC progress).** After timeout \(T_{\mathrm{archive}}\) with no new AC for a live chain (despite round TCs), the chain owner (or a challenger holding the latest **\(Q_V\)-valid** validator attestation plus witness evidence) may post a bonded **`ArchiveCensorshipChallenge`** on CoNET L1 with reason `NO_PROGRESS`. On success: suspend that shard’s custody, allow **deterministic re-home**, and/or escalate to **`forceWithdraw`** (§ below). Malicious challenges lose the bond. **Round TC ≠ censorship challenge.**
 
@@ -754,12 +985,12 @@ node must not commit-vote two conflicting payloads at the same (height, round)
 | Parameter | v1 freeze |
 | --- | --- |
 | **Encoding** | Systematic Reed–Solomon (or equivalent MDS code) over fixed chunk size; version tag `erasureCodingVersion` (initial: `dle.rs.v1`) |
-| **\((n,k)\)** | **\((n,k)=(5,3)\)** for five-member groups: encode each block body into **5** chunks; **any 3** reconstruct. `chunkCount=5`, `recoveryThreshold=3`. (\(k=3\le N_A-f=4\) when \(N_A=5\).) **Rejected for v1 groups of 5:** \((10,6)\) (\(k=6>4\)). |
+| **\((n,k)\)** | **\((n,k)=(7,4)\)**: encode each block body into **7** chunks; **any 4** reconstruct. `chunkCount=7`, `recoveryThreshold=4`. Here \(k=4\le N_A-f=5\), so an honest \(f=2\)-bound shard remains recoverable. |
 | **Relation to \(Q_A\)** | Placement **MUST** keep \(k \le N_A - f\) under the current `membershipRoot` so that an honest \(f\)-bound shard can still recover. If \(N_A\) shrinks below this, stop new ACs until membership / coding epoch upgrades |
 | **`daRoot`** | Merkle / hash commitment to the ordered chunk set (or coded blob) for `(chainNftId, height)` |
 | **`chunkAssignmentRoot`** | Commitment to deterministic map `archiveMember → chunkIndices[]` for this height (publicly recomputeable from `membershipRoot` + height + `daRoot`) |
 | **Witnesses** | Keep **full** tip bodies (not only shares) for chains they serve |
-| **Pre-sign download** | Before casting a **commit** vote, each signing archive **MUST** have downloaded and locally verified **≥ \(k\)** distinct chunks covering a reconstructible set for that `daRoot` (implementation MAY require the member’s **assigned** chunks plus enough peers to reach \(k\)). Commit without holding shares is **slashable equivocation / DA fraud** |
+| **Pre-sign download** | Before casting a **precommit** vote, each signing archive **MUST** have downloaded and locally verified **≥ \(k\)** distinct chunks covering a reconstructible set for that `daRoot` (implementation MAY require the member’s **assigned** chunks plus enough peers to reach \(k\)). Precommit without holding shares is **slashable DA fraud** |
 
 **UnavailableChallenge (has AC, missing data):**
 
@@ -801,16 +1032,16 @@ forceWithdraw(
 
 #### 5.2.2 Epoch fission migration & MigrationCertificate
 
-When \(N_{\mathrm{active}}-5S_e\ge 5\), \(S_e \rightarrow S_{e+1}=S_e+1\): a new group with the next unused, greater `groupId` is formed from **three qualifying incumbents of one source group plus two newly activated archives**. It is never an all-newcomer group. **Existing tips stay on their L1 `archiveGroupId`.** There is **no** mass remap of all chain NFTs (unlike the rejected \(2\to 4\to 8\) hash rewrite).
+When \(U_e\ge9\), one new group is formed from **seven eligible active members plus two dedicated standbys** selected from `UnassignedPool`. All nine are mutually distinct, should not share operator-failure domains, and do not remain assigned to any old active group. Existing groups retain their assignments and only witness formation / serve historical data. The new group receives the next unused `groupId`; \(G_{e+1}=G_e+1\), \(U_{e+1}=U_e-9\). **Existing tips stay on their L1 `archiveGroupId`;** there is no mass remap.
 
-**Silent remapping is still forbidden** when a group **dissolves** or tips **must** move (slash below floor, censorship challenge, merge). Those edges produce a **MigrationCertificate (MC)** co-signed by the **old** and **new** groups, then L1 `setArchiveGroup` (same five-sig / last-signer rule as §5.2.0c) updates the 1155 pointer.
+**Silent remapping is still forbidden** when a group dissolves or tips must move (slash below floor, censorship challenge, merge). Those edges produce a **MigrationCertificate (MC)** co-signed by the old and new groups, then any relayer submits the valid dual-\(Q_A\) certificate to L1 to update the 1155 pointer.
 
 **MigrationCertificate (product freeze sketch):**
 
 ```text
 MC = {
   e, e+1,
-  S_e, S_{e+1},
+  G_e, G_{e+1},
   R_e, R_{e+1},
   fromGroupId, toGroupId,
   fromGroupKeyHash, toGroupKeyHash,
@@ -819,18 +1050,18 @@ MC = {
   fromMembershipRoot, toMembershipRoot,
   fromMembershipEpoch, toMembershipEpoch,
   migrateDeadline
-} + ≥ Q_A CommitQC-style signatures from fromGroup
-  + ≥ Q_A CommitQC-style signatures from toGroup
+} + ≥ Q_A EIP-712 migration signatures from fromGroup
+  + ≥ Q_A EIP-712 migration signatures from toGroup
 ```
 
 | Phase | Rule |
 | --- | --- |
-| **Grow (\(S\to S+1\))** | When \(N_{\mathrm{active}}-5S\ge5\), select one source group and form the next monotonic `groupId` from **3 qualifying incumbents + 2 newly activated archives**. Publish `MembershipFormationCertificate`, `groupKeyHash`, and `membershipRoot`. **No** tip MC required. The new group has no write/finality authority over pre-fission history; NewChainQueue roulette includes it only for new chains. |
+| **Grow (\(G\to G+1\))** | When \(U_e\ge9\), select seven active members and two dedicated standbys from `UnassignedPool`; old groups keep their assignments and only witness formation. Publish `MembershipFormationCertificate`, operator-domain commitments, `groupKeyHash`, `membershipRoot`, and `standbyRoot`. **No** tip MC required. The new group has no write/finality authority over pre-formation history; roulette includes it only after all nine complete cooldown, history sync, and readiness proof. |
 | **Announce (move/dissolve)** | Governance / automated threshold emits move intent: `fromGroupId` → `toGroupId`, window \([t_0,t_1]\). Clients read **L1 1155** after bind—not a local hash. |
-| **Freeze / drain** | Tips scheduled to leave: reject **new** block deposits that would race the handoff (or allow only “migrate-safe” closes). In-flight **archive** rounds must reach AC, **TimeoutQC-abort**, or **RejectCommitQC** under the **old** group before handoff. Incomplete **trade** tips stay until Settled/Cancelled/Expired under §4.7; L1 `settleTrade` remains L1-authoritative. |
+| **Freeze / drain** | Tips scheduled to leave: reject new block deposits that would race the handoff (or allow only “migrate-safe” closes). In-flight archive rounds must reach AC, a TC-backed round abort, or `CandidateRejectCertificate` under the old group before handoff. Incomplete trade tips stay until Settled/Cancelled/Expired under §4.7; L1 `settleTrade` remains L1-authoritative. |
 | **Dual-serve window** | Until MC + L1 bind finalize, **old group** remains authoritative for pre-migration heights; **new group** may warm-copy history. Clients **SHOULD** query both; conflict → prefer old-group AC until L1 `archiveGroupId` updates. |
 | **Data duty** | Old group **must** provide tip bodies / DA shares referenced by `historyCommit`. Withholding → **`ArchiveCensorshipChallenge`** / slash (§5.2.1). |
-| **MC + L1 finalize** | Both groups form CommitQC-equivalent quorums on the same MC payload; then **five-sig** `setArchiveGroup` (last signer executes). Old group stops issuing new ACs for migrated tips. |
+| **MC + L1 finalize** | Both groups form \(Q_A\) EIP-712 quorums on the same MC payload; **any relayer** submits it. The L1 transition is nonce-bound and idempotent. Old group stops issuing new ACs only after L1 finalization. |
 | **Post-migrate** | New group alone draws validators and issues ACs. Tip `archiveShardId` in subsequent ACs **must** match L1 `archiveGroupId`. |
 
 **Invariants:**
@@ -854,7 +1085,7 @@ MC = {
 - Advertise readiness by posting a **wait-to-mine hook** into each group’s **on-demand miner waiting queue** hosted / ordered by that group (§8).
 - **Parallel hooks (product freeze):** a miner **MAY** post hooks to **every live group at once**, bounded only by its own capacity.
 - **One in-flight hook per group:** for each pair \((\mathrm{miner},\,\mathrm{groupId})\) there is **at most one** outstanding wait hook. The miner **MUST NOT** stack multiple slots in the same group’s queue.
-- After that group **draws** the miner **and verification of that task completes** (CommitQC / RejectCommitQC / dissolve+cooldown per §6.5), the miner **MAY** post the **next** wait hook to **that** group. Until then, a second hook to the same group is **rejected**.
+- After that group draws the miner and verification of that task completes (AC / CandidateRejectCertificate / dissolve+cooldown per §6.5), the miner may post the next wait hook to that group. Until then, a second hook to the same group is rejected.
 - May be drawn for a **single block** as one of **\(N_V=7\)** committee members (or **\(S_{\mathrm{sb}}=2\)** standbys), then leave.
 - Enable on-demand decentralization without storage monopolies.
 
@@ -871,9 +1102,9 @@ MC = {
 ### 6.1 Per-chain consensus rule
 
 - For each **event-driven** block: the maintenance committee draws **\(N_V=7\)** validators plus **\(S_{\mathrm{sb}}=2\)** standbys, by the hosting **archive shard**, from the **on-demand miner waiting queue** (§6.5).
-- Tip **proposal** acceptance requires **≥ \(Q_V=5\)** accept signatures out of those **7** (**\(Q_V=5/7\)**). Tip **finality** requires a valid **CommitQC (= AC)** on the hosting shard (§5.2.1)—not a single archive node’s accept/reject, and not a lock-free one-shot signature race.
+- Tip proposal acceptance requires ≥\(Q_V=5\) accept signatures out of seven. Tip finality requires a valid **PrevoteQC → PrecommitQC (= AC)** on the hosting shard (§5.2.1)—not a single archive node’s accept/reject and not archive block production.
 - **Rejected product rule:** \(Q_V=5/5\) (unanimous five). It maximizes safety against a single honest veto of an illegal block, but **any** offline / timeout / attack / malicious refuse stalls the round; griefers can re-enter the waiting pool and refuse forever unless §6.5 bounds apply.
-- If proposal quorum or archive quorum check fails (timeout, refuse-to-sign, conflicting signatures, RejectCommitQC): apply **standby promotion → dissolve → cooldown → reselect** under §6.5, then archive reject/rollback under §9 when applicable.
+- If proposal quorum or archive quorum check fails (timeout, refuse-to-sign, conflicting signatures, CandidateRejectCertificate): apply **standby promotion → dissolve → cooldown → reselect** under §6.5, then archive rejection / rollback under §9 when applicable.
 
 ### 6.2 Genesis block flow
 
@@ -883,18 +1114,18 @@ MC = {
 4. **Storage-class creator content (optional):** owner may attach `contentIndexHash`, authorized miner PGP key hashes, and **access price in conet-GB** (§4.8).
 5. **Storage-class fork (optional):** if minting a branch, bind `parentNftId` / `rootNftId` / `lineageHash` for the Copyright ZERO version tree (§4.9).
 6. User submits a **new ledger request** (referencing the NFT id + class + deposit / subject proof) to **NewChainQueue** (sorted; §5.2.0).
-7. Load-aware **roulette** assigns a live **five-member group** (\(N_A=5\)).
+7. Load-aware **roulette** assigns a fully serviceable **7-active + 2-standby group** (\(N_A=7,S_A=2\)).
 8. Roulette selects an **issuer** among staking miners; issuer assembles genesis from the **class-fixed event schema** (global definitions for this chain, including fee hooks per class—**USDC 0.01%** for asset/trade, **conet-GB** for storage—§13)—**no tip VM**.
 9. Assigned **archive group** draws **\(N_V=7\)** on-demand validators + **\(S_{\mathrm{sb}}=2\)** standbys from **that group’s** waiting queue; optional issuer assembles genesis.
 10. The committee votes; on **≥ \(Q_V=5\)** accept signatures, submit genesis attestations.
-11. Archive group **verifies** and, if qualified, forms **CommitQC (= AC)** and **archives** finalized genesis (§5.2.1).
-12. The five members sign a **PlacementCertificate**; the **last signer executes** L1 `setArchiveGroup` writing `archiveGroupId` on the chain’s ERC-1155 (§5.2.0c).
+11. Archive group independently replays the validator-produced genesis and, if qualified, forms **PrevoteQC → PrecommitQC (= AC)** without producing another block (§5.2.1).
+12. At least \(Q_A=5/7\) active members sign the nonce-bound **PlacementCertificate**; **any relayer** finalizes the current L1 reservation and writes `archiveGroupId` (§5.2.0c).
 
 ### 6.3 New block flow (canonical)
 
-**Archive verification mode (product freeze — Mode A).** Every archive member that signs Prepare/Commit for an AC **MUST independently replay** the class-fixed FSM state transition for that tip (same typed events + parent state as the validators). Archives **MUST NOT** issue CommitQC by verifying the **\(Q_V=5/7\)** signature set alone. **Mode B** (archive trust of committee + fraud proofs / sampling / challenge windows) is **out of v1**—it would require a separate challenge ABI, transition witnesses, and committee-fault slash paths (§15).
+**Archive verification mode (product freeze — Mode A).** Every archive member that signs Prevote/Precommit for an AC **MUST independently replay** the class-fixed FSM state transition for that tip (same typed events + parent state as the validators). Archives **MUST NOT** issue PrecommitQC by verifying the \(Q_V=5/7\) signature set alone and **MUST NOT** produce a replacement / anchor block. Mode B (archive trust of committee + fraud proofs / sampling / challenge windows) is out of v1.
 
-**Validator committee role under Mode A.** The \(N_V=7\) / \(Q_V=5\) committee is a **pre-execution / witness layer**, not the safety root: it runs the fixed FSM in parallel, checks events, deposits an independent attestation set, and raises the cost of attacking archives with a forged deposit. Because archives **fully re-execute**, the committee does **not** remove archive correctness work—it buys latency overlap, independent slashable evidence, and a first filter before HotStuff rounds. Clients **must not** treat a \(Q_V\) deposit as tip finality.
+**Validator committee role under Mode A.** The \(N_V=7\) / \(Q_V=5\) committee is the **sole block-production layer** and a pre-execution / witness layer, but not the finality root. It builds the candidate from typed events, runs the fixed FSM, and deposits an independently slashable attestation set. Archives fully re-execute and then vote; clients must not treat a \(Q_V\) deposit as tip finality.
 
 **Shard-local pipeline pools (product freeze).** Hosting-shard state for each tip height uses four named queues (names are normative; storage layout is engineering):
 
@@ -903,15 +1134,15 @@ MC = {
 | **RequestPool** | User / owner state-change requests for `chainNftId` (**no event ⇒ no block**). |
 | **SelectionLog** | \(Q_A\)-attested waiting-pool snapshot + roulette result: `committee[7]` + `standby[2]` under public \(R_e\) (§7.8). The rotating **ArchiveCoordinator** assembles evidence; it **cannot** privately edit the seat list. |
 | **ArchiveIngressPool** | Validator **DepositBundle** (typed events, parent tip identity, `selectionLogRef`, ≥ \(Q_V\) votes, `daRoot`) awaiting archive Mode A replay. Proposal layer only—**not** final. |
-| **ArbitrationPool** | Deposits that fail Mode A replay or miss \(Q_V\) after standbys; maps to §6.5 dissolve → cooldown → reselect (\(R < R_{\max}\)). Not a second finality track. After \(R_{\max}\): **RejectCommitQC** / stalled / optional L1 escape. |
+| **ArbitrationPool** | Deposits that fail Mode A replay or miss \(Q_V\) after standbys; maps to §6.5 dissolve → cooldown → reselect (\(R < R_{\max}\)). Not a second finality track. After \(R_{\max}\): **CandidateRejectCertificate** / stalled / optional L1 escape. |
 
 ```text
 user → RequestPool
   → ArchiveCoordinator (rotating) + SelectionLog roulette
   → validators execute FSM → DepositBundle → ArchiveIngressPool
   → every active archive: Mode A FSM replay
-       ├─ pass → PrepareQC → CommitQC (= AC) → archive store
-       └─ fail → ArbitrationPool → reselect (R < R_max) or RejectCommitQC
+       ├─ pass → PrevoteQC → PrecommitQC (= AC) → archive store
+       └─ fail → ArbitrationPool → reselect (R < R_max) or CandidateRejectCertificate
 ```
 
 1. A **new event** enters the hosting shard **RequestPool**. **If there is no event, no block is produced.**
@@ -928,8 +1159,8 @@ user → RequestPool
    - **Storage-class write / retention / access purchase / social:** **content-based** fees in **conet-GB** (not the USDC 0.01% rail); unpaid retention → refuse new blocks; access price paid to owner (delivery miners may take a configured share).
    - **Trade-class listing / settle:** listing / settle hooks charge **USDC** on the quote / settle notional under the same **0.01% → 50/50 archive/validators** split where applicable; unpaid listing fees may halt further trade events.
 11. The committee **votes**; on **≥ \(Q_V=5\)** accept signatures within \(T_{\mathrm{vote}}\), it **submits** a **DepositBundle** into the **ArchiveIngressPool** (**proposal / witness layer only**—not final).
-12. **Every active archive (Mode A)** independently **replays** the fixed FSM transition and checks the vote set (≥ \(Q_V\)), block quality, `daRoot`, (asset-class) **≤ 100 USDC** post-revaluation invariant, (trade-class) **SettleReady** / close rules and **L1 `settleTrade` linkage** (no tip-only Settled), and (storage-class) purchase / delivery / social-signer / lineage / **sales↔asset-tx link** invariants (§4.8–§4.10). **Forbidden:** CommitQC from committee signatures alone without replay.
-13. If **qualified**, archive members run **PrepareQC → CommitQC**; on a valid **AC (= CommitQC)** → **archive** (finalize and store). If **not** qualified → place the deposit in the **ArbitrationPool** and apply §6.5 dissolve / cooldown / reselect (\(R < R_{\max}\)); on exhaustion → **RejectCommitQC** / stalled / optional L1 escape (§5.2.1, §6.5, §9).
+12. **Every active archive (Mode A)** independently replays the validator-produced candidate and checks the vote set, block quality, DA, and class invariants. **Forbidden:** PrecommitQC from committee signatures alone without replay; any archive-produced substitute block.
+13. If qualified, archive members run **PrevoteQC → PrecommitQC**; a valid **AC (= PrecommitQC)** finalizes and stores the validator-produced block. If not qualified, place it in ArbitrationPool and apply reselection; on exhaustion use CandidateRejectCertificate / stalled / L1 escape.
 
 ### 6.4 Timeout and succession
 
@@ -938,14 +1169,14 @@ user → RequestPool
 | **Committee member timeout / silence** | Count as **non-vote** after \(T_{\mathrm{vote}}\); if still **≥ \(Q_V\)** accepts → continue; else **promote standbys**, then dissolve / reselect. |
 | **Unjustified refuse-to-sign** (online but no ballot) | **Slash** that identity’s bonded stake; apply **cooldown**; promote standbys or reselect. |
 | **Network fault** (no listen heartbeat / unreachable) | **Exclude without slash** (or light availability penalty only); may still reselect if \(Q_V\) missed. |
-| **Archive incomplete / failed quality check** | Form **RejectCommitQC**; run rollback (§9); prior committee under **cooldown**. |
+| **Archive incomplete / failed quality check** | Form **CandidateRejectCertificate**; run rollback (§9); prior validator committee enters cooldown. |
 | **Archive shard partition / < \(Q_A\)** | Tip **stalls**; no conflicting finality (§5.2.1). |
 | **Archive censorship past \(T_{\mathrm{archive}}\)** | Bonded L1 **`ArchiveCensorshipChallenge`** → re-home / L1 arbitration (§5.2.1). |
 | **Reselect griefing past \(R_{\max}\)** | Stop validator redraws for that height; escalate to archive reject / L1 challenge path (§6.5). |
 
 ### 6.5 Validator-committee quorum & liveness (product freeze)
 
-**Problem with \(Q_V=5/5\):** requiring all five signatures means one offline, timed-out, attacked, or malicious refuse blocks the tip. “Dissolve and reselect” alone is **not** enough—an attacker can rejoin the waiting pool and refuse forever. v1 therefore freezes a **\(7\)-draw / \(5\)-of-\(7\)** proposal layer, then archive confirmation via **PrepareQC → CommitQC (= AC)** (§5.2.1).
+**Problem with \(Q_V=5/5\):** requiring all five signatures means one offline, timed-out, attacked, or malicious refuse blocks the tip. v1 therefore freezes a **7-draw / 5-of-7 block-production layer**, then non-block-producing archive confirmation via **PrevoteQC → PrecommitQC (= AC)** (§5.2.1).
 
 | Symbol | v1 freeze | Meaning |
 | --- | --- | --- |
@@ -980,10 +1211,10 @@ Archive members must record `selectionLogRef`, ballot bitmaps, and listen-heartb
 **Anti-griefing bounds.**
 
 - An identity that was drawn (committee or standby) in a dissolved round for `(chain, height)` **cannot** be redrawn for that same height and must wait \(C_{\mathrm{cool}}\) before serving **any** new tip on that chain.
-- After **\(R_{\max}=3\)** consecutive reselections without a \(Q_V\) deposit, the hosting shard **must not** continue roulette for that height: form a **RejectCommitQC** (if a deposit was attempted) or mark the event **stalled**, and allow owner / challenger **L1** escalation (same family as `ArchiveCensorshipChallenge`, with evidence of \(R_{\max}\) exhausted).
+- After **\(R_{\max}=3\)** consecutive reselections without a \(Q_V\) deposit, the hosting shard **must not** continue roulette for that height: form a **CandidateRejectCertificate** (if a deposit was attempted) or mark the event **stalled**, and allow owner / challenger **L1** escalation (same family as `ArchiveCensorshipChallenge`, with evidence of \(R_{\max}\) exhausted).
 - Waiting-pool **re-entry** after unjustified refuse requires serving the slash + cooldown; spam join without stake is rejected at queue admission (§8).
 
-**Security note.** \(Q_V=5/7\) is **weaker than unanimous 5/5** against “one honest veto of an illegal proposal,” but **stronger for liveness**. Under **Mode A** (§6.3), the committee is a **pre-execution / witness** filter: a malicious \(5/7\) deposit **cannot** finalize an illegal tip unless ≥ \(Q_A\) archives also fail (or skip) independent FSM replay. Safety of **finalized** tips still rests on **archive CommitQC / AC** Mode A checks and lock rules (§5.2.1)—validators alone never finalize.
+**Security note.** \(Q_V=5/7\) is weaker than unanimous 5/5 against “one honest veto of an illegal proposal,” but stronger for liveness. Under Mode A, a malicious \(5/7\) validator-produced candidate cannot finalize unless ≥\(Q_A\) archives also fail or skip independent replay. Finalized-tip safety rests on archive Prevote/Precommit locks and AC verification; validators alone never finalize, while archives never produce a substitute block.
 
 ---
 
@@ -998,7 +1229,7 @@ This chapter specifies the cryptographic plane of CoNET-DLE **as an L2 loaded on
 | Curious entry / mailbox hop | Sees ciphertext, timing, recipient **PGP key id** | Cannot read L2 business plaintext |
 | Network observer on one hop | Sees IP of that hop’s TCP peer | Cannot map that IP to the **logical** sender/receiver wallet across A≠B / C≠B paths |
 | Colluding minority of a maintenance group | Holds some secp256k1 keys | Cannot forge a **\(Q_V=5/7\)** deposit without enough keys |
-| Colluding ≤ \(f\) archives in a shard | Holds ≤ \(f\) archive keys | Cannot forge CommitQC / AC (need \(Q_A\)) (§5.2.1) |
+| Colluding ≤ \(f\) archives in a shard | Holds ≤ \(f\) archive keys | Cannot forge PrecommitQC / AC (need \(Q_A\)) (§5.2.1) |
 | Adaptive stake attacker | Buys stake, joins waiting pool | Cannot bias production \(R_e\) by omitting archive VRF (seed is L1 beacon randomness + frozen `poolRoot_e`); MVP commit–reveal admits last-revealer abort bias (§7.8) |
 | Offline storage attacker | Steals disk of one validator | Limited by per-task keys + no full-history requirement for validators |
 
@@ -1010,7 +1241,7 @@ This chapter specifies the cryptographic plane of CoNET-DLE **as an L2 loaded on
 | --- | --- | --- | --- |
 | Wallet identity | **secp256k1** ECDSA | Bitcoin / Ethereum | Node & user EOA |
 | Auth signatures | **EIP-191** `personal_sign` | Ethereum wallets | Gossip commands, listen, task ACKs |
-| Structured domain sigs (**required** for AC / settle) | **EIP-712** | Ethereum dApps | Archive CommitQC / AC, SettleReady settle payload, MembershipCheckpoint; gossip may remain EIP-191 |
+| Structured domain sigs (**required** for AC / settle) | **EIP-712** | Ethereum dApps | Archive Prevote / Precommit / AC, SettleReady settle payload, MembershipCheckpoint; gossip may remain EIP-191 |
 | Directory | **AddressPGP** on-chain registry | CoNET production | Map EOA → user PGP + route key |
 | Asymmetric message crypto | **OpenPGP** (RFC 4880 / **RFC 9580**) with **X25519** (+ Ed25519 where used) | OpenPGP ecosystem | Encrypt L2 envelopes to recipient |
 | Symmetric AEAD | **AES-256-GCM** (NIST SP 800-38D) | TLS, age, modern apps | Optional bulk payload / session wrap |
@@ -1118,7 +1349,7 @@ Collect ECDSA signatures from the **validator committee** (and optional issuer /
 2. Accept count ≥ \(Q_V=5\) of \(N_V=7\) (standbys per §6.5).
 3. `blockHash` matches recomputed digest from deposited body (or DA proof).
 
-**Archive prepare / commit (finality layer):** votes that form PreparedQC / CommitQC (= AC) **MUST** be **EIP-712** over the AC typed fields in §5.2.1 (including DA binding + `membershipRoot`). L1 `settleTrade` / MembershipCheckpoint **reject** EIP-191-only ACs.
+**Archive prevote / precommit (finality layer):** votes that form PrevoteQC / PrecommitQC (= AC) **MUST** be **EIP-712** over the typed domain and `valueHash` in §5.2.1 (including DA binding + `membershipRoot`). L1 `settleTrade` / MembershipCheckpoint **reject** EIP-191-only ACs.
 
 **No custom BLS threshold crypto in baseline**—threshold BLS is mature in some stacks but adds operational complexity; **explicit multi-signature collection** of secp256k1 signatures is enough and already ubiquitous.
 
@@ -1182,7 +1413,7 @@ Slash / fee denial for non-reveal **raises the cost** of abort attacks but **doe
 
 #### 7.8.4 Selection log
 
-Archive shard appends `{ e, L1BeaconFinalizedRandomness, poolRoot_e, R_e, selected[] }` (or MVP `{ e, commits, reveals, R, selected[] }`) to a **selection chain** (hash-linked SHA-256/Keccak). Entries are gossiped as L2 messages and mirrored on archive storage. Tip genesis / block assembly consumes `selected[]` only after a **≥ \(Q_A\)** archive quorum attestation (same \(Q_A\) family as CommitQC / AC — §5.2.1)—**no tip VM**. Clients **SHOULD** recompute \(R_e\) locally when verifying a draw.
+Archive shard appends `{ e, L1BeaconFinalizedRandomness, poolRoot_e, R_e, selected[] }` (or MVP `{ e, commits, reveals, R, selected[] }`) to a selection chain. Entries are gossiped and mirrored on archive storage. The **validator block-production layer** consumes `selected[]` only after a ≥\(Q_A\) archive quorum attestation over the selection log; this attestation is not a block and not an AC. Clients should recompute \(R_e\).
 
 ### 7.9 Proof of History (local sequencing clock — not shared order)
 
@@ -1208,7 +1439,7 @@ and periodically publish `(t, h_t, eventDigest)` **checkpoints** as evidence of 
 | No event was **censored** | An archive can omit events from its local chain |
 | There are **no two competing orders** | Two archives can publish conflicting PoH-labeled sequences |
 
-Therefore PoH is a **local metronome / anti-rollback clock**, not “the event-order agreement among archive nodes.” **Canonical** waiting-pool order, `poolRoot_e`, selection-log entries, tip height, and archival finality exist only when the relevant object carries an **archive quorum certificate** (**≥ \(Q_A\)**—same family as CommitQC / AC and selection-log attestations) (§5.2.1, §7.8.4, §8.1).
+Therefore PoH is a local metronome / anti-rollback clock, not event-order agreement. Canonical waiting-pool order, `poolRoot_e`, selection-log entries, tip height, and archival finality require the relevant ≥\(Q_A\) archive quorum object; only PrecommitQC over an ArchiveValue is an AC.
 
 **Allowed uses of PoH:**
 
@@ -1270,7 +1501,7 @@ Cryptographic details are normative in **§7.8–§7.9**. This section states op
 - Non-archive **on-demand miners** advertise readiness over **DePIN gossip** (and may keep an archive-facing REST/SSE wait handle) by posting a **wait-to-mine hook** into a group’s **waiting queue**.
 - Each live group has its **own** queue. This queue is the **only** source from which **that** group draws the **\(N_V=7\)** validators + **\(S_{\mathrm{sb}}=2\)** standbys for a chain it hosts when a **new event** arrives.
 - **Parallel hooks:** a miner **MAY** hook **every** live group at once, up to its processing capacity (§5.4).
-- **One in-flight hook per group:** for each \((\mathrm{miner},\,\mathrm{groupId})\) there is **at most one** outstanding wait hook. A second hook to the same group **MUST** be rejected until the miner is **drawn by that group and verification of that task completes** (AC / RejectCommitQC / dissolve+cooldown). Only then **MAY** the miner post the **next** hook to **that** group.
+- **One in-flight hook per group:** for each \((\mathrm{miner},\,\mathrm{groupId})\) there is at most one outstanding wait hook. A second hook to the same group must be rejected until the miner is drawn and that task ends in AC / CandidateRejectCertificate / dissolve+cooldown.
 - **Rejected:** stacking multiple slots in one group’s queue; treating a global single queue as canonical.
 - If a participant already has a live waiting session **on that group**, the group **terminates the previous** session and places the participant **last** in **that** group’s order (anti-hoarding of slots). This does **not** cancel hooks on **other** groups.
 - **Canonical** ordering of awaiting participants **per group** is the order encoded in that group’s **\(Q_A\)-attested** `poolRoot_e` / selection-log entry (§7.8.1, §7.9)—**not** “PoH timestamps agreed across archives.” Nodes may attach local PoH labels to join proposals for anti-rollback evidence.
@@ -1288,7 +1519,7 @@ Cryptographic details are normative in **§7.8–§7.9**. This section states op
    \(R_e = H(\texttt{"dle.roulette.v1"}\,\|\,\mathrm{L1BeaconFinalizedRandomness}_e\,\|\,e\,\|\,\mathrm{shardId}\,\|\,\mathrm{poolRoot}_e)\) (§7.8.1). MVP testnets may temporarily use commit–reveal (§7.8.3) with the last-revealer caveat.
 3. Roulette maps \(R_e\) over \(\mathcal{W}_e\) to **\(N_V=7\) validators + \(S_{\mathrm{sb}}=2\) standbys** for that chain’s **current block** (optional: also a proposer / issuer slot if required by the contract) (§6.5), **rejecting** draws that would violate committee cumulative exposure \(E_C\le E_{\max}\) (§12.3.2). **Any** party with the public inputs can recompute the same set.
 4. After **≥ \(Q_A\)** archive attestation of the draw, selection is recorded on the **selection log**.
-5. The committee votes; on **≥ \(Q_V=5\)** accept signatures within \(T_{\mathrm{vote}}\) (with standby promotion if needed), it **submits**; archive shard **quality-checks** then runs **PrepareQC → CommitQC (= AC)** and **archives** if qualified (§6.3, §5.2.1).
+5. The validator committee produces and votes on the candidate; on ≥\(Q_V=5\) signatures it submits. Archives independently replay, then run PrevoteQC → PrecommitQC (= AC) without producing another block.
 6. Selected miners leave the waiting list for this task; unused standbys that were never promoted return to their prior positions; dissolved identities enter **cooldown** \(C_{\mathrm{cool}}\).
 
 ### 8.4 Tragedy of the commons (PoRep / lazy verification)
@@ -1299,20 +1530,20 @@ See §7.11. Split mining payout between PoS verifiers and PoRep replication node
 
 ## 9. Archive Quality Check and Rollback
 
-Any archive member may **propose** rollback when the **\(Q_V\)** validator deposit or quality checks fail; **execution** requires a **RejectCommitQC** under the same lock/justify rules (§5.2.1)—not a unilateral archive decision.
+Any archive member may report a failed validator deposit or quality check; execution requires a **CandidateRejectCertificate** with ≥\(Q_A\) evidence-bound signatures—not a unilateral archive decision.
 
-1. Form a **RejectCommitQC** for the unqualified tip (or fail to reach accept AC within the round).
+1. Form a **CandidateRejectCertificate** for the unqualified candidate (or fail to reach an AC).
 2. Dissolve the chain’s current maintenance group (apply §6.5 cooldowns / refuse slash).
 3. Reselect a fresh random group if \(R < R_{\max}\) (**prior members under cooldown**).
 4. Regenerate the block under the new group; if \(R_{\max}\) exhausted, escalate (§6.5).
 5. Punish cheating:
 
    - Cheaters may be banned from archive participation; income and stake move to an **income / reward pool**.
-   - Equivocating archive members (conflicting prepare/commit votes or ACs at the same height/round role) are **slashed** and removed from the shard roster.
+   - Equivocating archive members (conflicting prevote/precommit votes or ACs at the same height/round/step) are **slashed** and removed from the shard roster.
    - Unjustified validator refuse-to-sign is slashed per §6.5; network-fault silence is not.
    - Honest reporters may be rewarded per contract rules.
 
-**Finalization:** a deposited block is final **only** when a valid **Archive Certificate (= CommitQC)** from the hosting shard is available under §5.2.1 lock/justify rules. Incomplete PrepareQC/CommitQC → no finality (stall, TimeoutQC→new round, or RejectCommitQC + rollback). Clients and indexers **must not** treat a single archive RPC success as final.
+**Finalization:** a validator-produced deposited block is final only when the hosting shard provides a valid **Archive Certificate (= PrecommitQC)** under §5.2.1. Incomplete PrevoteQC / PrecommitQC means no finality (stall, TC→new round, or CandidateRejectCertificate + rollback). A single archive RPC success is never final.
 
 ---
 
@@ -1434,10 +1665,10 @@ Committee \(Q_V\) attestations **do not** replace this function (§6.3).
 | --- | --- |
 | Proof of Stake participation | Stake to become issuer, witness, validator; **\(N_V=7\)**, **\(Q_V=5/7\)** proposal quorum per block (§6.5). |
 | Many parallel atomic chains | Concurrent tips scale with staking / archive shards; each chain is event-atomic (not “infinite free TPS”). |
-| Archive draws 7 + 2 standbys | RequestPool → SelectionLog roulette → **7**+**2** → DepositBundle → **Mode A** archive FSM replay → **PrepareQC → CommitQC (= AC)** (§6.3, §6.5, §5.2.1). |
-| Mode A archive verification | Every AC-signing archive **replays** the fixed FSM; committee is pre-exec/witness only; Mode B fraud proofs out of v1 (§6.3). |
-| Archive-plane fission (groups of 5) | More archive nodes → \(S_e=\lfloor N_{\mathrm{active}}/5\rfloor\) (10→2, 15→3); new chains via NewChainQueue roulette + L1 `archiveGroupId`; grow does **not** remap existing tips; **MigrationCertificate** for dissolve/re-home (§5.2). |
-| Archive-shard BFT finality | HotStuff-style two-phase QC; \(f=\lfloor(N_A-1)/3\rfloor\), \(Q_A=\lfloor 2N_A/3\rfloor+1\); AC=CommitQC; locks + `membershipRoot`; no “first \(Q_A\) wins”; L1 escape hatch (§5.2.1). |
+| Archive draws 7 + 2 standbys | RequestPool → SelectionLog roulette → **validator-produced** DepositBundle → Mode A archive replay → **PrevoteQC → PrecommitQC (= AC)** (§6.3, §6.5, §5.2.1). |
+| Mode A archive verification | Every AC-signing archive replays the fixed FSM; archives produce no block; Mode B fraud proofs are out of v1 (§6.3). |
+| Archive-plane fission (7 active + 2 standbys) | \(G_e\) live groups + \(U_e\) unassigned eligible archives; form one disjoint serviceable group iff \(U_e\ge9\); old groups retain their assignments; no existing-tip remap; MC only for dissolve/re-home (§5.2). |
+| Archive-shard BFT finality | Tendermint-style PrevoteQC → PrecommitQC; \(f=\lfloor(N_A-1)/3\rfloor\), \(Q_A=\lfloor2N_A/3\rfloor+1\); AC=PrecommitQC; durable locks + `membershipRoot`; no archive block production (§5.2.1). |
 | Trilemma boundary (§3.4) | Does **not** eliminate the trilemma; many isolated, value-bounded tips; aggregate scale with archive shards; security **conditional**. |
 | On-demand role participation | Role-split actors need not sync all data; join/exit consensus as capacity allows. |
 | L1 NFT birth certificate | Unique CoNET L1 NFT before genesis; class = asset **or** storage **or** trade. |
@@ -1456,10 +1687,10 @@ Committee \(Q_V\) attestations **do not** replace this function (§6.3).
 | Better decentralization | Lightweight validators; on-demand participation without full storage. |
 | Concurrent execution | One staker can serve many chains under different role rules. |
 | Aggregate scalability | Dynamic clustering by chain; more participants / shards → more maintainable tips (conditional on DA & honesty). |
-| Safe and reliable | Random distinct miners; \(5/7\) quorum + standbys + \(R_{\max}\) anti-grief; archive CommitQC / AC finality. |
+| Safe and reliable | Random distinct miners; \(5/7\) quorum + standbys + \(R_{\max}\) anti-grief; non-block-producing archive PrecommitQC / AC finality. |
 | Efficient resources | Work is scoped to active events and small groups. |
 | Limited per-tip cash blast | Asset-tip **direct** oracle loss ≤ **100 USDC**; does **not** zero collusion motive (§12.2). |
-| Capture probability quantified | Use \(P_{\mathrm{prop}}\) / \(P_{\mathrm{year}}\)—not \(p^{5}\) alone, not the cap alone (§12.3.1). |
+| Capture probability quantified | Validator \(P_{\mathrm{prop}}\) / \(P_{\mathrm{year}}\) plus archive \(P_{\ge3}\), \(P_{\ge5}\), and any-shard risk (§12.3.1–§12.3.1a). |
 | Committee exposure cap | Per epoch / round: \(E_C=\sum_j V_j\le E_{\max}\) over concurrent assignments to the same committee (§12.3.2). |
 
 ---
@@ -1566,15 +1797,15 @@ Illustrative \(M\) (order-of-magnitude; production must measure real draws):
 100\,\mathrm{USDC}\,\times M\,P_{\mathrm{prop}},
 \]
 
-**before** slash redistributions, **before** noting that **spendable** theft also needs an **Archive Certificate** (§5.2.1), and **excluding** non-cash payoffs (censorship / ransom / privacy) and under-oracle NFT utility (§12.2). If archive Byzantine share is \(p_A\) on a floor shard \(N_A=4\), \(Q_A=3\), independently,
+**before** slash redistributions, **before** noting that **spendable** theft also needs an **Archive Certificate** (§5.2.1), and **excluding** non-cash payoffs (censorship / ransom / privacy) and under-oracle NFT utility (§12.2). If archive Byzantine share is \(p_A\) on the fixed active shard \(N_A=7\), \(Q_A=5\), independently,
 
 \[
-P_{\mathrm{AC}} = \Pr[\mathrm{Binomial}(4,p_A)\ge 3],
+P_{\mathrm{AC}} = \Pr[\mathrm{Binomial}(7,p_A)\ge 5],
 \qquad
 P_{\mathrm{tip}}^{\mathrm{final}} \approx P_{\mathrm{prop}}\cdot P_{\mathrm{AC}}
 \]
 
-(only as an **illustration**—real adversaries may correlate pools). Example at \(p=p_A=0.10\): \(P_{\mathrm{prop}}\approx 1.8\times 10^{-4}\), \(P_{\mathrm{AC}}=3.7\times 10^{-3}\), joint \(\approx 6.5\times 10^{-7}\) per tip—still must be folded into \(1-(1-P_{\mathrm{tip}})^{M}\).
+(only as an **illustration**—real adversaries may correlate pools). Example at \(p=p_A=0.10\): \(P_{\mathrm{prop}}\approx 1.765\times 10^{-4}\), \(P_{\mathrm{AC}}\approx1.765\times 10^{-4}\), joint \(\approx 3.12\times 10^{-8}\) per tip—still must be folded into \(1-(1-P_{\mathrm{tip}})^{M}\).
 
 **Operational obligations (product freeze).**
 
@@ -1583,6 +1814,53 @@ P_{\mathrm{tip}}^{\mathrm{final}} \approx P_{\mathrm{prop}}\cdot P_{\mathrm{AC}}
 3. Keep \(p\) down via Sybil-costly stake, cooldowns (§6.5), and queue admission—not by rhetoric alone.
 4. Never claim “capture is negligible because \(p^{5}\) is tiny” or “because tips are ≤ 100 USDC” without stating \(M\), \(P_{\mathrm{year}}\), and the active \(E_{\max}\) policy (§12.3.2).
 5. Never claim “collusion motive → 0” from the per-tip cap alone (§12.2).
+
+### 12.3.1a Seven-member archive-group risk (must quantify)
+
+Let \(p_A\) be the fraction of eligible archive identities controlled by one adversary or common-failure domain. For an illustrative i.i.d. seven-active-seat draw, \(X\sim\mathrm{Binomial}(7,p_A)\). Dedicated standbys are excluded until promoted.
+
+**Assumption-breach probability.** The BFT proof assumes \(f=2\). A group with at least three Byzantine active archives is outside that proof, even though three keys alone cannot forge a five-signature AC:
+
+\[
+P_{\ge3}
+=\Pr[X\ge3]
+=1-\sum_{k=0}^{2}{7\choose k}p_A^k(1-p_A)^{7-k}.
+\]
+
+**Direct quorum-capture probability.** An attacker that independently controls \(Q_A=5\) active archive keys can forge a PrecommitQC / AC:
+
+\[
+P_{\mathrm{archive\text{-}capture}}
+=P_{\ge5}
+=\sum_{k=5}^{7}{7\choose k}p_A^k(1-p_A)^{7-k}.
+\]
+
+| Global archive adversary share \(p_A\) | \(P_{\ge3}\): outside \(f=2\) proof | \(P_{\ge5}\): direct \(Q_A=5\) capture |
+| ---: | ---: | ---: |
+| 5% | 0.3757% | 0.000603% |
+| 10% | 2.56915% | 0.01765% |
+| 20% | 14.8032% | 0.4672% |
+| 33⅓% | 42.9355% | 4.52675% |
+
+For \(G_e\) groups, under the **strong and usually optimistic independence assumption**:
+
+\[
+P_{\mathrm{any\text{-}assumption\text{-}breach}}
+=1-(1-P_{\ge3})^{G_e},
+\qquad
+P_{\mathrm{any\text{-}shard\text{-}capture}}
+=1-(1-P_{\ge5})^{G_e}.
+\]
+
+At \(p_A=10\%\) and \(G_e=100\), these are approximately **92.59%** and **1.75%**, respectively. “At least one group exceeds \(f\)” is not identical to “at least one forged AC,” but it means the formal safety proof no longer covers that group.
+
+**Production interpretation (normative):**
+
+1. The binomial model is only an approximation. Selection without replacement uses a hypergeometric distribution; shared operators, hosting providers, regions, key custody, software supply chains, bribery, and adaptive compromise make groups **correlated** and can increase real risk.
+2. Formation MUST enforce nine distinct operator-domain commitments across seven active and two standby seats, no identity-assignment overlap between live groups, and no old-member cloning into new groups. A single archive identity has \(m_i=1\) across active/standby roles.
+3. L1 / monitoring MUST publish concentration metrics and recompute both per-group and any-shard risk under conservative \(p_A\); random selection rhetoric is not a control.
+4. A fixed seven-active group is a long-lived attack target. Membership re-key / replacement requires the one-slot-per-epoch checkpointed transition, standby readiness, cooldown, and no simultaneous old/new write authority.
+5. If policy cannot keep `P_any-shard-capture` below its governance threshold, the protocol MUST enlarge group size / quorum or reduce adversarial concentration before increasing \(G_e\). The ≤100 USDC asset-tip cap limits direct loss per tip but does not repair archive finality.
 
 ### 12.3.2 Committee cumulative exposure \(E_C\le E_{\max}\) (product freeze)
 
@@ -1620,11 +1898,11 @@ Transfers verified by issuer + witnesses + validators. Detected collusion → sl
 
 ### 12.6 Archive capture / equivocation / censorship
 
-Archive plane **fissions** into **groups of 5** (\(S_e=\lfloor N_{\mathrm{active}}/5\rfloor\)) as membership grows (§5.2). A capture must target the **L1-recorded host group** of a given chain—not one global archive set. Grindable `tokenId mod S` and hash-residue placement for **new** chains are **rejected**.
+Archive plane grows as disjoint 7-active + 2-standby groups when \(U_e\ge9\); \(G_e\) is the L1-registered live-group count (§5.2). A capture targets a chain’s L1-recorded host group. Grindable `tokenId mod S`, hash-residue placement, overlapping assignments, and old-member cloning are rejected.
 
-**BFT assumption (product freeze):** each shard runs HotStuff-style **PrepareQC → CommitQC (= AC)** with \(f=\lfloor(N_A-1)/3\rfloor\), \(Q_A=\lfloor 2N_A/3\rfloor+1\), and lock/justify rules (§5.2.1). Safety holds if at most \(f\) members are Byzantine. Quorum intersection plus locks prevent two conflicting finalized tips for the same height under that bound; same-role equivocation is slashable and resolved on L1. Partition without \(Q_A\) yields **stall**, not dual finals (safety over liveness).
+**BFT assumption (product freeze):** each shard uses non-block-producing Tendermint-style **PrevoteQC → PrecommitQC (= AC)** with \(f=\lfloor(N_A-1)/3\rfloor\), \(Q_A=\lfloor2N_A/3\rfloor+1\), durable locks, and membership-bound votes (§5.2.1). Safety holds only at ≤\(f\) Byzantine members. A partition without \(Q_A\) stalls. Archive-group breach / capture probabilities are explicitly quantified in §12.3.1a.
 
-**Censorship:** a single archive (or minority) cannot unilaterally reject or withhold finality forever—reject needs \(Q_A\); sustained non-progress past \(T_{\mathrm{archive}}\) unlocks bonded L1 **`ArchiveCensorshipChallenge`** and re-home. **DA:** AC-bound `daRoot` + \((n,k)=(5,3)\) + pre-sign hold-≥\(k\) + **UnavailableChallenge**; spendable balances require an AC with **reconstructible DA**; failure escalates to **`forceWithdraw`** ↔ AssetVault. Cheating archive participants can be banned and have stake redirected. Long-term security still depends on the \(f\)-bound per shard and mainchain registry integrity.
+**Censorship:** a single archive (or minority) cannot unilaterally reject or withhold finality forever—reject needs \(Q_A\); sustained non-progress past \(T_{\mathrm{archive}}\) unlocks bonded L1 **`ArchiveCensorshipChallenge`** and re-home. **DA:** AC-bound `daRoot` + \((n,k)=(7,4)\) + pre-sign hold-≥\(k\) + **UnavailableChallenge**; spendable balances require an AC with **reconstructible DA**; failure escalates to **`forceWithdraw`** ↔ AssetVault. Inactivity, abrupt shutdown, DA fraud, and equivocation follow §5.2.1a’s evidence-bound replacement/slashing ladder. Long-term security still depends on the \(f=2\) bound per shard and mainchain registry integrity.
 
 ### 12.7 Transport / privacy adversaries
 
@@ -1682,10 +1960,10 @@ Of every **USDC 0.01%** tip-event fee:
 
 | Share | Recipient | Split rule |
 | --- | --- | --- |
-| **50%** | **Hosting archive shard** | Among members who form the **CommitQC / AC** (\(Q_A\) commit signers)—equal unless governance mandates weighted shares |
+| **50%** | **Hosting archive shard** | Internally split by \(w_{\mathrm{service}}+w_{\mathrm{vote}}+w_{\mathrm{standby}}=1\): active storage/history service, timely PrecommitQC / AC signers, and readiness-proven dedicated standbys. Exact weights are governance parameters. |
 | **50%** | **\(Q_V\) accepting validators** | Equal among the ≥5 accept signers on the archived tip |
 
-Standbys that never accept, reject-only voters, and non-signing archive members **do not** share that event’s fee. Storage-class **conet-GB** content / access streams are **separate** from this 50/50 USDC split (owner / delivery-miner shares per §4.8).
+Standbys do **not** receive voting rewards and their readiness stipend grants no consensus authority. A standby earns only the \(w_{\mathrm{standby}}\) share while it passes periodic sync, DA, history, and challenge-readiness proofs; failure withholds that share and can trigger replacement. Reject-only or absent active voters receive no \(w_{\mathrm{vote}}\) share, while valid timely nil/reject evidence still counts as protocol participation under §5.2.1b. Storage-class **conet-GB** content / access streams are **separate** from this 50/50 USDC split (owner / delivery-miner shares per §4.8).
 
 ### 13.4 Flow table
 
@@ -1703,7 +1981,7 @@ Standbys that never accept, reject-only voters, and non-signing archive members 
 | Storage sales journal | Book access / NFT / royalty sales on storage tip; link parallel **asset-class** payment txs (§4.10). |
 | Trade listing / settle | Seller-set quote (**no NFT oracle / no ≤100 USDC quote cap**); tip → **SettleReady** AC; **L1 `settleTrade`** atomizes payment + **subject NFT** transfer; tip then **close**; event fees in **USDC** under §13.3 when payment is USDC (§4.7). |
 | Mining / task rewards | Pay honest group members primarily from the **USDC 0.01%** stream (validators + archive) and **storage conet-GB** streams; fund slash redistributions. |
-| Group size vs income | Fission to more five-member groups + smaller per-shard cohorts → higher per-node share of the **archive 50%** and **parallel bandwidth** (§5.2). |
+| Group size vs income | Fission to more disjoint 7-active + 2-standby groups → greater **parallel bandwidth**; the archive 50% is weighted among active service/AC signers and standby-readiness duties (§5.2, §13.3). |
 | Mainchain governance | Supported deposit assets, listing rules; may revise rates. Defaults: **0.01%**, **100 USDC cap**, **50/50 archive/validators**, **storage = conet-GB / other = USDC**. |
 
 ---
@@ -1724,15 +2002,15 @@ CoNET-DLE is closest in spirit to **“many tiny ledgers + random committees + a
 
 ## 15. Open Design Questions / Implementation Notes
 
-**2026-08-12ak normative addendum:** The width expression in item 1 is a capacity ladder, not an independent fission permission. The normative trigger is \(N_{\mathrm{active}}-5S_e\ge5\). Every new group MUST use the next monotonic, never-reused `groupId`, exactly **3 qualifying incumbents + 2 newly activated archives**, and a `MembershipFormationCertificate`; inherited pre-fission history is read-only and cannot acquire write/finality authority without an L1-approved `MigrationCertificate`. These rules supersede older wording in this section that describes an all-newcomer group or treats the remainder as sufficient by itself.
+**2026-08-12 normative addendum:** Archive nodes have **no block-production right**. Validators alone produce event blocks; archives independently replay and finalize them through Tendermint-style PrevoteQC → PrecommitQC. Fission uses \(G_e\) (registered live groups) and \(U_e\) (eligible unassigned archives): one disjoint group of seven active voters plus two dedicated ordered standbys may form iff \(U_e\ge9\). Existing groups retain their assignments and only witness formation / serve history. Placement uses \(Q_A=5/7\), a nonce-bound reservation, and any relayer—not seven-of-seven or “last signer.” These rules supersede every older conflicting sentence.
 
 These items are left explicit so engineering can freeze parameters without rewriting the thesis:
 
-1. Archive-plane width is product-frozen as **groups of 5**: \(S_e=\lfloor N_{\mathrm{active}}/5\rfloor\) (10→2, 15→3); remainder in UnassignedPool. New-chain host is **NewChainQueue + load-aware roulette** then L1 **`archiveGroupId`** via five-sig PlacementCertificate (last signer executes; §5.2)—**not** \(H(tokenId)\bmod S\) and **not** \(i=\mathrm{tokenId}\bmod S\). Grow \(S\to S+1\) does **not** remap existing tips. **MigrationCertificate** is for dissolve/re-home only. Open items: numerical archive bonds, \(T_{\mathrm{place}}\) / \(T_{\mathrm{l1submit}}\), load-weight formula, MC L1 checkpoint ABI. Validator proposal layer is product-frozen: **\(N_V=7\)**, **\(Q_V=5/7\)**, **\(S_{\mathrm{sb}}=2\)**, \(T_{\mathrm{vote}}=30\,\mathrm{s}\), \(C_{\mathrm{cool}}\), \(R_{\max}=3\) (§6.5)—not \(5/5\). **Archive verification Mode A** (every AC signer independently replays the fixed FSM; committee = pre-exec/witness only) and the **RequestPool → SelectionLog → ArchiveIngressPool → ArbitrationPool** pipeline are product-frozen (§6.3)—**Mode B** fraud-proof / sampling archives are **out of v1**. **Archive-shard BFT protocol family** is product-frozen as HotStuff-style **PrepareQC → CommitQC (= AC)** with \(f=\lfloor(N_A-1)/3\rfloor\), \(Q_A=\lfloor 2N_A/3\rfloor+1\), lock/justify, `membershipRoot`, no sticky leader, L1 escape hatch (§5.2.1)—**not** an open “which consensus family” question. Still open for engineering: numeric \(T_{\mathrm{archiveRound}}\), Prepare/Commit vote ABI encoding, membership Merkle leaf format, MembershipUpdateCertificate ABI, DepositBundle encoding. **Committee capture math** is product-frozen in form (§12.3.1): \(P_{\mathrm{prop}}=\Pr[\mathrm{Bin}(7,p)\ge 5]\), \(P_{\mathrm{year}}=1-(1-P_{\mathrm{prop}})^{M}\); open items are measured \(M\), conservative \(p\) estimators, and joint archive correlation—not whether annual risk may be ignored. **Per-tip 100 USDC** is a **direct-loss ceiling only** (§12.2)—not “collusion motive → 0.” **Committee cumulative exposure** form is frozen: \(E_C=\sum_j V_j\le E_{\max}\) (§12.3.2); open items are numeric \(E_{\max}\), epoch vs round window, and how storage-only tips enter \(V_j\).
+1. Archive-plane width is product-frozen as disjoint **7-active + 2-standby groups**. \(G_e\) is the L1-registered live-group count; \(U_e\) is the eligible `UnassignedPool` count; form one fully serviceable group iff \(U_e\ge9\). New-chain admission is the globally replicated **QUEUED / NewChainQueue**, followed by a frozen checkpoint, load-aware roulette, L1 reservation, validator-produced genesis, archive AC, and \(Q_A=5/7\) PlacementCertificate submitted by any relayer. Growth does not remap existing tips; MC is for dissolve/re-home only. Validator block production is frozen at \(N_V=7,Q_V=5,S_{\mathrm{sb}}=2\). Archives have no block-production right; Mode A replay and RequestPool → SelectionLog → ArchiveIngressPool → ArbitrationPool are frozen; Mode B is out of v1. Archive finality is frozen to Tendermint-style PrevoteQC → PrecommitQC (= AC), with durable vote/lock state, `membershipRoot`, TC pacemaker, and L1 escape. Exit is an atomic standby handoff; forced shutdown before membership switch is evidence-bound non-participation, not automatic equivocation. Open engineering items include timeout values, EIP-712 ABI encoding, membership/standby leaves, queue-checkpoint ABI, MC ABI, load weights, DepositBundle encoding, slash fractions, strike windows, rebuttal duration, and unbonding duration. Validator and archive risk formulae are both normative (§12.3.1–§12.3.1a); measured concentration and correlation remain operational inputs.
 2. Roulette randomness is product-frozen in form (§7.8): production \(R_e = H(\texttt{"dle.roulette.v1"}\,\|\,\mathrm{L1BeaconFinalizedRandomness}_e\,\|\,e\,\|\,\mathrm{shardId}\,\|\,\mathrm{poolRoot}_e)\) with **CoNET beacon / CL finalized randomness** (not execution `block.hash`) and \(Q_A\)-attested `poolRoot_e` frozen **before** that beacon is known; optional ECVRF tickets may consume \(R_e\) but **MUST NOT** rewrite it; concatenating optional archive VRF into \(R_e\) is **rejected** (selective-omission / last-publisher bias). Commit–reveal **MVP-only** (last-revealer bias acknowledged). Open items: exact CL randomness field / slot alignment ABI, `poolRoot` Merkle encoding, freeze-vs-beacon timing constants. Phase-2 candidates: \(\mathrm{ThresholdVRF}_{t,N}(m_e)\); if archive VRF mixing returns, require a pre-beacon `vrfContributorRoot` with no “drop missing outputs” aggregation.
 3. Exact bonded fraction \(B_{\mathrm{refuse}}\) for unjustified refuse-to-sign, optional light availability-score decay for network-fault silence, and whether \(T_{\mathrm{vote}}\) / \(T_{\mathrm{sb}}\) remain wall-clock-only or also cite local PoH measurements (§6.5)—**without** treating PoH as shared order (§7.9).
-4. PoH is product-frozen as a **local** sequencing clock only; canonical order = archive QC (§7.9). Open items: SHA-256 tick rate, checkpoint publish interval, how much local PoH evidence to attach to join proposals—not whether PoH alone orders the waiting pool.
-5. Slash amounts, bounty shares, ban durations, and concrete \(T_{\mathrm{archive}}\) / bond sizes for **`ArchiveCensorshipChallenge`** (fee rate **0.01%**, **50/50 archive/validators**, asset cap **100 USDC**, and dual denomination **storage=conet-GB / asset·trade=USDC** are product-frozen defaults—see §13). Open: how the archive **50%** is weighted among AC signers vs whole shard; whether tip **USDC** is native Base USDC, conet-USDC, or an oracle unit; separate L1 mint / oracle / retention fee lines beyond 0.01%.
+4. PoH is product-frozen as a local sequencing clock only; canonical order comes from queue checkpoints, selection attestations, and ACs—not archive-produced blocks (§7.9).
+5. Slash amounts, bounty shares, ban durations, and concrete \(T_{\mathrm{archive}}\) / bond sizes for **`ArchiveCensorshipChallenge`** (fee rate **0.01%**, **50/50 archive/validators**, asset cap **100 USDC**, and dual denomination **storage=conet-GB / asset·trade=USDC** are product-frozen defaults—see §13). Open: exact \(w_{\mathrm{service}},w_{\mathrm{vote}},w_{\mathrm{standby}}\) weights inside the archive **50%** and the measurement window for standby readiness; whether tip **USDC** is native Base USDC, conet-USDC, or an oracle unit; separate L1 mint / oracle / retention fee lines beyond 0.01%.
 6. **Class FSM metamodel + Trade transition table** are product-frozen (§10): no tip VM; shared rules for event encoding widths, replay domain `CoNET-DLE-TipFSM-v1`, nonce, timestamp source, USDC-6, oracle round binding, `tipStateRoot` Merkle paths, and error codes; Trade states `None/Open/Locked/SettleReady/Settled/Closed` with events `TradeOpened…Expired` (§10.2). Asset / Storage tables are **form-frozen skeletons** (§10.3–§10.4). Open items: exact SSZ vs RLP container choice, DepositBundle byte layout, Asset/Storage full precondition rows, fee-split leaf updates, storage challenge / sales↔asset timing constants—**not** whether Mode A may skip deterministic replay.
 7. Matcher / order-index discovery for open trade tips (off-tip index vs dedicated index role)—must not bypass L1 ownership / freeze rules (§4.7); **must not** invent an NFT price oracle or re-impose a ≤100 USDC **quote** cap. **`settleTrade` AC verification** is product-frozen (§4.7): EIP-712 SettleReady fields, L1 `archiveMembershipRoot` checkpoint, stale-roster rejection, tip Settled only after L1 success. Open items: Settlement / MembershipCheckpoint **addresses**, payment-token allowlist, caller policy (anyone vs bonded relayer), and the exact **gas-efficient** AC checkpoint / aggregate format (vs raw multi-ECDSA on every settle).
 8. Delivery-miner authorization set size, first-completer **challenge / heartbeat** before retention payout, signed-URL TTL, multi-recipient vs per-miner index ciphertext, and optional blinded-purchase privacy (§4.8 / CopyrightContentModule thesis).
@@ -1744,13 +2022,17 @@ These items are left explicit so engineering can freeze parameters without rewri
 14. Clear separation between **historical Avalanche-subnet era mainchain sketches** and **later CoNET L1 / DePIN deployments**—DLE cluster logic remains the same thesis either way.
 15. Wallet-layer **ERC-5564 CoNET profile** details (announcement contract / registry, default *n*, view-tag parameters, recover/scan UX) and how clients advertise the **stealth meta-address** (AddressPGP / off-tip QR)—must stay **off** tip/archive/validator-committee paths; do **not** leave BIP-47 / BIP-352 as alternate CoNET L1 runtimes (§4.5).
 16. Hierarchical **key vault** parameters (batch size for spend derivation, hardware/threshold policy, recovery-map encryption, per-shard derivation domain IDs, default per-device hourly merge/withdraw caps) and UX for **key-domain / recovery-domain** isolation—client product only; not tip/archive/validator consensus (§4.5, §12.9).
-17. **Verifiable DA + force exit** are product-frozen in form (§5.2.1, §4.6): Reed–Solomon-class coding **\((n,k)=(5,3)\)**, AC fields `daRoot` / `erasureCodingVersion` / `chunkCount` / `recoveryThreshold` / `chunkAssignmentRoot` / `tipStateRoot`, pre-sign hold-≥\(k\) duty, **UnavailableChallenge** open/response game, **`forceWithdraw(assetNftId, lastAC, accountStateProof, nullifier)`** against **L1 AssetVault**, tip nullifier / Exited marking, dispute window \(T_{\mathrm{exit}}\). Open items: numeric \(T_{\mathrm{daOpen}}\) / \(T_{\mathrm{daResponse}}\) / \(T_{\mathrm{exit}}\) / \(T_{\mathrm{archive}}\), bond sizes, chunk byte size, Merkle vs KZG open encoding, and AssetVault token allowlist—**not** whether signing alone counts as DA.
+17. **Verifiable DA + force exit** are product-frozen in form (§5.2.1, §4.6): Reed–Solomon-class coding **\((n,k)=(7,4)\)**, AC fields `daRoot` / `erasureCodingVersion` / `chunkCount=7` / `recoveryThreshold=4` / `chunkAssignmentRoot` / `tipStateRoot`, pre-sign hold-≥\(k\) duty, **UnavailableChallenge** open/response game, **`forceWithdraw(assetNftId, lastAC, accountStateProof, nullifier)`** against **L1 AssetVault**, tip nullifier / Exited marking, dispute window \(T_{\mathrm{exit}}\). Open items: numeric \(T_{\mathrm{daOpen}}\) / \(T_{\mathrm{daResponse}}\) / \(T_{\mathrm{exit}}\) / \(T_{\mathrm{archive}}\), bond sizes, chunk byte size, Merkle vs KZG open encoding, and AssetVault token allowlist—**not** whether signing alone counts as DA.
 
 ---
 
 ## 16. Conclusion
 
-CoNET-DLE proposes **decentralization clusters** that maintain **many parallel, event-based atomic chains**: **no event ⇒ no block**; on each event the hosting **archive group** (L1 `archiveGroupId` after genesis bind; new chains via NewChainQueue roulette—**not** grindable `tokenId mod S`) draws **\(N_V=7\)** on-demand validators + **\(S_{\mathrm{sb}}=2\)** standbys from its waiting queue, they form a **\(Q_V=5/7\)** attestation (proposal layer, §6.5), and that shard **finalizes only** with an **Archive Certificate (= CommitQC)** under a HotStuff-style two-phase quorum protocol—not a single archive node and not a one-shot signature race (§5.2.1). As archive participants grow, the archive plane **fissions** into **groups of 5** (\(S_e=\lfloor N_{\mathrm{active}}/5\rfloor\)); existing tips stay on L1 `archiveGroupId`; **MigrationCertificate** only for dissolve/re-home; live groups keep \(N_A=5\) for new-chain assignment and \(N_A\ge 4\) to continue ACs (§5.2). **L1 NFT** birth certificates force a ternary **asset / storage / trade** class. Asset chains deposit oracle-valued L1 collateral capped at **≤ 100 USDC**, **revalue on every event**, and if balance **> 100 USDC** require **new chain(s)** for outbound excess (§4.6); each transfer pays **0.01%** in **USDC**, split **50% hosting archive / 50% \(Q_V\) validators**—acknowledging that **0.01% alone** cannot fund the full security stack (§13). Storage chains charge by **content in conet-GB** and may host **creator content** under the same **CopyrightContentModule** thesis: fragmented ciphertext, private index to authorized miners, **conet-GB**-priced access, **first-completer** buyer-PGP delivery, short-lived URLs, and tip/L1 hashes only (§4.8). Under **Copyright ZERO**, storage tips form a **version tree** of original and modified editions—each node an independently tradeable L1 NFT—while **signed likes, comments, and citations** accumulate as a **Web of Trust** evidence base for auction valuation (§4.9). Each storage tip also keeps a **sales-revenue journal** that **links** to parallel **asset-class** tip transactions where value actually moves (§4.10). **Trade-class** tips are **L2 order / state coordinators** with **seller-set quotes** (**no NFT oracle / no ≤100 USDC quote cap**); **cross-layer atomic delivery** (pay + move **subject L1 NFT**) runs only in CoNET **L1 Settlement Contract** `settleTrade`; the trade tip then **closes**, while the subject ledger continues (§4.7). Micro-fragmentation **caps direct book loss per asset tip** at ≤100 USDC—it does **not** make collusion motive tend to zero; capture **frequency** still needs \(P_{\mathrm{prop}}\) / \(P_{\mathrm{year}}\), and concurrent multi-tip cash risk needs \(E_C\le E_{\max}\) (§12.2–§12.3.2). Role-split, on-demand participants lower the barrier that concentrates today’s networks. Tips are **class-fixed event state machines** with **no tip VM** and a **normative FSM metamodel** (Trade table frozen; Asset/Storage skeletons—§10); application workflows compose tips and L1 at the **application layer**. The paper’s answer to the **blockchain trilemma** is **not** that it is eliminated: CoNET-DLE **redefines the operating boundary**—many isolated, value-bounded, event-driven tips; aggregate throughput can scale with archive shards; security stays **conditional** on shard honesty, committee sampling, L1 settlement, DA, and client key isolation (§3.4). As an L2 **loaded on CoNET DePIN**, it inherits **wallet-address (non-IP) gossip** with OpenPGP end-to-end encryption and zero-trust entry/mailbox hops. **Natural privacy** is dual: that **communication** plane plus **asset** privacy that **raises on-chain clustering cost** and breaks **one-address = whole portfolio**—**not** strong anonymity (§4.5). Transfers keep the same dual stack. Multi-address receipt uses CoNET’s **canonical ERC-5564** wallet profile (meta-address, ephemeral key, view tag, announcement, scan/spend keys); BIP-47 / BIP-352 are **design references only**—**not** a DLE tip/archive/validator-committee address oracle (§4.5). Custody security rises only under **key-domain + recovery-domain isolation** (hierarchical vault SHOULD)—address fragmentation alone is not enough (§4.5, §7.6, §12.9). Stake and NFT security anchor on the CoNET mainchain registry. Production roulette binds to **L1 beacon finalized randomness + frozen `poolRoot_e`** so draws are publicly recomputeable and free of selective-omission / last-publisher bias from optional archive VRF; commit–reveal remains MVP-only (§7.8). Cryptography stays within mature primitives (§7) so the design is implementable without exotic proving systems.
+CoNET-DLE maintains many parallel, event-driven atomic chains: **no event ⇒ no block**. A globally replicated `QUEUED / NewChainQueue` accepts a new-ledger request through any archive node; a quorum checkpoint freezes ordering, and load-aware roulette reserves one fully serviceable 7-active + 2-standby host group on L1. The hosting group selects \(N_V=7\) on-demand validators plus two standbys. The validator committee is the **only block-production layer**: it builds the class-fixed FSM candidate and deposits it with \(Q_V=5/7\) signatures. Archives produce no block. They independently replay the immutable candidate, enforce quality and DA, and finalize only through Tendermint-style **PrevoteQC → PrecommitQC (= Archive Certificate)** at \(Q_A=5/7\).
+
+Archive growth uses \(G_e\) registered groups and \(U_e\) eligible unassigned archives. When \(U_e\ge9\), seven new active operator domains plus two dedicated standbys form the next group; existing groups retain their assignments and only witness formation / serve history. Existing tips never move merely because width increases. Dissolve/re-home requires a dual-\(Q_A\) MigrationCertificate. Genesis placement likewise uses a nonce-bound \(Q_A=5/7\) PlacementCertificate submitted by any relayer; “last signer” and 7/7 placement are rejected. Planned exit uses standby promotion plus an atomic MembershipUpdateCertificate; shutdown before that switch is punishable non-participation under an evidence/rebuttal process.
+
+Security remains conditional. The ≤100 USDC asset-tip cap limits direct loss per tip but does not repair committee or archive capture. Production must track validator \(P_{\mathrm{prop}}\)/\(P_{\mathrm{year}}\), archive \(P_{\ge3}\)/\(P_{\ge5}\)/any-shard risk, correlated operator domains, and cumulative committee exposure \(E_C\le E_{\max}\). L1 NFT identity, settlement, membership checkpoints, standby readiness, reconstructible DA, force-exit, and client key-domain isolation remain independent safety layers. Aggregate throughput can grow with disjoint archive groups and event streams, but the design does not claim to eliminate the blockchain trilemma.
 
 ---
 
@@ -1768,6 +2050,7 @@ CoNET-DLE proposes **decentralization clusters** that maintain **many parallel, 
 10. **BIP-47** — Reusable Payment Codes (design **reference** only for CoNET L1; not the canonical EVM runtime).
 11. **BIP-352** — Silent Payments for Bitcoin UTXO/Taproot (design **reference** only; **not** an EVM drop-in; requires recipient block scan).
 12. **ERC-5564** / **ERC-6538** — **CoNET L1 / EVM canonical** stealth addresses and stealth meta-address registry (wallet-layer freeze in §4.5).
+13. Buchman, Kwon, Milosevic — **The latest gossip on BFT consensus** / Tendermint consensus; normative safety-state baseline for archive Proposal-reference → Prevote → Precommit (§5.2.1), adapted so archives certify but never produce application blocks.
 
 ---
 
@@ -1789,28 +2072,33 @@ CoNET-DLE proposes **decentralization clusters** that maintain **many parallel, 
 | **\(E_C\) / \(E_{\max}\)** | Per-epoch committee cumulative exposure \(\sum_j V_j\le E_{\max}\); blocks one committee from underwriting unbounded micro-tips (§12.3.2). |
 | **100 USDC per-tip ceiling** | Caps **direct** oracle loss on one asset tip; does **not** zero collusion motive or replace \(P_{\mathrm{year}}\) / archive BFT / \(E_{\max}\) (§12.2). |
 | **On-demand miner waiting queue** | Queue of lightweight miners ready for single-block draw (§8.1). |
-| **Archive node** | Full-state quality checker and waiting-pool host; one BFT member of a shard. |
-| **Archive-plane fission** | L2 archive groups of **5**; \(S_e=\lfloor N_{\mathrm{active}}/5\rfloor\); new-chain roulette + L1 `archiveGroupId`; MC for dissolve/re-home (§5.2). |
+| **Archive node** | Non-block-producing full-state replayer, quality checker, DA/history server, QUEUED replica, validator selector, and BFT voter. |
+| **\(G_e\) / \(U_e\)** | Registered live archive-group count / eligible unassigned archive count; one fully serviceable disjoint group may form iff \(U_e\ge9\). |
+| **Archive-plane fission** | L2 archive groups of seven newly assigned active voters plus two dedicated ordered standbys; assigned identities do not overlap; no existing-tip remap (§5.2). |
 | **Placement salt \(R_e\)** | Public epoch salt from **L1 beacon finalized randomness** for archive placement hash (§5.2.0, §7.8). |
 | **L1BeaconFinalizedRandomness** | CoNET CL finalized random beacon field (RANDAO or equivalent) bound into production \(R_e\); **not** execution `block.hash` (§7.8.1). |
-| **MigrationCertificate (MC)** | Dual-shard CommitQC-style certificate for \(S_e\to S_{e+1}\) tip handoff; binds membership roots; forbids silent remapping (§5.2.2). |
-| **\(N_A\) / \(Q_A\) / \(f\)** | Active archive count \(N_A\); \(f=\lfloor(N_A-1)/3\rfloor\); \(Q_A=\lfloor 2N_A/3\rfloor+1\) (§5.2.1). |
-| **membershipRoot / membershipEpoch** | Commitment to active archive set + roster version; required on Proposal/QC/AC (§5.2.1). |
-| **PreparedQC** | ≥ \(Q_A\) prepare votes over an ArchiveProposal (§5.2.1). |
-| **CommitQC / Archive Certificate (AC)** | Sole tip-finality object: CommitQC (≥ \(Q_A\) **EIP-712** commit votes) over tip + `daRoot` + DA fields + `tipStateRoot` + membership + prepareQCRef (§5.2.1). |
-| **lockedQC / justifyQC** | Local lock and proposal justification for HotStuff-style unlock-by-higher-round (§5.2.1). |
-| **TimeoutQC (TC)** | ≥ \(Q_A\) timeout/nil votes after \(T_{\mathrm{archiveRound}}\) to advance round (§5.2.1). |
-| **RejectCommitQC** | Two-phase reject path with same lock rules; prevents unilateral archive censor (§5.2.1). |
-| **Mode A (archive verification)** | Every AC-signing archive **independently replays** the fixed FSM; forbids CommitQC from \(Q_V\) signatures alone (§6.3). |
+| **MigrationCertificate (MC)** | Dual-\(Q_A\) EIP-712 certificate for a tip handoff during dissolve/re-home; binds membership roots and nonce; forbids silent remapping (§5.2.2). |
+| **\(N_A\) / \(Q_A\) / \(f\)** | Fixed active archive count \(N_A=7\), Byzantine bound \(f=2\), and quorum \(Q_A=5\) (§5.2.1). |
+| **Archive standby \(S_A\)** | Two dedicated ordered, ready members per group; they sync history/state/DA but do not vote until L1 promotion (§5.2). |
+| **membershipRoot / membershipEpoch** | Commitment to active archive set + roster version; required on proposal references, votes, QCs, and ACs (§5.2.1). |
+| **PrevoteQC** | ≥\(Q_A\) EIP-712 prevotes for the same non-nil value or nil at one height/round (§5.2.1). |
+| **PrecommitQC / Archive Certificate (AC)** | Sole tip-finality object: ≥\(Q_A\) precommits over one validator-produced `valueHash`, binding its PrevoteQC, DA, tip state, and membership (§5.2.1). |
+| **lockedValue / validValue** | Tendermint persistent lock and highest proposal-safe value; TC alone cannot unlock (§5.2.1). |
+| **TimeoutQC (TC)** | ≥\(Q_A\) timeout status votes carrying lock / valid-value / highest-PrevoteQC evidence for round progress (§5.2.1). |
+| **CandidateRejectCertificate** | ≥\(Q_A\) evidence-bound archive signatures removing an invalid validator candidate; not a block, AC, or unilateral veto (§5.2.1). |
+| **Mode A (archive verification)** | Every AC-signing archive independently replays the validator-produced FSM candidate; archives never produce substitute blocks (§6.3). |
 | **Mode B (out of v1)** | Archive trusts committee + fraud proofs / sampling; not product-frozen (§6.3, §15). |
 | **RequestPool** | Per-shard queue of tip state-change requests; empty ⇒ no block (§6.3). |
 | **SelectionLog** | \(Q_A\)-attested roulette seats (`committee[7]`+`standby[2]`); coordinator cannot privately edit (§6.3, §7.8). |
 | **ArchiveIngressPool** | Validator DepositBundles awaiting Mode A replay; proposal layer only (§6.3). |
-| **ArbitrationPool** | Failed / incomplete deposits → §6.5 reselect or RejectCommitQC; not a second finality track (§6.3). |
-| **Archive coordinator** | Deterministic per-round proposer/assembler; **no** sticky leader / unilateral finality (§5.2.1, §6.3). |
+| **ArbitrationPool** | Failed / incomplete validator deposits → §6.5 reselect or CandidateRejectCertificate; not a second finality track (§6.3). |
+| **Archive coordinator** | Deterministic per-round candidate-reference / certificate assembler; no block production, candidate mutation, sticky leadership, or unilateral finality (§5.2.1). |
+| **\(P_{\ge3}\) / \(P_{\ge5}\)** | Seven-active archive group outside-\(f=2\) probability / direct \(Q_A=5\) capture probability (§12.3.1a). |
+| **MembershipUpdateCertificate** | Evidence/checkpoint-bound 5/7 old-roster certificate that atomically replaces one active slot, promotes a ready standby, and updates both roots (§5.2.1a). |
+| **ArchiveInactivityCertificate** | Evidence-bound 5/7 certificate plus rebuttal window proving missed archive duties; absence from a final AC alone is insufficient (§5.2.1b). |
 | **ArchiveCensorshipChallenge** | Bonded L1 escape hatch: `NO_PROGRESS` after \(T_{\mathrm{archive}}\), or escalate after failed DA / UnavailableChallenge (§5.2.1). |
 | **UnavailableChallenge** | L1 game: AC exists but chunks missing; accused members must open assigned shares or be slashed; < \(k\) opens → freeze height (§5.2.1). |
-| **\((n,k)=(5,3)\)** | v1 erasure coding for five-member groups: 5 chunks, any 3 reconstruct; AC binds `chunkCount` / `recoveryThreshold` (§5.2.1). |
+| **\((n,k)=(7,4)\)** | v1 erasure coding for seven active archives: 7 chunks, any 4 reconstruct; AC binds `chunkCount` / `recoveryThreshold` (§5.2.1). |
 | **L1 AssetVault** | Holds asset-class ingress collateral per `assetNftId`; tip balances are claims; unlock via ordinary path or `forceWithdraw` (§4.6, §5.2.1). |
 | **forceWithdraw** | L1 call unlocking vault funds with last good AC + `accountStateProof` + `nullifier`; prevents tip double-spend after exit (§5.2.1). |
 | **Natural privacy** | Dual: DePIN **comms** privacy + **asset** privacy that **raises clustering cost** and breaks one-address portfolio equivalence—**not** strong anonymity (§4.5, §7.6). |
@@ -1860,11 +2148,11 @@ CoNET-DLE proposes **decentralization clusters** that maintain **many parallel, 
 ```text
 User → mint unique CoNET L1 NFT (class = asset)
      → deposit L1 assets; L1 oracle valuation ≤ 100 USDC
-     → NewChainQueue + load-aware roulette → live group of 5 (§5.2)
+     → NewChainQueue + load-aware roulette → live group of 7 active + 2 standbys (§5.2)
      → that group draws N_V=7 + S_sb=2 from its on-demand waiting queue
-     → 5 vote + submit genesis / first tip
-     → PrepareQC → CommitQC / Archive Certificate (QA) → archive if qualified
-     → five-sig PlacementCertificate; last signer setArchiveGroup on L1 1155
+     → validator committee produces genesis; 5/7 vote + submit
+     → archives replay only; PrevoteQC → PrecommitQC / AC (QA)
+     → 5/7 PlacementCertificate; any relayer finalizes L1 reservation
      → (later) each new event → oracle revalue balance (§4.6)
      → if balance > 100 USDC → mint new chain(s) for outbound excess
      → same shard draws new 7+2 → Q_V=5/7 vote → archive (cap-compliant tip only)
@@ -1879,7 +2167,7 @@ User → mint unique CoNET L1 NFT (class = storage)
      → (optional creator content) fragment + encrypt content;
        encrypt assembly index to authorized miner PGPs;
        upload fragments/index to IPFS; set access price in conet-GB (§4.8)
-     → NewChainQueue + roulette → live group of 5 (§5.2)
+     → NewChainQueue + roulette → live group of 7 active + 2 standbys (§5.2)
      → that group draws 7+2 → Q_V=5/7 → genesis AC → L1 archiveGroupId bind
      → request pool on that archive group (NFT id + contentIndexHash)
      → write / retain events → content-based fees in conet-GB
@@ -1892,7 +2180,7 @@ User → mint unique CoNET L1 NFT (class = storage)
 Seller owns subject chain C (asset or storage L1 NFT #S)
      → mint unique CoNET L1 NFT (class = trade), bind subjectNftId = #S
      → set seller quote (quoteAsset + quoteAmount); no NFT oracle / no ≤100 USDC quote cap
-     → NewChainQueue + roulette → live group of 5; L1 archiveGroupId after genesis AC (§5.2)
+     → NewChainQueue + roulette → live group of 7 active + 2 standbys; L1 archiveGroupId after genesis AC (§5.2)
      → L1 freeze / escrow subject NFT while Open/Locked (§4.7)
      → archive draws 7+2 → Q_V=5/7 → open listing tip archived
      → buyer locks / authorizes payment in L1 settlement escrow
