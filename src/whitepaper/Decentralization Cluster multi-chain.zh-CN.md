@@ -4,7 +4,7 @@
 
 **作者：** Peter Xie  
 **初稿：** 2023  
-**修订：** 2026-08-11af（产品冻结：EIP-712 SettleReady AC + L1 成员 checkpoint；可验证 DA \((n,k)=(10,6)\) + UnavailableChallenge；`forceWithdraw` ↔ AssetVault — §4.7、§5.2.1）
+**修订：** 2026-08-11ah（文档一致性：Markdown/公式/HKDF；§3.1 \(Q_V=5/7\)；§4.0 术语层级；§4.4 归档分片 BFT 图；§13.1 50/50 费用示例；概率表百分比）
 
 **成对译本（必须同步更新）：** `[Decentralization Cluster multi-chain.md](./Decentralization%20Cluster%20multi-chain.md)`  
 **同步守则：** `.cursor/rules/conet-layer2-whitepaper-bilingual-sync.mdc`
@@ -20,8 +20,8 @@
 - **仅事件出块：** **无事件 ⇒ 不出块**；禁止空 slot 挖矿。
 - **L1 出生证明：** 创建新链 **必须** 在 CoNET L1 铸造 **唯一 NFT**；NFT 绑定类别（**资产**、**存储** 或 **交易**）、所有权，以及经 \(H(\mathrm{nftContract}\|\mathrm{tokenId}\|R_e)\bmod S_e\) 决定的 **托管归档集群**（§5.2）。
 - **资产封顶持续生效：** 每个资产事件 **重估** tip；若余额 **> 100 USDC**，转出 / 超额 **须建新链**（§4.6）。
-- **交易类（原子 NFT 式出售）：** 用户开设 **交易** tip 作为 **L2 订单 / 状态协调器**，挂牌既有 **资产** 或 **存储** 链（报价 ≤ **100 USDC** 等值；**禁止大单**）。**最终原子交割**（支付卖方 **且** 转移标的 L1 NFT 所有权）在一笔 CoNET **L1 Settlement Contract** 调用中完成；交易 tip 随后 **关闭**（§4.7）。
-- **存储类创作者经济 / 私密版权交付：** 与 Beamio `**CopyrightContentModule`** 同一论题：所有者碎片化并以授权 DePIN miner 封存私密组装 index；tip/L1 仅存 hash；买方付 **conet-GB**、绑定买方 PGP；**最先完成者** miner 交付买方绑定密文；短期访问 URL + 周期存储费；明文永不上链（§4.8）。
+- **交易类（原子 NFT 式出售）：** 用户开设 **交易** tip 作为 **L2 订单 / 状态协调器**，挂牌既有 **资产** 或 **存储** 链（报价 ≤ **100 USDC** 等值；**禁止大单**）。Tip 按冻结的 **Trade FSM** 前进（`Open→Locked→SettleReady→…`，§10.2）。**最终原子交割**（支付卖方 **且** 转移标的 L1 NFT 所有权）在一笔 CoNET **L1 Settlement Contract** 调用中完成；交易 tip 随后 **关闭**（§4.7）。
+- **存储类创作者经济 / 私密版权交付：** 与 Beamio `CopyrightContentModule` 同一论题：所有者碎片化并以授权 DePIN miner 封存私密组装 index；tip/L1 仅存 hash；买方付 **conet-GB**、绑定买方 PGP；**最先完成者** miner 交付买方绑定密文；短期访问 URL + 周期存储费；明文永不上链（§4.8）。
 - **版权 ZERO / 版本树：** 存储 tip 形成 **谱系树**（原创 + 修改者）；每个分支点是可经交易类挂牌的 **独立 L1 NFT**；tip 记录 **社交历史**（点赞、评论、引用）作为拍卖估值的 **Web of Trust** 信号（§4.9）。
 - **存储销售账本：** 每条存储 tip 维护仅追加的 **销售收入流水**，并 **引用** 实际发生价值转移的并行 **资产类** tip 交易（§4.10）。
 - **归档平面裂变 + BFT 终局：** 随归档参与者增多，L2 归档平面按 **2 → 4 → 8 → …** **裂变**；托管分片为 **`H(nftContract∥tokenId∥R_e) mod S_e`**（非可磨号的 `tokenId mod S`），并以 epoch **MigrationCertificate** 交接（§5.2）；每个分片仅经 **PrepareQC → CommitQC（= AC）**，按 \(f=\lfloor(N_A-1)/3\rfloor\)、\(Q_A=\lfloor 2N_A/3\rfloor+1\)、锁定 / justify 规则与 `membershipRoot` 终局 tip（§5.2.1）。
@@ -81,7 +81,7 @@ CoNET-DLE 走另一条路：按 **账本分片**，而不只是在一条账本�
 ### 3.1 并行原子账本
 
 - **并行（设计目标）：** 网络承载 **大量** 独立原子链；容量随质押 / 归档平面宽度扩展，而非共享全局 tip——**不是**「无限免费 TPS」的营销断言。
-- **原子（按链）：** 在一条链内，新区块须获该步所选 **小规模** 维护组（发行者 / 创建者、见证人、验证者，由链合约定义）的完全同意。
+- **原子（按链）：** 在一条链内，新 tip 前进须获该步所选验证人委员会的 **\(Q_V=5/7\)** 提案证明，再获托管归档分片的 **归档证书（= CommitQC）**（§6.5、§5.2.1）——**不是**「维护组全体 100% 一致」。
 - **爆炸半径有界：** 一条链的危机不阻断无关链；**资产** tip 另约束 **直接** 现金爆炸（≤ 100 USDC）。
 - **随 miner 扩容：** 每增加诚实 miner，网络可 **同时** 承销的链更多；更大 roulette 池可 **降低** 攻击者份额 \(p\)——俘获风险仍须 \(P_{\mathrm{prop}}\) / \(P_{\mathrm{year}}\)（§12.3.1）。
 
@@ -147,6 +147,20 @@ CoNET-DLE 走另一条路：按 **账本分片**，而不只是在一条账本�
 ---
 
 ## 4. 系统概览
+
+### 4.0 术语层级（规范用语）
+
+下列层级须 **严格区分**——不得当作同义词混用：
+
+| 层 | 名称 | 含义 |
+| --- | --- | --- |
+| L0 | **CoNET L1** | PoS 结算 / 注册主链（NFT 出生、`settleTrade`、MembershipCheckpoint、挑战、AssetVault）。 |
+| L1（DLE 平面） | **原子链 / tip** | 由 L1 NFT 绑定的并行账本（资产 / 存储 / 交易）。文中「链」默认指 tip，**除非** 标明「L1 / 主链」。 |
+| L2 | **微账本** | tip 上按类 FSM 的事件史之口语别名——**不是** 独立产品层；正式用语优先 **tip**。 |
+| L3 | **事件 FSM / 状态机** | 按类冻结的转移表（§10）。Tip **无 VM**；Mode A 归档 **重放** FSM。 |
+| L4 | **块 / tip 高度** | tip 上一次被接受的事件步进（提案 → \(Q_V\) → AC）。**无事件 ⇒ 不出块。** |
+| L5 | **归档分片** | 对其托管 tip 签发 PrepareQC / CommitQC（=AC）的 BFT 委员会。 |
+| L6 | **验证人委员会** | 每块 \(N_V=7\)、\(Q_V=5/7\) 的 **提案** 层——**不是** tip 终局。 |
 
 ### 4.1 创链门闸（强制 L1 NFT）
 
@@ -236,8 +250,8 @@ settleTrade(
 1. 按下表规则验证 **DLE 归档证书（= CommitQC）**（tip 身份、SettleReady 类型化载荷、DA 绑定、`membershipRoot`、≥ \(Q_A\) 条 **EIP-712** commit 签名—§5.2.1）。
 2. 对照 AC 承诺的挂单 / 撮合字段，验证 **报价**、**nonce**、**期限** 与 **买方**（挂单时 oracle ≤ **100 USDC**）。
 3. 将 **托管付款** 转给卖方（或与步骤 4 原子释放卖方索取权）。
-4. 将 `**subjectNftId**` 转给 `buyer`（自卖方 / 冻结托管）。
-5. 标记 `**tradeId` 已结算**（或在 L1 交易 NFT 注册表上 burn / 关闭）。
+4. 将 **`subjectNftId`** 转给 `buyer`（自卖方 / 冻结托管）。
+5. 标记 **`tradeId` 已结算**（或在 L1 交易 NFT 注册表上 burn / 关闭）。
 6. **拒绝重复执行** 同一 `tradeId` / settle nonce（幂等失败）。
 
 任一步失败则 **整笔 L1 调用回滚**——无部分 NFT 转移、无部分放款。
@@ -248,7 +262,7 @@ settleTrade(
 | --- | --- |
 | **签名方案** | AC 上的 commit 签名为 **EIP-712** 类型化数据（domain：`CoNET-DLE-Archive`，`chainId` = CoNET L1，`verifyingContract` = Settlement / MembershipCheckpoint 注册表）。Settle / DA 绑定 AC **拒绝** EIP-191 文本 blob。 |
 | **类型化 SettleReady 载荷** | AC（或其 `blockHash` / 事件承诺）**必须** 至少绑定：`tradeId`、`subjectNftId`、`seller`、`buyer`、`quoteAsset`、`quoteAmount`、`nonce`、`deadline`、`tipStateRoot`、`daRoot`（及 §5.2.1 DA 字段）、`membershipEpoch`、`membershipRoot`。 |
-| **L1 上的成员集合** | 托管分片将 `**archiveMembershipRoot[membershipEpoch]**` 发布到 L1 **MembershipCheckpoint**（经 ≥ \(Q_A\) MembershipUpdateCertificate 或有保证金的 L1 强制更新）。`settleTrade` 对照 **该 checkpoint 根** 验签——**不是** tip 仅有的 gossip 声明。 |
+| **L1 上的成员集合** | 托管分片将 **`archiveMembershipRoot[membershipEpoch]`** 发布到 L1 **MembershipCheckpoint**（经 ≥ \(Q_A\) MembershipUpdateCertificate 或有保证金的 L1 强制更新）。`settleTrade` 对照 **该 checkpoint 根** 验签——**不是** tip 仅有的 gossip 声明。 |
 | **法定人数与 gas** | 当 gas 将主导 ≤100 USDC 报价时，L1 **不得** 在每笔 settle 上做 \(Q_A\) 次原始 ECDSA recover。v1 优先：L1 存 **短 AC checkpoint / 包含证明**（已在链下核对并有保证金），承诺类型化 SettleReady 字段 + `membershipRoot`；开放字节码仅可在小 \(N_A\) 测试网用多签。 |
 | **过期名册** | AC 的 `membershipEpoch` / `membershipRoot` **不等于** 该分片+epoch 的 L1 checkpoint 时 **无效**。名册变更后，旧成员 **不能** 用变更前 AC 成交。 |
 | **名册后 / tip 回写** | Tip **仅在** 观察到 L1 settle tx 后标记 **Settled**。若 L1 重组深于 Settlement 终局假设：tip 必须跟随 L1——不得发明 tip 独有 Settled。 |
@@ -258,13 +272,13 @@ settleTrade(
 1. **标的：** 既有 **资产类** 或 **存储类** 链，以其 **L1 NFT**（`subjectNftId`）标识。卖方须为该标的当前 L1 所有者。
 2. **开挂单：** 卖方 **铸造交易类** L1 NFT / DLE tip，创世绑定 `subjectNftId`、报价币种/金额（经 oracle **≤ 100 USDC 等值**）、托管 / 付款资产规则与成交 **期限**。**仅原子单——禁止大单**。
 3. **挂单冻结：** 交易 tip 处于 **Open** / **Locked** 时，标的 NFT 在 L1 上 **禁止普通转让**（注册表 / 结算托管）；资产类标的拒绝成交前掏空 tip 的转出。冻结是 tip 协调的 **L1 锁**，不是 tip 仅有软状态。
-4. **撮合 → SettleReady：** 买方锁定 / 授权付款（通常进入 **L1 结算托管**，或 `settleTrade` 可扣的 allowance）。Tip 记录撮合字段，并按正常 Q_V + **AC** 规则归档 `**SettleReady`** 事件。该 AC 即 `settleTrade` 的 `dleArchiveCertificate` 输入。
+4. **撮合 → SettleReady：** 买方锁定 / 授权付款（通常进入 **L1 结算托管**，或 `settleTrade` 可扣的 allowance）。Tip 记录撮合字段，并按正常 Q_V + **AC** 规则归档 **`SettleReady`** 事件。该 AC 即 `settleTrade` 的 `dleArchiveCertificate` 输入。
 5. **L1 成交（原子交割）：** 任一允许调用方提交 `settleTrade(...)`。**仅当** L1 tx 成功后，权威所有权才是 **买方 = L1 `ownerOf(subjectNftId)`**，付款才终局。Tip 随后记录 **Settled**（附 L1 tx hash）并 **关闭**。**标的资产/存储 tip 在新所有者下继续**（**不**关闭）。
 6. **L1 成交前失败 / 取消 / 过期：** tip 可走 **Cancelled** / **Expired → Closed** 并信号 L1 **解冻**；不得声称 tip 回滚能撤销已终局的 L1 转移（此时本不应有）。L1 成交成功后，tip 状态 **必须** 跟随 L1——不得发明 tip 独有的「反结算」。
 7. **所售对象：** 是 **标的** NFT / 账本——不是挂单外壳。转让交易 NFT 本身 **不是** 购买挂牌链的产品路径。
 8. **组合出售：** 出售多枚 ≤100 USDC 碎片须开 **多笔** 交易挂单（每标的 tip 一笔），与微额碎片化及单 tip 损失上限一致（§4.1、§4.5、§12.2）。
 
-**交易 tip 生命周期：** `Open → Locked → Matched → SettleReady → Settled → Closed`（或未经 L1 成交的 `Cancelled` / `Expired → Closed`）。**Settled** 由 **L1 结算成功** 定义，而非仅 tip 投票。
+**交易 tip 生命周期（规范，§10.2）：** `None → Open → Locked → SettleReady → Settled → Closed`（或未经 L1 成交的 `Cancelled` / `Expired → Closed`）。**Matched 不是** 独立 tip 状态：撮合字段在 **`Locked`** 下由 **`SettleReady`** 事件写入。**Settled** 由 **L1 结算成功** 定义，而非仅 tip 投票。完整转移表、编码、`tipStateRoot` 与错误码见 **§10**。
 
 ### 4.8 存储类创作者经济（碎片化内容 + GB 访问权）
 
@@ -455,16 +469,18 @@ Card + Module 扩展遵守 Factory 稳定边界；DLE tip 仍是隔离程序。I
 
 ```mermaid
 flowchart TB
-  subgraph ArchiveCluster["归档节点集群"]
-    A1[归档节点]
+  subgraph ArchiveShard["托管归档分片 BFT"]
+    Coord[轮值 ArchiveCoordinator]
+    Prep[PrepareQC]
+    AC[CommitQC 即 AC]
     PoH[PoH 本地时钟]
     Pool[参与者等待池]
   end
 
-  subgraph ChainGroup["按链维护组"]
-    I[发行者 / 创建者]
-    W[见证人]
-    V[验证者]
+  subgraph ChainGroup["按块提案层"]
+    I[发行者 / 创建者 可选]
+    W[见证人 可选]
+    V["验证人 N_V=7 Q_V=5/7"]
   end
 
   User[用户 / 所有者] -->|交易或建账请求| Pool
@@ -472,9 +488,11 @@ flowchart TB
   Roulette --> ChainGroup
   I --> W
   I --> V
-  W -->|已签名区块| ArchiveCluster
-  V -->|已签名区块| ArchiveCluster
-  A1 -->|接受 / 拒绝 / 回滚| ChainGroup
+  W -->|已签名提案| ArchiveShard
+  V -->|DepositBundle Q_V| ArchiveShard
+  Coord --> Prep
+  Prep --> AC
+  AC -->|tip 终局 Mode A| ChainGroup
   PoH --> Pool
 ```
 
@@ -892,7 +910,7 @@ MC = {
 | **网络故障**（无 listen 心跳 / 不可达）     | **排除但不罚没**（或仅轻度可用性扣分）；若未达 Q_V 仍可重选。                                       |
 | **归档不完整 / 质检失败**                | 形成 **RejectCommitQC**；执行回滚（§9）；原委员会进入 **冷却**。                                |
 | **归档分片分区 / < Q_A**              | Tip **停滞**；无冲突终局（§5.2.1）。                                                 |
-| **归档审查超过 T_{\mathrm{archive}}** | 带保证金的 L1 `**ArchiveCensorshipChallenge`** → re-home / L1 仲裁（§5.2.1）。      |
+| **归档审查超过 T_{\mathrm{archive}}** | 带保证金的 L1 **`ArchiveCensorshipChallenge`** → re-home / L1 仲裁（§5.2.1）。      |
 | **重选 griefing 超过 R_{\max}**     | 停止该高度的验证人重抽；升级到归档拒绝 / L1 挑战路径（§6.5）。                                      |
 
 
@@ -1077,10 +1095,10 @@ blockHash = keccak256(rlp_or_canonical_encode(header || txs || stateRoot))
 vote = EIP-191( "CoNET-DLE/vote/v1" || chainId || chainNFT || height || blockHash || role || eoa )
 ```
 
-收集所需 **验证人委员会**（及可选发行者 / 见证人）角色的 ECDSA 签名。归档验证：
+收集 **验证人委员会**（及可选发行者 / 见证人）角色的 ECDSA 签名。完整度指提案层 **\(Q_V=5/7\)**——**不是** 抽齐全部席位，也 **不是**「全部角色 100%」。归档验证：
 
 1. `ecrecover` 与 roulette 所选集合匹配。
-2. 接受票数 ≥ \(Q_V=5\) / \(N_V=7\)（候补按 §6.5）——**不是**「全部角色 100%」。
+2. 接受票数 ≥ \(Q_V=5\) / \(N_V=7\)（候补按 §6.5）。
 3. `blockHash` 与存入体重新计算的摘要一致（或 DA 证明）。
 
 **归档 prepare / commit（终局层）：** 形成 PreparedQC / CommitQC（= AC）的投票 **必须** 为覆盖 §5.2.1 AC 类型化字段（含 DA 绑定 + `membershipRoot`）的 **EIP-712**。L1 `settleTrade` / MembershipCheckpoint **拒绝** 仅 EIP-191 的 AC。
@@ -1124,7 +1142,7 @@ R_e \;=\; H\!\big(\texttt{"dle.roulette.v1"}\;\big\|\; \mathrm{L1BeaconFinalized
 
 需要质押加权票据时，合格质押者可发布
 
-`ticket = ECVRF_sk(R_e || roleDomain)`。
+`ticket = ECVRF_sk(R_e || roleDomain)`（下标 \(sk\) 为签名私钥）。
 
 最高 / 按哈希排序的 **有效** 票据赢得角色。用标准 ECVRF verify 校验。票据经 DePIN 密文通道 gossip。该路径 **消费** 已固定的 §7.8.1 种子；票据 **不得** 再拼回 \(R_e\)，也 **不得** 改变生产种子。
 
@@ -1189,11 +1207,11 @@ h_{t+1} = SHA-256(h_t)
 ### 7.10 任务密钥与见证人存储
 
 
-| 材料        | 派生                                                | 寿命     |
-| --------- | ------------------------------------------------- | ------ |
-| 任务会话密钥    | `HKDF-SHA256(master = ECDH_or_shared, info = "dle | task   |
-| 链见证人存储密钥  | 由见证人质押密钥 + `chainNFT` 派生                          | 链生命周期  |
-| 投递 ACK id | `keccak256(utf8(openpgp_armor))`                  | 直至 ACK |
+| 材料 | 派生 | 寿命 |
+| --- | --- | --- |
+| 任务会话密钥 | `HKDF-SHA256(master = ECDH_or_shared, info = "dle/task/" ‖ taskId)` | 单块任务 |
+| 链见证人存储密钥 | 由见证人质押密钥 + `chainNFT` 派生 | 链生命周期 |
+| 投递 ACK id | `keccak256(utf8(openpgp_armor))` | 直至 ACK |
 
 
 验证者投票后 **应当** 擦除任务密钥。见证人可用 OS 密钥库 / age / OpenPGP 对称包加密静态链数据——属实现选择，非协议强制。
@@ -1284,7 +1302,7 @@ L2Envelope {
 
 ## 10. 无 tip 虚拟机——按类固定事件状态机
 
-**产品冻结：** 原子 tip **不** 承载通用虚拟机。每条 tip 是 **按类固定的事件状态机**（**资产** / **存储** / **交易**）。Tip 验证人对照冻结转移表校验类型化事件（§6.3）；**不** 执行用户部署程序。
+**产品冻结：** 原子 tip **不** 承载通用虚拟机。每条 tip 是 **按类固定的事件状态机**（**资产** / **存储** / **交易**）。Tip 验证人与 Mode A 归档 **重放** 同一确定性转移函数（§6.3）；**不** 执行用户部署程序。
 
 | 层 | 职责 |
 | --- | --- |
@@ -1293,6 +1311,104 @@ L2Envelope {
 | **应用层** | 钱包、索引器、Beamio 模块及可选 L1 业务合约把 tip + L1 **编排** 成产品。 |
 
 **为何无 tip VM：** 资产转账、存储/版权交付与交易协调已覆盖本 L2 价值面；tip VM 会增加执行 / 计量 / 升级面却无相称产品收益，并与 tip 隔离设计冲突。
+
+**为何仅靠自然语言不够：** 取消 tip VM 消除了任意字节码分歧，但 Mode A 仍要求唯一的 \((\mathrm{parentState}, \mathrm{event}) \mapsto (\mathrm{nextState}, \mathrm{tipStateRoot})\) 函数。散文式 FSM 草图会使第三方实现对同一 DepositBundle 接受/拒绝结果不同或算出不同根——即 **共识分叉**。**§10.1–§10.4** 冻结规范元模型与 **Trade** 表；资产 / 存储共用该元模型并附按类表（§10.3–§10.4）。
+
+### 10.1 FSM 元模型（三类共用规范）
+
+每一类 FSM **必须** 规定下表各项。任一项实现不一致即 **不可互通**。
+
+| 项 | 规范 |
+| --- | --- |
+| **状态** | 每类有限显式枚举；禁止灰色 / 隐式状态。终态在 v1 为吸收态（无重新打开）。 |
+| **事件** | 有限类型集。一个 tip 块 **恰好** 接受一个事件（仅事件出块，§3.2）。 |
+| **转移表** | 对 \((\mathrm{state}, \mathrm{eventType})\) 的全函数：要么唯一行（前置 → `nextState` + 效果），要么以固定错误码 **拒绝**。缺行 = 拒绝 `ERR_FSM_NO_TRANSITION`。 |
+| **前置条件** | 对父 tip 状态 + 事件字段 +（若引用）L1 视图 / oracle 答案的纯谓词。失败 → 拒绝；**禁止** 半写 tip。 |
+| **效果** | 拆分 **tipEffects**（改 tip 叶）与 **l1Effects**（`none` / 信号 / 观测）。Tip **不得** 声称回滚已终局 L1 转移。 |
+| **事件二进制编码** | 规范字节：`version:u8 ‖ classId:u8 ‖ eventType:u16 ‖ tipId:bytes32 ‖ nonce:u64 ‖ payload`；整数 **大端**；**禁止** 隐式 JSON 键序。`payload` 按类固定字段序（SSZ 风格偏移或长度前缀——每一发布版只选一种；开放：SSZ vs RLP 选型见 §15，但下文 **顺序与位宽** 已冻结）。 |
+| **`classId`** | `1=asset`，`2=storage`，`3=trade`。 |
+| **重放域** | EIP-712 / 哈希域字符串 `CoNET-DLE-TipFSM-v1` + `chainId`（CoNET L1）+ `tipId`（出生 NFT id / tradeId 作 `bytes32`）。事件签名与 AC 绑定 **必须** 含此域。 |
+| **Nonce** | 每 tip `u64`，每接受事件严格 **+1**。等于/低于父 nonce → `ERR_FSM_NONCE`。创世 nonce=`0`；首事件用 `1`。 |
+| **时间源** | 共识相关时间 **仅**：（a）事件字段 `deadline` / `expiresAt` 为绝对 unix **秒** `u64`；和/或（b）转移要求观测 L1 时，所引用 L1 tx / oracle 更新的 **L1 块时间**。**禁止** 作共识真值：验证人墙钟、单独本地 PoH、归档主机时钟。软 UX 时钟可本地展示但 **不得** 改变接受/拒绝。 |
+| **整数位宽** | 地址 `bytes20`；id `bytes32`；金额 **`u128`**（代币最小单位）；百分比 / bps **`u32`**；枚举 **`u8`/`u16`**。Tip 状态禁止浮点。 |
+| **USDC / 报价精度** | 以 USDC 计价的报价与费用用 **6 位小数**（`1 USDC = 1_000_000`）。若付款资产为 conet-USDC 或其他白名单 ERC-20，事件携带 `quoteAsset` + 该代币精度下的 `quoteAmount`；**≤ 100 USDC** 封顶比较 **oracle USDC-6** 值。 |
+| **Oracle round** | 依赖估值的转移 **必须** 在事件载荷内绑定 `oracleRoundId:u64`、`oracleAnswerUsdc6:u128`、`oracleUpdatedAt:u64`（或等价 oracle 报告哈希）。仅当报告来自白名单 oracle 且适用封顶时 `answerUsdc6 ≤ 100_000_000` 才接受。 |
+| **`tipStateRoot`** | 对排序叶 `(path:bytes, value:bytes)` 的 `Keccak256` Merkle 根。强制叶至少含：`state`、`nonce`、按类账户/对象叶，以及（交易类）挂单/撮合字段。空可选叶用固定零哈希。路径编码：§10.2–§10.4 的 ASCII path。父 AC 的 `tipStateRoot` **必须** 等于应用事件后的根。 |
+| **错误码** | 稳定 `u16`：`0x01xx`（元模型）、`0x11xx`（资产）、`0x12xx`（存储）、`0x13xx`（交易）。Mode A 拒绝 **必须** 与验证人使用同一码。 |
+
+**共用错误码（元模型）：**
+
+| 码 | 名 | 含义 |
+| --- | --- | --- |
+| `0x0101` | `ERR_FSM_NO_TRANSITION` | 无 `(state, eventType)` 行 |
+| `0x0102` | `ERR_FSM_NONCE` | nonce 非父+1 |
+| `0x0103` | `ERR_FSM_DOMAIN` | 重放域 / classId / tipId 错误 |
+| `0x0104` | `ERR_FSM_ENCODING` | 载荷解码 / 位宽失败 |
+| `0x0105` | `ERR_FSM_ORACLE` | 缺失/过期/超顶 oracle 绑定 |
+| `0x0106` | `ERR_FSM_AUTH` | 签名者无权发此事件 |
+| `0x0107` | `ERR_FSM_L1_PRECONDITION` | 所需 L1 视图失败（所有权、托管、settle tx） |
+| `0x0108` | `ERR_FSM_DEADLINE` | 期限 / 过期谓词失败 |
+
+### 10.2 交易类 FSM（产品冻结）
+
+**状态（`u8`）：** `None=0`，`Open=1`，`Locked=2`，`SettleReady=3`，`Settled=4`，`Closed=5`。
+
+**事件（`u16`）：** `TradeOpened=0x1301`，`BuyerLocked=0x1302`，`SettleReady=0x1303`，`L1Settled=0x1304`，`Cancelled=0x1305`，`Expired=0x1306`。
+
+**转移表：**
+
+| 当前 | 事件 | 前置条件（摘要） | 新状态 | Tip 效果 | L1 效果 |
+| --- | --- | --- | --- | --- | --- |
+| `None` | `TradeOpened` | 签名者=卖方；L1 上 `seller=ownerOf(subjectNftId)`；绑定 `oracleRoundId` 且 oracle USDC-6 ≤ 100M；`deadline >` 引用的 L1 时间；创世 class=`trade` | `Open` | 初始化挂单叶：subject、seller、quoteAsset、quoteAmount、deadline、oracle*；nonce←1 | 冻结 / 托管 **标的 NFT**（注册表或 Settlement） |
+| `Open` | `BuyerLocked` | 买方路径授权；付款授权 / 托管入金与报价精确匹配；nonce 合法 | `Locked` | 记录 `buyer`、`paymentAuthHash` / 托管引用 | 在 Settlement 托管中锁定 **资金**（或可扣授权） |
+| `Locked` | `SettleReady` | `buyer` / 报价 / 期限仍有效；撮合字段等于已锁定授权；nonce 合法 | `SettleReady` | 承诺撮合及 SettleReady AC 所需字段（§4.7）；暴露 `tipStateRoot` | **无**（AC 属 tip/归档平面） |
+| `SettleReady` | `L1Settled` | 观测到针对本 `tradeId`+nonce 的成功 L1 `settleTrade`；回执字段匹配 AC 载荷 | `Settled` 并在同次接受中自动 `Closed`（或两步效果相同） | 记录 `l1TxHash`；标记关闭 | L1 上已完成（NFT+付款）；tip **跟随** |
+| `Open` 或 `Locked` | `Cancelled` | 签名者=卖方 **或** 按冻结规则的买方；尚未不可逆 L1 成交 | `Closed` | 清除撮合意向 | 解冻标的 NFT + 资金 |
+| `Open` 或 `Locked` | `Expired` | 引用的 L1 时间 `>` `deadline`；无 L1 成交 | `Closed` | 标记过期 | 解冻标的 NFT + 资金 |
+| `SettleReady` | `Cancelled` / `Expired` | 同上 **且** 未观测到 L1 成交 | `Closed` | 清除 SettleReady | 解冻 |
+| `Settled` / `Closed` | * | — | — | 拒绝 `ERR_FSM_NO_TRANSITION` | — |
+
+**禁止：** 无 `L1Settled` 观测的 tip 独有 `Settled`；把 `Matched` 当作 tip 状态；从 `Open` 跳过 `BuyerLocked` 接受 `SettleReady`。
+
+**交易载荷字段序（规范位宽）：**
+
+| 事件 | 载荷字段（顺序） |
+| --- | --- |
+| `TradeOpened` | `subjectNftId:bytes32`，`seller:address`，`quoteAsset:address`，`quoteAmount:u128`，`deadline:u64`，`oracleRoundId:u64`，`oracleAnswerUsdc6:u128`，`oracleUpdatedAt:u64` |
+| `BuyerLocked` | `buyer:address`，`paymentAuthHash:bytes32`，`escrowRef:bytes32` |
+| `SettleReady` | `buyer:address`，`quoteAsset:address`，`quoteAmount:u128`，`deadline:u64`，`settleNonce:u64`（= tip nonce） |
+| `L1Settled` | `l1TxHash:bytes32`，`l1BlockNumber:u64`，`l1BlockHash:bytes32` |
+| `Cancelled` | `reasonCode:u16`，`initiator:address` |
+| `Expired` | `citedL1BlockNumber:u64`，`citedL1Timestamp:u64` |
+
+**交易 `tipStateRoot` 路径（最小集）：** `/state`，`/nonce`，`/subjectNftId`，`/seller`，`/buyer`，`/quoteAsset`，`/quoteAmount`，`/deadline`，`/oracleRoundId`，`/paymentAuthHash`，`/l1TxHash`。
+
+**交易错误码：** `0x1301 ERR_TRADE_NOT_OWNER`，`0x1302 ERR_TRADE_BAD_QUOTE`，`0x1303 ERR_TRADE_BAD_PAYMENT`，`0x1304 ERR_TRADE_AC_MISMATCH`，`0x1305 ERR_TRADE_L1_NOT_FOUND`，`0x1306 ERR_TRADE_ALREADY_SETTLED`。
+
+### 10.3 资产类 FSM（形式冻结；表骨架）
+
+**状态：** `Active`，`SpilloverPending`，`Exited`（普通持有落在 `Active`）。  
+**核心事件（id `0x11xx`）：** `DepositAck`，`Transfer`，`FeePaid`，`Revalue`，`SpilloverOpen`，`ForceWithdrawn`（衔接 §4.6 / `forceWithdraw`）。
+
+每个被接受的转账/重估 **必须** 绑定 oracle round 字段，并在事件后强制 oracle 值 **≤ 100 USDC-6**，否则超额转出前须走 spillover 新链事件。完整叶路径与每条前置行遵循 §10.1 元模型；工程可扩展表但 **不得** 引入 tip VM。开放：精确手续费拆分叶更新与 spillover 多事件打包（§15）。
+
+### 10.4 存储类 FSM（形式冻结；表骨架）
+
+**状态：** `Configured`，`PurchaseOpen`，`Delivering`，`Completed`，`Expired`（内容访问）；谱系/社交/销售流水事件为 **仅追加侧账**，除已文档化的行外 **不得** 改写内容访问状态。  
+**核心事件（id `0x12xx`）：** `ContentConfigured`，`PurchaseOpened`，`DeliveryCompleted`，`StorageRenewed`，`AccessExpired`，以及流水事件 `ParentLinked`，`SocialSigned`，`SaleBooked`（§4.8–§4.10）。
+
+最先完成者与买方 PGP 规则仍为 tip 前置（仅 hash 承诺——无明文）。开放：挑战窗数值与销售↔资产终局时序（§15）。
+
+### 10.5 Mode A 重放义务（重申）
+
+给定父状态 `(tipStateRoot₀, state₀, nonce₀)` 与事件字节 `E`：
+
+1. 按 §10.1 解码 `E`；校验域、classId、tipId、nonce。
+2. 查转移行；求值前置（含所需 L1/oracle）。
+3. 应用 tipEffects → `(state₁, tipStateRoot₁)`。
+4. 仅当根/状态与候选块一致时接受；否则以表中错误码拒绝。
+
+委员会 \(Q_V\) 证明 **不能** 替代本函数（§6.3）。
 
 ---
 
@@ -1316,7 +1432,7 @@ L2Envelope {
 | 版权 ZERO 版本树              | 父子存储 NFT；各分支可独立挂牌；社交点赞/评论/引用为 tip 历史；WoT 加权拍卖信号（§4.9）                                                       |
 | 存储销售 ↔ 资产 tx             | 存储 tip 维护销售收入流水；价值在并行 **资产类** tip 上移动；行关联 `assetNftId`/`assetTxId`（§4.10）                                   |
 | 双轨手续费（§13）               | **存储：** 内容 / 访问 / 保留以 **conet-GB**。**资产/交易：** **0.01%** 以 **USDC**；该费 **50% 归档 / 50% \(Q_V\) 验证人**。**仅靠 0.01%** 不足以覆盖完整安全预算。 |
-| 无 tip VM（§10）              | 仅按类固定事件 FSM；验证人校验转移表；应用层组合 tip + L1；**无** 用户部署 tip 程序                                                                                      |
+| 无 tip VM（§10）              | 按类 FSM + 规范元模型；Trade 完整转移表；Mode A 确定性重放；应用层组合 tip + L1；**无** 用户 tip 字节码                                                                                      |
 | 事件驱动出块                   | **无事件 ⇒ 不出块**；永不挖空 tip                                                                                      |
 | 天然隐私（双轨）                 | 通讯：DePIN + OpenPGP（§7）；资产：提高聚类成本 + 打断单地址投资组合映射；**非** 强匿名（§4.5）                                                         |
 | 公开码预测 *n*（客户端）           | **规范 ERC-5564**（元地址、临时公钥、view tag、announcement、scan/spend、批量 *n*、恢复/扫描）；BIP-47/BIP-352 仅参考；**非** tip/归档/验证人委员会职责（§4.5）                     |
@@ -1367,93 +1483,90 @@ L2Envelope {
 
 缓解叠层：
 
-1. **随机短命小规模组** 分布于大规模质押集合 → 当攻击者等待池份额 p 适中时，**单次** P_{\mathrm{prop}} 较小（§12.3.1）。
+1. **随机短命小规模组** 分布于大规模质押集合 → 当攻击者等待池份额 \(p\) 适中时，**单次** \(P_{\mathrm{prop}}\) 较小（§12.3.1）。
 2. **单 tip 损失上限：** 每条资产 tip 的 **直接** oracle 损失 ≤100 USDC——**不是** 攻击者总期望收益 → 0 的断言（§12.2）。
-3. **委员会累计暴露** E_C\le E_{\max}，使一次抽选不能为无界并发微 tip 背书（§12.3.2）。
+3. **委员会累计暴露** \(E_C\le E_{\max}\)，使一次抽选不能为无界并发微 tip 背书（§12.3.2）。
 4. 串谋失败面临 **质押罚没**；诚实成员可从手续费 / 罚没再分配中获奖励。
 5. 可花费终局仍须 **归档证书**——仅提案层俘获不够（§5.2.1、§12.3.1）。
 
 ### 12.3.1 委员会俘获概率（必须量化）
 
-**教学基线（已拒绝的 v0 Q_V=5/5）。** 若攻击者控制等待池比例为 p，且抽样真正独立均匀，则 **五人全部** 被控制的概率为
+**教学基线（已拒绝的 v0 \(Q_V=5/5\)）。** 若攻击者控制等待池比例为 \(p\)，且抽样真正独立均匀，则 **五人全部** 被控制的概率为
 
-
+\[
 P_{\mathrm{capture}}^{(5/5)} = p^{5}.
+\]
+
+| 攻击者池份额 \(p\)（%） | \(P_{\mathrm{capture}}^{(5/5)}=p^{5}\) |
+| ---: | ---: |
+| 10 | \(10^{-5}\) |
+| 20 | \(3.2\times 10^{-4}\) |
+| 33 | \(\approx 3.9\times 10^{-3}\) |
+| 50 | \(3.125\times 10^{-2}\) |
 
 
+**v1 产品冻结（\(N_V=7\)，\(Q_V=5\)）。** 恶意 **提案存入** **不要求** 七席全控——只需 **≥ 5** 个接受签名。在同样 i.i.d. 模型下（\(K\sim\mathrm{Binomial}(7,p)\)）：
 
-| 攻击者池份额 p | P_{\mathrm{capture}}^{(5/5)}=p^{5} |
-| -------- | ---------------------------------- |
-| 10%      | 10^{-5}                            |
-| 20%      | 3.2\times 10^{-4}                  |
-| 33%      | \approx 3.9\times 10^{-3}          |
-| 50%      | 3.125\times 10^{-2}                |
-
-
-**v1 产品冻结（N_V=7，Q_V=5）。** 恶意 **提案存入** **不要求** 七席全控——只需 **≥ 5** 个接受签名。在同样 i.i.d. 模型下（K\sim\mathrm{Binomial}(7,p)）：
-
-
+\[
 P_{\mathrm{prop}}
 = \Pr[K \ge 5]
 = \binom{7}{5} p^{5}(1-p)^{2}
++ \binom{7}{6} p^{6}(1-p)
++ p^{7}.
+\]
 
-- \binom{7}{6} p^{6}(1-p)
-- p^{7}.
+| 攻击者池份额 \(p\)（%） | \(P_{\mathrm{prop}}=\Pr[K\ge 5]\)（约） |
+| ---: | ---: |
+| 10 | \(1.765\times 10^{-4}\) |
+| 20 | \(4.672\times 10^{-3}\) |
+| 33 | \(\approx 4.34\times 10^{-2}\) |
+| 50 | \(2.266\times 10^{-1}\) |
 
+因此从 \(5/5\) 改为 \(5/7\) **提高了** 单次提案俘获概率（§6.5 的活性折中）。安全论证 **必须** 使用 \(P_{\mathrm{prop}}\)，而非 \(p^{5}\)。
 
+**累计 / 年化风险。** 若网络在某窗口（如一年）内形成 \(M\) 次独立委员会抽选，则 **至少一次** 提案层俘获的概率为
 
-| 攻击者池份额 p | P_{\mathrm{prop}}=\Pr[K\ge 5]（约） |
-| -------- | -------------------------------- |
-| 10%      | 1.765\times 10^{-4}              |
-| 20%      | 4.672\times 10^{-3}              |
-| 33%      | \approx 4.34\times 10^{-2}       |
-| 50%      | 2.266\times 10^{-1}              |
-
-
-因此从 5/5 改为 5/7 **提高了** 单次提案俘获概率（§6.5 的活性折中）。安全论证 **必须** 使用 P_{\mathrm{prop}}，而非 p^{5}。
-
-**累计 / 年化风险。** 若网络在某窗口（如一年）内形成 M 次独立委员会抽选，则 **至少一次** 提案层俘获的概率为
-
-
+\[
 P_{\mathrm{year}}^{\mathrm{prop}}
 = 1 - (1 - P_{\mathrm{prop}})^{M}
-\approx 1 - e^{-MP_{\mathrm{prop}}}
+\approx 1 - e^{-M\,P_{\mathrm{prop}}}
 \quad (P_{\mathrm{prop}}\ll 1).
+\]
 
 
-该窗口内期望俘获次数：\mathbb{E}[N_{\mathrm{cap}}] = MP_{\mathrm{prop}}。
+该窗口内期望俘获次数：\(\mathbb{E}[N_{\mathrm{cap}}] = M\,P_{\mathrm{prop}}\)。
 
 示意性 M（数量级；生产须计量真实抽选）：
 
 
-| 抽选 / 日 | M / 年                     | p=5%                                                  | p=10%                                             | p=20%                                                          |
-| ------ | ------------------------- | ----------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------- |
-| 10^{2} | \approx 3.65\times 10^{4} | \mathbb{E}\approx 0.22, P_{\mathrm{year}}\approx 0.20 | \mathbb{E}\approx 6.4, P_{\mathrm{year}}\approx 1 | \mathbb{E}\approx 1.7\times 10^{2}, P_{\mathrm{year}}\approx 1 |
-| 10^{3} | \approx 3.65\times 10^{5} | \mathbb{E}\approx 2.2, P_{\mathrm{year}}\approx 0.89  | \mathbb{E}\approx 64, P_{\mathrm{year}}\approx 1  | \mathbb{E}\gg 1, P_{\mathrm{year}}\approx 1                    |
-| 10^{6} | \approx 3.65\times 10^{8} | \mathbb{E}\gg 1, P_{\mathrm{year}}\approx 1           | 同左                                                | 同左                                                             |
+| 抽选 / 日 | \(M\) / 年 | \(p=5\%\) | \(p=10\%\) | \(p=20\%\) |
+| ---: | ---: | ---: | ---: | ---: |
+| \(10^{2}\) | \(\approx 3.65\times 10^{4}\) | \(\mathbb{E}\approx 0.22\), \(P_{\mathrm{year}}\approx 0.20\) | \(\mathbb{E}\approx 6.4\), \(P_{\mathrm{year}}\approx 1\) | \(\mathbb{E}\approx 1.7\times 10^{2}\), \(P_{\mathrm{year}}\approx 1\) |
+| \(10^{3}\) | \(\approx 3.65\times 10^{5}\) | \(\mathbb{E}\approx 2.2\), \(P_{\mathrm{year}}\approx 0.89\) | \(\mathbb{E}\approx 64\), \(P_{\mathrm{year}}\approx 1\) | \(\mathbb{E}\gg 1\), \(P_{\mathrm{year}}\approx 1\) |
+| \(10^{6}\) | \(\approx 3.65\times 10^{8}\) | \(\mathbb{E}\gg 1\), \(P_{\mathrm{year}}\approx 1\) | 同左 | 同左 |
 
 
-**结论：** 在每天数百万委员会时，「很小的」P_{\mathrm{prop}} 仍可使年化提案俘获 **近乎必然**，除非把 p 压到 **极低**（和/或限制 M）。**因此「每条链 ≤ 100 USDC」是单 tip 直接损失上限，不能代替 P_{\mathrm{year}}、归档 BFT 或 E_C\le E_{\max}。**
+**结论：** 在每天数百万委员会时，「很小的」\(P_{\mathrm{prop}}\) 仍可使年化提案俘获 **近乎必然**，除非把 \(p\) 压到 **极低**（和/或限制 \(M\)）。**因此「每条链 ≤ 100 USDC」是单 tip 直接损失上限，不能代替 \(P_{\mathrm{year}}\)、归档 BFT 或 \(E_C\le E_{\max}\)。**
 
 **损失核算（产品冻结）— 仅现金账面价值。**
 
-
+\[
 \mathbb{E}[\text{年化提案俘获账面损失}]
-\le
-100\mathrm{USDC}\times\mathbb{E}[N_{\mathrm{cap}}]
-=
-100\mathrm{USDC}\times MP_{\mathrm{prop}},
+\;\le\;
+100\,\mathrm{USDC}\,\times\,\mathbb{E}[N_{\mathrm{cap}}]
+\;=\;
+100\,\mathrm{USDC}\,\times M\,P_{\mathrm{prop}},
+\]
 
+尚未计入罚没再分配，尚未计入可花费盗窃仍须 **归档证书**（§5.2.1），并 **排除** 非现金收益（审查 / 勒索 / 隐私）与 oracle 低估下的 NFT 效用（§12.2）。若归档拜占庭份额为 \(p_A\)，在地板分片 \(N_A=4\)、\(Q_A=3\) 上且独立，则
 
-尚未计入罚没再分配，尚未计入可花费盗窃仍须 **归档证书**（§5.2.1），并 **排除** 非现金收益（审查 / 勒索 / 隐私）与 oracle 低估下的 NFT 效用（§12.2）。若归档拜占庭份额为 p_A，在地板分片 N_A=4、Q_A=3 上且独立，则
-
-
+\[
 P_{\mathrm{AC}} = \Pr[\mathrm{Binomial}(4,p_A)\ge 3],
 \qquad
 P_{\mathrm{tip}}^{\mathrm{final}} \approx P_{\mathrm{prop}}\cdot P_{\mathrm{AC}}
+\]
 
-
-（仅作 **示意**——真实对手可能相关化两个池）。例如 p=p_A=0.10：P_{\mathrm{prop}}\approx 1.8\times 10^{-4}，P_{\mathrm{AC}}=3.7\times 10^{-3}，联合 \approx 6.5\times 10^{-7} / tip——仍须折入 1-(1-P_{\mathrm{tip}})^{M}。
+（仅作 **示意**——真实对手可能相关化两个池）。例如 \(p=p_A=0.10\)：\(P_{\mathrm{prop}}\approx 1.8\times 10^{-4}\)，\(P_{\mathrm{AC}}=3.7\times 10^{-3}\)，联合 \(\approx 6.5\times 10^{-7}\) / tip——仍须折入 \(1-(1-P_{\mathrm{tip}})^{M}\)。
 
 **运营义务（产品冻结）。**
 
@@ -1505,7 +1618,7 @@ E_{\max}.
 
 **BFT 假设（产品冻结）：** 每个分片按通式 \(f=\lfloor(N_A-1)/3\rfloor\)、\(Q_A=\lfloor 2N_A/3\rfloor+1\) 运行 HotStuff 风格 **PrepareQC → CommitQC（= AC）** 并遵守锁定规则（§5.2.1）。至多 \(f\) 个成员拜占庭时安全成立。该界限下法定人数相交 + 锁定阻止同一高度出现两个冲突终局 tip；同角色双签可罚没并在 L1 解决。无 \(Q_A\) 的分区导致 **停滞**，而非双终局（安全优先于活性）。
 
-**审查：** 单一归档（或少数方）不能单方永远拒绝或扣留终局——拒绝须 Q_A；超过 T_{\mathrm{archive}} 的持续无进展解锁带保证金的 L1 `**ArchiveCensorshipChallenge`** 与 re-home。**DA：** AC 绑定 `daRoot` + \((n,k)=(10,6)\) + 签前持有 ≥\(k\) + **UnavailableChallenge**；可花费余额须有 **可重建 DA** 的 AC；失败可走 **`forceWithdraw`** ↔ AssetVault。作弊归档可被禁并转移质押。长期安全仍依赖每分片的 f 界限与主链注册表完整性。
+**审查：** 单一归档（或少数方）不能单方永远拒绝或扣留终局——拒绝须 Q_A；超过 T_{\mathrm{archive}} 的持续无进展解锁带保证金的 L1 **`ArchiveCensorshipChallenge`** 与 re-home。**DA：** AC 绑定 `daRoot` + \((n,k)=(10,6)\) + 签前持有 ≥\(k\) + **UnavailableChallenge**；可花费余额须有 **可重建 DA** 的 AC；失败可走 **`forceWithdraw`** ↔ AssetVault。作弊归档可被禁并转移质押。长期安全仍依赖每分片的 f 界限与主链注册表完整性。
 
 ### 12.7 传输 / 隐私对手
 
@@ -1533,13 +1646,17 @@ E_{\max}.
 100\ \mathrm{USDC} \times 0.01\% = 0.01\ \mathrm{USDC}.
 \]
 
-若该费全部由 **五名** 接受验证人平分：
+按冻结的 **50% 托管归档 / 50% \(Q_V\) 验证人** 拆分（§13.3）：
 
 \[
-0.01 / 5 = 0.002\ \mathrm{USDC}
+\begin{aligned}
+\text{归档一半} &= 0.01 \times 50\% = 0.005\ \mathrm{USDC},\\
+\text{验证人一半} &= 0.01 \times 50\% = 0.005\ \mathrm{USDC},\\
+\text{每名接受验证人（共 5 人）} &= 0.005 / 5 = 0.001\ \mathrm{USDC}.
+\end{aligned}
 \]
 
-每人——且 **尚未** 覆盖：**归档节点**、**网络传输**、**Oracle**、**L1 NFT mint**、**数据保存**、**重选 / 抽选失败成本**，以及 **conet-GB ↔ USDC** 价格波动。
+**不要** 用「\(0.01/5=0.002\) USDC / 验证人」举例——那忽略了归档一半。即便 \(0.001\) USDC/验证人，也 **尚未** 覆盖：**网络传输**、**Oracle**、**L1 NFT mint**、**数据保存**、**重选 / 抽选失败成本**，以及 **conet-GB ↔ USDC** 价格波动。
 
 **诚实冻结：** **0.01%** tip 事件费是资产/交易共识分红的 **产品常量**，**不是** 声称它单独即可支撑端到端可持续安全预算。可持续经济 **必须** 组合：(i) 下文 USDC 0.01% 拆分，(ii) **存储类按内容的 conet-GB 费**（随体积放大），(iii) 另行配置的 L1 mint / oracle / 挑战保证金，以及 (iv) 后续可选的费率治理——而非「0.01% 包办一切」。
 
@@ -1610,8 +1727,8 @@ CoNET-DLE 精神上最接近 **「许多微账本 + 随机委员会 + 归档终�
 2. Roulette 随机性形式已产品冻结（§7.8）：生产 \(R_e = H(\texttt{"dle.roulette.v1"}\,\|\,\mathrm{L1BeaconFinalizedRandomness}_e\,\|\,e\,\|\,\mathrm{shardId}\,\|\,\mathrm{poolRoot}_e)\)，熵源为 **CoNET beacon / CL 已终局随机信标**（非 execution `block.hash`），且 \(Q_A\) 背书的 `poolRoot_e` 须在该 beacon 已知 **之前** 冻结；可选 ECVRF 票据可消费 \(R_e\) 但 **不得** 回写；将可选归档 VRF 拼进 \(R_e\) **已拒绝**（selective-omission / last-publisher bias）。Commit–reveal **仅 MVP**（已承认 last-revealer bias）。待开项：精确 CL 随机字段 / slot 对齐 ABI、`poolRoot` Merkle 编码、冻结相对 beacon 的时序常量。二期候选：\(\mathrm{ThresholdVRF}_{t,N}(m_e)\)；若再叠加归档 VRF，须预 beacon 冻结 `vrfContributorRoot`，禁止「缺失即从哈希删除」。
 3. 无正当拒签的精确绑定罚没比例 B_{\mathrm{refuse}}、网络故障沉默的可选轻度可用性分数衰减，以及 T_{\mathrm{vote}} / T_{\mathrm{sb}} 是否仅墙钟、或同时引用本地 PoH 测量（§6.5）——**不得** 把 PoH 当作共享顺序（§7.9）。
 4. PoH 已产品冻结为 **仅本地** 节拍时钟；规范顺序 = 归档 QC（§7.9）。待开项：SHA-256 tick 速率、检查点发布间隔、join 提案附带多少本地 PoH 证据——而非 PoH 能否单独给等待池排序。
-5. 罚没金额、赏金份额、禁期，以及 `**ArchiveCensorshipChallenge**` 的具体 T_{\mathrm{archive}} / 保证金规模（费率 **0.01%**、**50/50 归档/验证人**、资产封顶 **100 USDC**，以及双轨 **存储=conet-GB / 资产·交易=USDC** 为产品冻结默认——见 §13）。开放：归档 **50%** 在 AC 签署者 vs 全分片间如何加权；tip **USDC** 是原生 Base USDC、conet-USDC 还是 oracle 单位；0.01% 之外的独立 L1 mint / oracle / 保留费行。
-6. **类事件模式 / 转移表** 冻结（编码 + 校验规则——**不是** tip VM），含质押 / roulette / **USDC + conet-GB** 费用钩子；L1 NFT mint 的类别 + 入金 ABI；交易 tip 事件类型 **挂单 / 撮合 / SettleReady / 关闭**（仅协调——**原子交割是 L1 `settleTrade`**，§4.7）；存储类事件类型 **contentIndexHash / 购买 / 最先完成者交付**（§4.8）、**父谱系 / 社交事件**（§4.9）以及 **销售流水 + 资产 tx 引用**（§4.10）；AC checkpoint / 争议 / 审查挑战的 L1 ABI（§5.2.1）。
+5. 罚没金额、赏金份额、禁期，以及 **`ArchiveCensorshipChallenge`** 的具体 T_{\mathrm{archive}} / 保证金规模（费率 **0.01%**、**50/50 归档/验证人**、资产封顶 **100 USDC**，以及双轨 **存储=conet-GB / 资产·交易=USDC** 为产品冻结默认——见 §13）。开放：归档 **50%** 在 AC 签署者 vs 全分片间如何加权；tip **USDC** 是原生 Base USDC、conet-USDC 还是 oracle 单位；0.01% 之外的独立 L1 mint / oracle / 保留费行。
+6. **按类 FSM 元模型 + Trade 转移表** 已产品冻结（§10）：无 tip VM；共用事件编码位宽、重放域 `CoNET-DLE-TipFSM-v1`、nonce、时间源、USDC-6、oracle round 绑定、`tipStateRoot` Merkle 路径与错误码；Trade 状态 `None/Open/Locked/SettleReady/Settled/Closed` 与事件 `TradeOpened…Expired`（§10.2）。资产 / 存储表为 **形式冻结骨架**（§10.3–§10.4）。开放项：SSZ vs RLP 容器选型、DepositBundle 字节布局、资产/存储完整前置行、手续费拆分叶更新、存储挑战 / 销售↔资产时序常量——**不是** Mode A 可否跳过确定性重放。
 7. 开放交易 tip 的 Matcher / 订单索引发现（链外索引 vs 专用索引角色）——不得绕过原子 ≤100 USDC 或 L1 所有权规则（§4.7）。**`settleTrade` AC 验证** 已产品冻结（§4.7）：EIP-712 SettleReady 字段、L1 `archiveMembershipRoot` checkpoint、拒绝过期名册、仅在 L1 成功后 tip 标 Settled。开放项：Settlement / MembershipCheckpoint **地址**、付款代币白名单、调用方策略（任意人 vs 有保证金 relayer），以及 **省 gas** 的 AC checkpoint / 聚合格式（相对每笔 settle 做原始多 ECDSA）。
 8. 交付 miner 授权集规模、最先完成者 **挑战 / 心跳**（保留打款前）、签名 URL TTL、多收件人 vs 每 miner index 密文，以及可选盲购隐私（§4.8 / CopyrightContentModule 论题）。
 9. 拍卖 UI 开放的 **Web of Trust** 评分公式（哪些身份图、衰减、防女巫）——DLE 冻结 **已签名历史**，而非单一全局 WoT 预言机（§4.9）。
@@ -1628,7 +1745,7 @@ CoNET-DLE 精神上最接近 **「许多微账本 + 随机委员会 + 归档终�
 
 ## 16. 结论
 
-CoNET-DLE 提出以 **去中心化集群** 维护 **大量并行、以事件为基础的原子链**：**无事件 ⇒ 不出块**；每个事件由托管 **归档分片**（按 \(i=H(\mathrm{nftContract}\|\mathrm{tokenId}\|R_e)\bmod S_e\)，\(S_e \in \{2,4,8,\ldots\}\)—**非** 可磨号的 `tokenId mod S`）从其等待队列抽选 **N_V=7** 名 on-demand 验证人 + **S_{\mathrm{sb}}=2** 候补，形成 **Q_V=5/7** 证明（提案层，§6.5）后，该分片 **仅以** HotStuff 风格两阶段法定人数协议下的 **归档证书（= CommitQC）** 终局——而非单一归档节点，也非一次性签名竞速（§5.2.1）。随归档参与者增多，归档平面经 epoch **MigrationCertificate** 交接按 **2 → 4 → 8 → …** **裂变**，形成类似 cluster 的负载均衡与更大 **聚合** 带宽，且每分片保持 N_A \ge 4（§5.2）。强制 **L1 NFT** 出生证明（三选一：**资产 / 存储 / 交易**）。资产链入金经 oracle 估值硬顶 **≤ 100 USDC**，**每个事件重估**，若余额 **> 100 USDC** 则转出超额须 **建新链**（§4.6）；每次转账以 **USDC** 支付 **0.01%**，拆分 **50% 托管归档 / 50% \(Q_V\) 验证人**——并承认 **仅靠 0.01%** 无法覆盖完整安全栈（§13）。存储链按 **内容以 conet-GB** 收费，并可在同一 **CopyrightContentModule** 论题下承载 **创作者内容**：碎片化密文、私密 index 封给授权 miner、以 **conet-GB** 计价的访问权、**最先完成者** 买方 PGP 交付、短期 URL，以及 tip/L1 仅存 hash（§4.8）。在 **版权 ZERO** 下，存储 tip 形成原创与修改版的 **版本树**——每个节点是可独立交易的 L1 NFT——同时 **已签名的点赞、评论与引用** 累积为拍卖估值的 **Web of Trust** 证据基（§4.9）。每条存储 tip 还维护 **销售收入流水**，并 **关联** 价值实际发生移动的并行 **资产类** tip 交易（§4.10）。**交易类** tip 是报价 ≤ **100 USDC** 的 **L2 订单 / 状态协调器**；**跨层原子交割**（付款 + 转移 **标的 L1 NFT**）仅在 CoNET **L1 Settlement Contract** `settleTrade` 中完成；交易 tip 随后 **关闭**，标的账本在新所有者下继续（§4.7）。微额碎片化将 **单资产 tip 的直接账面损失** 封顶在 ≤100 USDC——它 **并不** 使串谋动机趋于零；俘获 **频率** 仍须用 P_{\mathrm{prop}} / P_{\mathrm{year}}，并发多 tip 现金风险须用 E_C\le E_{\max}（§12.2–§12.3.2）。分角色、按需参与降低了当今网络的高门槛。Tip 是 **按类固定的事件状态机**，**无 tip VM**；应用工作流在 **应用层** 组合 tip 与 L1（§10）。本文对 **区块链不可能三角** 的回答 **不是** 它已被消除：CoNET-DLE **重新划分运行边界**——大量隔离、价值有界、事件驱动的 tip；聚合吞吐可随归档分片扩展；安全性仍 **有条件** 地依赖分片诚实、委员会抽样、L1 结算、DA 与客户端密钥隔离（§3.4）。作为 **加载在 CoNET DePIN 上的 L2**，它继承 **钱包地址（非 IP）gossip**、OpenPGP 端到端加密与零信任入口 / 邮箱跳。**天然隐私** 为双轨：上述 **通讯** 平面，加上 **提高链上聚类成本**、打断 **单地址 = 完整投资组合** 的 **资产** 隐私——**不是** 强匿名（§4.5）。转账保持同一双轨。多地址收款采用 CoNET **规范 ERC-5564** 钱包配置（元地址、临时公钥、view tag、announcement、scan/spend 密钥）；BIP-47 / BIP-352 **仅设计参考**——**不是** DLE tip/归档/验证人委员会地址预言机（§4.5）。保管安全仅在 **密钥域 + 恢复域隔离**（分层保险库应当）下上升——仅有地址碎片化不够（§4.5、§7.6、§12.9）。质押与 NFT 安全锚定于 CoNET 主链注册表。生产 roulette 绑定 **L1 beacon 已终局随机信标 + 已冻结 `poolRoot_e`**，使抽选可公开复算，并摆脱可选归档 VRF 的 selective-omission / last-publisher 偏置；commit–reveal 仅保留为 MVP（§7.8）。密码学停留在成熟原语（§7），使设计无需奇异证明系统即可实现。
+CoNET-DLE 提出以 **去中心化集群** 维护 **大量并行、以事件为基础的原子链**：**无事件 ⇒ 不出块**；每个事件由托管 **归档分片**（按 \(i=H(\mathrm{nftContract}\|\mathrm{tokenId}\|R_e)\bmod S_e\)，\(S_e \in \{2,4,8,\ldots\}\)—**非** 可磨号的 `tokenId mod S`）从其等待队列抽选 **N_V=7** 名 on-demand 验证人 + **S_{\mathrm{sb}}=2** 候补，形成 **Q_V=5/7** 证明（提案层，§6.5）后，该分片 **仅以** HotStuff 风格两阶段法定人数协议下的 **归档证书（= CommitQC）** 终局——而非单一归档节点，也非一次性签名竞速（§5.2.1）。随归档参与者增多，归档平面经 epoch **MigrationCertificate** 交接按 **2 → 4 → 8 → …** **裂变**，形成类似 cluster 的负载均衡与更大 **聚合** 带宽，且每分片保持 N_A \ge 4（§5.2）。强制 **L1 NFT** 出生证明（三选一：**资产 / 存储 / 交易**）。资产链入金经 oracle 估值硬顶 **≤ 100 USDC**，**每个事件重估**，若余额 **> 100 USDC** 则转出超额须 **建新链**（§4.6）；每次转账以 **USDC** 支付 **0.01%**，拆分 **50% 托管归档 / 50% \(Q_V\) 验证人**——并承认 **仅靠 0.01%** 无法覆盖完整安全栈（§13）。存储链按 **内容以 conet-GB** 收费，并可在同一 **CopyrightContentModule** 论题下承载 **创作者内容**：碎片化密文、私密 index 封给授权 miner、以 **conet-GB** 计价的访问权、**最先完成者** 买方 PGP 交付、短期 URL，以及 tip/L1 仅存 hash（§4.8）。在 **版权 ZERO** 下，存储 tip 形成原创与修改版的 **版本树**——每个节点是可独立交易的 L1 NFT——同时 **已签名的点赞、评论与引用** 累积为拍卖估值的 **Web of Trust** 证据基（§4.9）。每条存储 tip 还维护 **销售收入流水**，并 **关联** 价值实际发生移动的并行 **资产类** tip 交易（§4.10）。**交易类** tip 是报价 ≤ **100 USDC** 的 **L2 订单 / 状态协调器**；**跨层原子交割**（付款 + 转移 **标的 L1 NFT**）仅在 CoNET **L1 Settlement Contract** `settleTrade` 中完成；交易 tip 随后 **关闭**，标的账本在新所有者下继续（§4.7）。微额碎片化将 **单资产 tip 的直接账面损失** 封顶在 ≤100 USDC——它 **并不** 使串谋动机趋于零；俘获 **频率** 仍须用 P_{\mathrm{prop}} / P_{\mathrm{year}}，并发多 tip 现金风险须用 E_C\le E_{\max}（§12.2–§12.3.2）。分角色、按需参与降低了当今网络的高门槛。Tip 是 **按类固定的事件状态机**，**无 tip VM**，并具备 **规范 FSM 元模型**（Trade 表已冻；资产/存储为骨架—§10）；应用工作流在 **应用层** 组合 tip 与 L1。本文对 **区块链不可能三角** 的回答 **不是** 它已被消除：CoNET-DLE **重新划分运行边界**——大量隔离、价值有界、事件驱动的 tip；聚合吞吐可随归档分片扩展；安全性仍 **有条件** 地依赖分片诚实、委员会抽样、L1 结算、DA 与客户端密钥隔离（§3.4）。作为 **加载在 CoNET DePIN 上的 L2**，它继承 **钱包地址（非 IP）gossip**、OpenPGP 端到端加密与零信任入口 / 邮箱跳。**天然隐私** 为双轨：上述 **通讯** 平面，加上 **提高链上聚类成本**、打断 **单地址 = 完整投资组合** 的 **资产** 隐私——**不是** 强匿名（§4.5）。转账保持同一双轨。多地址收款采用 CoNET **规范 ERC-5564** 钱包配置（元地址、临时公钥、view tag、announcement、scan/spend 密钥）；BIP-47 / BIP-352 **仅设计参考**——**不是** DLE tip/归档/验证人委员会地址预言机（§4.5）。保管安全仅在 **密钥域 + 恢复域隔离**（分层保险库应当）下上升——仅有地址碎片化不够（§4.5、§7.6、§12.9）。质押与 NFT 安全锚定于 CoNET 主链注册表。生产 roulette 绑定 **L1 beacon 已终局随机信标 + 已冻结 `poolRoot_e`**，使抽选可公开复算，并摆脱可选归档 VRF 的 selective-omission / last-publisher 偏置；commit–reveal 仅保留为 MVP（§7.8）。密码学停留在成熟原语（§7），使设计无需奇异证明系统即可实现。
 
 ---
 
@@ -1655,6 +1772,9 @@ CoNET-DLE 提出以 **去中心化集群** 维护 **大量并行、以事件为�
 | 术语                                        | 含义                                                                                                                                                                      |
 | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **CoNET-DLE**                             | 分布式账本扩展；本集群多链 L2 层。                                                                                                                                                     |
+| **术语层级**                                 | CoNET L1 → tip/原子链 →（微账本 = tip 事件史）→ 事件 FSM → 块高度 → 归档分片 → 验证人委员会（§4.0）。                                                                                              |
+| **Tip / 原子链**                            | 由 L1 NFT 绑定的并行账本；DLE 文中「链」的默认含义（§4.0）。                                                                                                                                    |
+| **微账本**                                   | tip 事件史的口语别名——不是独立产品层（§4.0）。                                                                                                                                          |
 | **CoNET DePIN**                           | 钱包地址 P2P 基底；L2 gossip 传输（非 IP 身份）。                                                                                                                                      |
 | **入口 A / 邮箱 B / 入口 C**                    | 发送入口 / 密文邮箱 / listen 入口；A,C ≠ B。                                                                                                                                        |
 | **AddressPGP**                            | 链上注册表，绑定 EOA → 用户 PGP + 路由密钥。                                                                                                                                           |
@@ -1706,7 +1826,8 @@ CoNET-DLE 提出以 **去中心化集群** 维护 **大量并行、以事件为�
 | **Last-revealer bias**                    | Commit–reveal 中止通道：最后一方观察他人 reveal 后再决定揭示或拒揭示；罚没提高成本，不能消除偏置（§7.8.3）。                                                                                                    |
 | **选取链**                                   | tip 创世 / 区块组装前协定抽取结果的日志；条目仅在 **≥ Q_A** 背书后成为规范真相。                                                                                                                                |
 | **无 tip VM**                                | 产品冻结：tip 为按类固定事件 FSM；无通用或用户部署的 tip 程序；在应用层 + L1 组合（§10）。                                                                                                                      |
-| **按类事件 FSM**                              | 资产 / 存储 / 交易 tip 的冻结类型化事件转移表；验证人校验，**不** 执行字节码（§6.3、§10）。                                                                                                                      |
+| **按类事件 FSM**                              | 确定性按类转移函数（§10 元模型 + 表）；Mode A 归档重放；无 tip 字节码（§6.3、§10）。                                                                                                                      |
+| **tipStateRoot**                             | 接受事件后 tip FSM 叶的 Keccak Merkle 根；绑定进 SettleReady / DA AC（§4.7、§5.2.1、§10.1）。                                                                                                                      |
 | **Proof of History（PoH）**                 | 可验证的 **本地** 节拍 / 防回拨时钟（h_{t+1}=\mathrm{SHA256}(h_t)）；**不是** 跨归档共享顺序（§7.9）。                                                                                              |
 | **规范事件顺序**                                | 由 **归档法定人数证书**（AC / 选取日志 / `poolRoot_e`）决定，而非任一单独 PoH 链（§7.9）。                                                                                                          |
 | **资产类链**                                  | 可转让账本；L1 入金 ≤ **100 USDC**（oracle）；每事件重估；超顶转出 → 建新链（§4.6）；**0.01%** 费以 **USDC**（**50% 归档 / 50% 验证人**——§13）。                                                                                    |
