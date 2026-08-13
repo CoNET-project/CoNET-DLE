@@ -4,7 +4,7 @@
 
 **Author:** Peter Xie  
 **First draft:** 2023  
-**Revision:** 2026-08-12 (7-active + 2-standby archive groups + 5/7 archive quorum + bonded exit / inactivity penalties)
+**Revision:** 2026-08-12 (7-active + 2-standby archive groups + 5/7 quorum + UniformPlacementV1 + challenged force exit + L1-anchored seller orders + class-specific fee currencies + universal L1 pool/TWAP asset admission + bonded archive exit / inactivity penalties; archives have no block-production right)
 
 **Paired translation (must stay in sync):** [`Decentralization Cluster multi-chain.zh-CN.md`](./Decentralization%20Cluster%20multi-chain.zh-CN.md)  
 **Sync rule:** `.cursor/rules/conet-layer2-whitepaper-bilingual-sync.mdc`
@@ -18,14 +18,16 @@
 - **Parallelism:** concurrent chains scale with staking and archive-plane fission; more capacity → more maintainable tips—not a claim of unbounded free speed.
 - **Atomic (per chain):** tip advance requires a **\(Q_V=5/7\)** validator attestation, then an **Archive Certificate** from the hosting shard (§6.5, §5.2.1).
 - **Event-only blocks:** **no event ⇒ no block.** Empty-slot mining and archive-produced control / anchor blocks are forbidden.
-- **L1 birth certificate:** creating a new chain **must** mint a **unique NFT** on CoNET L1; that NFT binds class (**asset**, **storage**, or **trade**), ownership, and—after genesis AC—**`archiveGroupId`** of the hosting **7-active + 2-standby archive group**, finalized by a **\(Q_{\mathrm{placement}}=Q_A=5/7\)** PlacementCertificate that **any relayer** may submit (§5.2.0c). New-chain host is the globally replicated **QUEUED / NewChainQueue + load-aware roulette**, not hash(\(tokenId\)) mod \(S\).
+- **L1 birth certificate:** creating a new chain **must** mint a **unique NFT** on CoNET L1; that NFT binds class (**asset**, **storage**, or **trade**), ownership, and—after genesis AC—**`archiveGroupId`** of the hosting **7-active + 2-standby archive group**, finalized by a **\(Q_{\mathrm{placement}}=Q_A=5/7\)** PlacementCertificate that **any relayer** may submit (§5.2.0c). New-chain host is the globally replicated **QUEUED / NewChainQueue + publicly recomputable uniform-v1 roulette**, not hash(\(tokenId\)) mod \(S\).
 - **Asset cap stays live:** each asset event **revalues** the tip; if balance **> 100 USDC**, outbound / excess **requires new chain(s)** (§4.6).
-- **Trade-class (atomic NFT-style sale):** users open a **trade** tip as an **L2 order / state coordinator** to list an existing **asset** or **storage** chain. Listing quote is **seller-set** (`quoteAsset` + `quoteAmount`) with **no ≤100 USDC oracle cap**—DLE **cannot** oracle NFT market value (§4.7). Tip advances via the frozen **Trade FSM** (`Open→Locked→SettleReady→…`, §10.2). **Final atomic delivery** (pay seller **and** move subject L1 NFT ownership) runs in one CoNET **L1 Settlement Contract** call; the trade tip then **closes**.
+- **Trade-class (atomic NFT-style sale):** users open a **trade** tip as an **L2 order / state coordinator** to list an existing **asset** or **storage** chain. Listing quote is **seller-set** (`quoteAsset` + `quoteAmount`) with **no ≤100 USDC oracle cap**—DLE **cannot** oracle NFT market value (§4.7). Before the tip may open, the seller’s EIP-712 order digest and the subject NFT are atomically anchored in the CoNET **L1 Settlement Contract**. Tip advances via the frozen **Trade FSM** (`Open→Locked→SettleReady→…`, §10.2). **Final atomic delivery** (pay seller **and** move subject L1 NFT ownership) runs in one Settlement call; the trade tip then **closes**. An AC can attest readiness but cannot invent or rewrite seller terms.
 - **Storage-class creator economy / private copyright delivery:** same thesis as Beamio **`CopyrightContentModule`**: owner fragments + seals a private assembly index to authorized DePIN miners; tip/L1 holds only hashes; buyers pay **conet-GB**, bind buyer PGP; **first-completer** miners deliver buyer-bound ciphertext; short-lived access URLs + periodic storage fees; plaintext never on-chain (§4.8).
 - **Copyright ZERO / version tree:** storage tips form a **lineage tree** (original + modifiers); each branch point is an **independent L1 NFT** listable via trade-class; the tip stores **social history** (likes, comments, citations) as a **Web of Trust** signal for auction valuation (§4.9).
 - **Storage sales ledger:** each storage tip keeps an append-only **sales-revenue journal** and **references** the parallel **asset-class** tip txs that actually move value (§4.10).
-- **Archive-plane fission + BFT finality:** let \(G_e\) be the L1-registered live-group count and \(U_e\) the number of eligible archives in `UnassignedPool`; a serviceable new group may form iff **\(U_e\ge9\)**. Every group receives **seven newly assigned, non-overlapping active voters plus two dedicated ordered standbys** selected with public randomness; existing groups keep their assignments and only witness formation / serve history. `groupId` is monotonic and never reused. New chains are roulette-assigned then bound on L1 1155; existing tips stay on `archiveGroupId`; **MigrationCertificate** is only for dissolve/re-home (§5.2). Each group finalizes validator-produced event blocks with the explicit Tendermint-style **PrevoteQC → PrecommitQC (= AC)** rule at \(N_A=7\Rightarrow f=2,\,Q_A=5\), and the whitepaper separately quantifies assumption breach \(P[X\ge3]\), quorum capture \(P[X\ge5]\), and any-shard risk (§5.2.1, §12.3.1a).
-- **Fees (dual denomination):** **storage-class** fees scale with **content** and settle in **conet-GB**; **asset-class / trade-class** event fees are **USDC**-denominated (**0.01%** of transferred / listed value). Of each **0.01%** event fee: **50% → hosting archive shard**, **50% → \(Q_V\) accepting validators** (§13).
+- **Archive-plane fission + BFT finality:** let \(G_e\) be the L1-registered live-group count, \(N_e=7G_e\) the unique active-voter count, and \(U_e\) the eligible `UnassignedPool` count; a serviceable new group may form iff **\(U_e\ge9\)**. Every group receives **seven newly assigned, non-overlapping active voters plus two dedicated ordered standbys** selected with public randomness; `maxGroupsPerArchive=1` and cross-group roster overlap is zero. Existing groups keep their assignments and only witness formation / serve proof-carrying read-only history or current finalized data for foreign groups. `groupId` is monotonic and never reused. New chains are roulette-assigned then bound on L1 1155; existing tips stay on `archiveGroupId`; **MigrationCertificate** is only for dissolve/re-home (§5.2). Each group finalizes validator-produced event blocks with the explicit Tendermint-style **PrevoteQC → PrecommitQC (= AC)** rule at \(N_A=7\Rightarrow f=2,\,Q_A=5\), and the whitepaper separately quantifies assumption breach \(P[X\ge3]\), quorum capture \(P[X\ge5]\), and any-shard risk (§5.2.1, §12.3.1a).
+- **Archive-member exit and slashing:** archive identities exit through `ACTIVE → EXIT_REQUESTED → DRAINING → STANDBY_SYNCING → HANDOVER_READY → MEMBERSHIP_SWITCHED → UNBONDING → EXITED`; duties remain until the L1 `membershipRoot` atomically switches. Provable inactivity, pre-handover shutdown, DA fraud, and equivocation receive graduated penalties. Archive-member exit is distinct from a user’s challenged AssetVault `request → challenge → finalize` forced-exit claim (§5.2.1).
+- **DA:** v1 freezes \((n,k)=(7,4)\): `chunkCount=7`, `recoveryThreshold=4`; each precommit signer still holds and verifies at least \(k=4\) distinct chunks before signing, with \(4\le N_A-f=5\).
+- **Fees (class-specific denomination):** **storage-class** fees scale with content and settle in **conet-GB**; **asset-class** transfers pay **1 bp in canonical conet-USDC** after L1 pool/TWAP valuation; **trade-class** settlement pays **1 bp in the same `quoteAsset`**, with no NFT-price oracle. Every 1 bp fee splits **50% → hosting archive shard / 50% → \(Q_V\) accepting validators** (§13).
 
 **Transport premise:** CoNET-DLE is loaded on **CoNET DePIN**. Control and data-plane gossip use **wallet addresses (EOA) as network identity**, not IP addresses. Messages are end-to-end encrypted (OpenPGP) and relayed through entry/mailbox nodes that **cannot read plaintext**.
 
@@ -51,7 +53,7 @@ CoNET-DLE takes a different path: **shard by ledger**, not only by throughput tr
 2. **Random verifiable selection** (roulette over archive-node entropy) into **small** maintenance groups.
 3. **\(Q_V=5/7\)** validator quorum for new-block proposals (or dissolve / promote standbys / reselect under §6.5).
 4. **Archive node clusters** that store full state and perform quality checks / rollback.
-5. **Mandatory CoNET L1 NFT** for every new chain: unique token id, **exactly one** of **asset / storage / trade** class, ownership, and (for asset class) **oracle-capped deposit ≤ 100 USDC-equivalent**—a **per-tip direct-loss ceiling**, **not** a claim that collusion motive → 0 (§12.2). **Trade-class** listings sell an existing asset or storage chain; **cross-layer atomic settle** is performed by the CoNET **L1 Settlement Contract**, not by tip-local rollback (§4.7).
+5. **Mandatory CoNET L1 NFT** for every new chain: unique token id, **exactly one** of **asset / storage / trade** class, ownership, and (for asset class) **oracle-capped deposit ≤ 100 USDC-equivalent**—a **per-tip direct-loss ceiling**, **not** a claim that collusion motive → 0 (§12.2). **Trade-class** listings sell an existing asset or storage chain; direct seller terms are EIP-712 / EIP-1271 authorized and escrow-anchored on L1, and **cross-layer atomic settle** is performed by the CoNET **L1 Settlement Contract**, not by tip-local rollback (§4.7).
 
 Staking miners choose how many chains to underwrite based on their compute and network capacity. Lightweight validators need not store full history, so participation can be on-demand—reducing the centralizing pressure of capital-heavy PoS and ASIC PoW monopolies.
 
@@ -138,7 +140,7 @@ Classical blockchain design is often framed as an **impossible triangle**: at mo
 
 **Privacy by construction:** L2 roles do not dial each other by IP. They address **wallet / PGP identities**; DePIN relays forward ciphertext. Entry and mailbox nodes learn routing key IDs, not business plaintext or stable client IPs. Separately, **asset holdings are multi-wallet fragments** recombined only on the client (§4.5, §7.6).
 
-Canonical product line: each ledger is an **L1 NFT–bound** chain of class **asset**, **storage**, or **trade** (asset tips ≤ **100 USDC** oracle valuation; trade listings use **seller-set quotes without NFT oracle / without ≤100 USDC quote cap**, with **atomic delivery on L1 `settleTrade`**, §4.7), maintained by a randomly selected small group, with **event-driven** blocks only.
+Canonical product line: each ledger is an **L1 NFT–bound** chain of class **asset**, **storage**, or **trade** (asset tips ≤ **100 USDC** oracle valuation; trade listings use **L1-anchored seller-signed quotes without NFT oracle / without ≤100 USDC quote cap**, with **atomic delivery on L1 `settleTrade`**, §4.7), maintained by a randomly selected small group, with **event-driven** blocks only.
 
 ---
 
@@ -166,9 +168,9 @@ Creating a new DLE chain is **not** a free L2-only act. The creator **must first
 | --- | --- |
 | **Uniqueness** | One NFT id ↔ one DLE chain; no anonymous genesis without L1 mint. |
 | **Class (ternary)** | At mint / configure time the chain is fixed as **exactly one** of: **asset-class**, **storage-class**, or **trade-class**. |
-| **Ownership / archive placement** | Owner and fee payer hooks bind to the NFT id. **New-chain host** is NewChainQueue + roulette into a live 7-active + 2-standby group, then L1 **`archiveGroupId[tokenId]`** (§5.2)—**not** `tokenId mod S` and **not** hash residue. Later events follow the L1 pointer. **Canonical owner** of any DLE chain is **CoNET L1 `ownerOf(nftId)`**. |
-| **Asset deposit (asset-class only)** | L1 assets are deposited as **ingress collateral / funding**; valuation uses the **L1 oracle**; total value **must not exceed 100 USDC-equivalent**. The **≤ 100 USDC** bound is **re-checked on every asset event** via oracle revaluation; over-cap outbound requires a **new chain** (§4.6). |
-| **Trade subject (trade-class only)** | Genesis binds a **subject** asset- or storage-class NFT id to list for sale; **L1 Settlement Contract** atomically pays seller and transfers **that subject’s** L1 ownership (§4.7). |
+| **Ownership / archive placement** | Owner and fee payer hooks bind to the NFT id. **New-chain host** is NewChainQueue + **UniformPlacementV1** into a live 7-active + 2-standby group, then L1 **`archiveGroupId[tokenId]`** (§5.2)—**not** `tokenId mod S` and **not** hash residue. Later events follow the L1 pointer. **Canonical owner** of any DLE chain is **CoNET L1 `ownerOf(nftId)`**. |
+| **Asset deposit (asset-class only)** | Asset must be `ACTIVE` in the L1 `AssetAdmissionRegistry`; **every asset, including conet-USDC**, requires an approved decentralized CoNET L1 pool / route + TWAP adapter + minimum liquidity. L1 deposits are valued in USDC-6 and must not exceed **100 USDC-equivalent**; the bound is re-checked on every asset event (§4.6, §13.3). |
+| **Trade subject (trade-class only)** | Genesis binds an already-live L1 `escrowOrderHash` covering the **subject** collection + asset/storage NFT id and seller terms; **L1 Settlement Contract** atomically pays seller and transfers **that subject’s** L1 ownership (§4.7). |
 
 **Micro-fragmentation as a loss bound (not an anti-collusion theorem):** capping each asset chain at **≤ 100 USDC** and encouraging many tiny parallel ledgers bounds **direct economic loss per successful asset-tip capture**—a first-class **loss ceiling**, not merely UX. It does **not** imply that collusion motive “tends to zero,” and it does **not** replace committee security, archive BFT, capture probabilities \(P_{\mathrm{prop}}\) / \(P_{\mathrm{year}}\) (§12.3.1), or **per-epoch committee cumulative exposure** \(E_C\le E_{\max}\) (§12.3.2). The same fragmentation is the substrate of **asset privacy**; **custody security** further requires **key-domain + recovery-domain isolation** (§4.5, §12.9). Runtime **revalue + spillover mint** (§4.6) keeps the oracle book-value cap honest after price moves.
 
@@ -176,9 +178,9 @@ Creating a new DLE chain is **not** a free L2-only act. The creator **must first
 
 | Class | Purpose | Ingress / fee rules |
 | --- | --- | --- |
-| **Asset-class chain** | Transferable value ledger bound to the L1 NFT | Deposit **L1 assets** as chain funding; **L1 oracle** values the deposit; **hard cap ≤ 100 USDC-equivalent**. On every **new event**, the transfer / balance is **revalued** (§4.6). From genesis onward, every **transfer event** pays **0.01%** of the transferred value in **USDC** (oracle-valued); of that fee **50% → hosting archive**, **50% → \(Q_V\) accepting validators** (§13). |
+| **Asset-class chain** | Transferable value ledger bound to the L1 NFT | Asset must pass L1 admission with an approved decentralized CoNET L1 pool/TWAP **even when the asset is conet-USDC**. Deposit is oracle-valued and hard-capped at **≤ 100 USDC-equivalent**; every event revalues (§4.6). Each transfer proposer pre-locks **1 bp of USDC-6 notional in canonical conet-USDC**; no valid fee lock ⇒ reject (§13). |
 | **Storage-class chain** | Data / logs / **creator content** with paid access; **Copyright ZERO** version nodes; **sales books** | Owner may embed **fragmented encrypted content** + access policy (§4.8). Tips may fork into a **version tree** (§4.9). Tip records **social events** and an append-only **sales-revenue ledger** that links to parallel **asset-class** txs (§4.10). **Content-based fees and access** settle in **conet-GB** (not the USDC 0.01% rail); unpaid → **new blocks stop**. Buying **access** ≠ buying the NFT; selling a branch uses trade-class (§4.7). |
-| **Trade-class chain** | Short-lived **L2 listing / match coordinator** for selling an existing **asset** or **storage** chain (NFT-style whole-ledger sale) | User-opened; binds **subjectNftId** at genesis; listing quote is **seller-set** (`quoteAsset` + `quoteAmount`) with **no NFT oracle** and **no ≤100 USDC quote cap** (§4.7). Tip coordinates freeze / match / **SettleReady** AC; **atomic pay + NFT transfer** runs on CoNET **L1 Settlement Contract**, then **trade tip closes**. Listing / settle **event fees** in **USDC** under the same **0.01% → 50% archive / 50% validators** split when the payment rail is USDC (fee base = settle payment notional—§13). |
+| **Trade-class chain** | Short-lived **L2 listing / match coordinator** for selling an existing **asset** or **storage** chain (NFT-style whole-ledger sale) | User-opened only after L1 `escrowSubject`; genesis binds **sellerOrderHash + subject collection / ID**. Quote is seller-set and directly authorized with **no NFT oracle** and no ≤100 USDC quote cap (§4.7). On successful L1 settlement only, buyer pays seller `quoteAmount` plus **1 bp in the same `quoteAsset`**; the fee splits 50/50 archive/validators. No second percentage listing fee (§13). |
 
 Class is chosen when the L1 NFT is created / configured and is **immutable** for that NFT. **No dual-class** chain: a tip cannot be asset and trade at once. Selling many asset fragments means **multiple trade listings** (one `subjectNftId` each); each **asset tip** still obeys its own ≤100 USDC oracle balance cap—**listing quotes** are not so capped.
 
@@ -186,21 +188,37 @@ Class is chosen when the L1 NFT is created / configured and is **immutable** for
 
 Product freeze for **asset-class** tips (keeps the ≤ **100 USDC** invariant live, not only at mint):
 
-1. On every **new event** (especially a **transfer**), the chain **revalues** its balance / the proposed transfer with the **L1 oracle** (same oracle family as ingress).
-2. If the revalued **chain balance ≤ 100 USDC-equivalent**, the transfer may proceed on **this** chain under normal §6.3 rules (including the **0.01%** fee in **USDC**, split **50% archive / 50% validators**—§13).
-3. If the revalued **chain balance > 100 USDC-equivalent**, the **outbound portion** that would leave this tip (or the excess over the cap) **must not** stay as a single over-cap transfer on this chain: the owner / client **must create one or more new asset-class chains** (new L1 NFT + oracle-capped deposit ≤ 100 USDC each) and move that outbound / excess value onto those new tips.
-4. Consensus and archive reject an asset transfer event that would finalize a tip with revalued balance **> 100 USDC** or that tries to send the over-cap slice without a matching **new-chain** birth certificate.
+1. At creation, the underlying asset **MUST** be `ACTIVE` in L1 `AssetAdmissionRegistry` and have an approved decentralized CoNET L1 pool/route, frozen TWAP adapter, minimum liquidity, and fresh observation (§13.3). This applies **including to canonical conet-USDC**; its admission route must detect depeg risk rather than assume a permanent USD 1.00 value. No approved pool/adapter means **no asset-class chain**.
+2. On every **new event** (especially a transfer), the chain revalues its balance and proposed transfer with that canonical L1 oracle report. The event proposer pre-locks **1 bp of transfer USDC-6 notional in canonical conet-USDC** and binds the finalized `feeLockId`; absent / insufficient / consumed lock or stale oracle ⇒ reject (§13.2–§13.3).
+3. If the revalued **chain balance ≤ 100 USDC-equivalent**, the transfer may proceed under normal §6.3 rules; after AC, the L1 FeeVault distributes the conet-USDC lock **50% archive / 50% validators** (§13.4).
+4. If the revalued **chain balance > 100 USDC-equivalent**, the **outbound portion** that would leave this tip (or the excess over the cap) **must not** stay as a single over-cap transfer on this chain: the owner / client **must create one or more new asset-class chains** (new L1 NFT + oracle-capped deposit ≤ 100 USDC each) and move that outbound / excess value onto those new tips.
+5. Consensus and archive reject an asset transfer event that would finalize a tip with revalued balance **> 100 USDC**, that lacks an active asset-admission record / fee lock, or that tries to send the over-cap slice without a matching **new-chain** birth certificate.
 
 Oracle appreciation after mint is the typical trigger: ingress was ≤100 at genesis, but a later event’s revaluation can push the economic balance over the cap—hence **revalue on event + spillover mint**, not a one-time check.
 
-**L1 AssetVault (product freeze — force-exit binding).** Asset-class ingress collateral is locked in a CoNET **L1 AssetVault** keyed by `assetNftId` (same NFT that binds the tip). Tip spendable balances are **claims** against that vault up to the oracle-capped proven amount under the latest good AC `tipStateRoot` (§5.2.1). Ordinary transfers move tip claims; **L1 unlock / force withdraw** is the only path that returns vault assets to an EOA. Mapping rule (normative):
+**L1 AssetVault (product freeze — challenged force-exit binding).** Asset-class ingress collateral is locked in a CoNET **L1 AssetVault** keyed by `assetNftId` (same NFT that binds the tip). Tip spendable balances are **claims** against that vault up to the oracle-capped proven amount under the latest L1-known or dispute-frozen good AC `tipStateRoot` (§5.2.1). Ordinary transfers move tip claims; **L1 unlock / force withdraw** is the only path that returns vault assets to an EOA. A caller-selected old AC can never unlock immediately. Mapping rules (normative):
 
 ```text
-withdrawableL1(assetNftId) ≤ min(
-  AssetVault.locked(assetNftId),
-  provenTipBalance(assetNftId, lastGoodAC.tipStateRoot)
+unappliedL1Withdrawal(assetNftId, owner, proof) =
+  saturatingSub(
+    AssetVault.withdrawnByAssetOwner[assetNftId][owner],
+    proof.appliedL1Withdrawn
+  )
+
+claimableAtAC(assetNftId, owner) =
+  saturatingSub(
+    proof.netTipBalance,
+    unappliedL1Withdrawal(assetNftId, owner, proof)
+  )
+
+forceExitPayout ≤ min(
+  AssetVault.locked(assetNftId) - AssetVault.released(assetNftId),
+  requestedAmount,
+  claimableAtAC(assetNftId, owner)
 )
 ```
+
+The owner state leaf proves both `netTipBalance` and cumulative `appliedL1Withdrawn`. This avoids double subtraction after the tip has already applied an L1 finalization while still blocking reuse of a pre-finalization proof. `withdrawnByAssetOwner` and vault-wide `released` are cumulative L1 accounting, updated before transfer; changing a claim id or starting another exit epoch cannot recreate an already released balance. The exact request → challenge → finalize protocol, deterministic claim id/nullifier, AC freshness registry, and tip freeze rule are frozen in §5.2.1.
 
 Spillover mints open **new** vaults for new NFTs; they do not silently enlarge an existing vault past the per-tip 100 USDC ceiling.
 
@@ -212,14 +230,64 @@ Product freeze for **decentralized atomic sales** of whole ledgers (analogous to
 
 | Layer | Role |
 | --- | --- |
-| **Trade-class DLE tip** | **Off-chain / L2 order book & state coordinator**: listing parameters, freeze signals, match intent, `SettleReady` Archive Certificate |
-| **CoNET L1 Settlement Contract** | **Sole provider of cross-layer atomicity**: pay seller **and** transfer `subjectNftId` in **one** L1 transaction—or neither |
+| **Trade-class DLE tip** | **Off-chain / L2 order book & state coordinator**: mirror the L1-anchored seller order, match intent, payment lock, `SettleReady` Archive Certificate |
+| **CoNET L1 Settlement Contract** | **Seller-intent anchor and sole provider of cross-layer atomicity**: verify seller authorization, hold the subject NFT, pay seller **and** transfer `subjectNftId` in **one** L1 transaction—or neither |
 
 **Why tip-local “atomic rollback” is not enough**
 
 - A DLE tip **cannot reverse** an NFT transfer (or payment) that has already **finalized on L1**.
 - Writing that buyer payment and `subjectNftId` transfer must succeed in the “same tip settlement event set,” then “roll back the tip,” does **not** create **cross-layer** atomicity: L1 state and tip state can diverge if either side commits alone.
 - Therefore production **MUST** settle trades through an L1 contract; tip events alone are **insufficient**.
+
+**SellerOrder: direct L1 seller-intent anchor (product freeze)**
+
+Removing the ≤100 USDC **trade quote** cap is correct: a storage / copyright NFT has no reliable fair-value oracle, seller pricing is a market choice, and the ≤100 USDC **asset-tip balance cap** is a different invariant. The consequence is that neither a \(Q_V=5/7\) validator certificate nor a \(Q_A=5/7\) archive AC may act as seller authorization. Even joint committee capture must not be able to lower the quote, replace the subject, or alter a targeted-buyer condition.
+
+The seller signs the following versioned EIP-712 struct before a trade tip opens (field names illustrative; field set and ordering frozen):
+
+```text
+SellerOrder {
+    version,
+    seller,
+    tradeId,
+    subjectNftContract,
+    subjectNftId,
+    quoteAsset,
+    quoteAmount,
+    buyerConstraint,   // zero = open listing; otherwise exact permitted buyer
+    feePolicyHash,     // commits same-quote-asset 1 bp policy and exact seller proceeds
+    deadline,
+    sellerNonce
+}
+
+domain = {
+    name: "CoNET-DLE-Settlement",
+    version: "1",
+    chainId: CoNET_L1_CHAIN_ID,
+    verifyingContract: Settlement
+}
+sellerOrderHash = EIP712Digest(domain, SellerOrder)
+```
+
+`sellerOrderHash` is the typed-data digest, **not** `keccak256(signatureBytes)`: signatures may have multiple encodings and are evidence for authorization, not the canonical order identity. EOAs use canonical low-\(s\) ECDSA recovery; contract / AA sellers use **EIP-1271** `isValidSignature`. `subjectNftContract` is explicit (or a protocol-fixed singleton registry address still included in the digest), so equal token IDs in different collections cannot collide. In v1, `feePolicyHash` is the canonical §13.2 hash: the buyer pays `quoteAmount + ceilDiv(quoteAmount,10_000)` in `quoteAsset`, the seller receives exactly `quoteAmount`, and the 1 bp remainder splits 50/50. Settlement arithmetic uses **no NFT valuation and no quote-token conversion oracle**; an optional quote-token risk oracle is advisory / circuit-breaking only (§13.2).
+
+The L1 entry point is:
+
+```text
+escrowSubject(SellerOrder order, bytes sellerAuthorization)
+```
+
+In one transaction it **MUST** verify the EIP-712 / EIP-1271 authorization, require `ownerOf(subjectNftId)==seller`, require an unused `tradeId` and fresh seller nonce, validate quote token / amount / deadline / fee policy, transfer the exact subject NFT into Settlement custody, verify post-transfer custody, and only then store:
+
+```text
+escrowOrderHash[tradeId] = sellerOrderHash
+escrowSeller[tradeId] = seller
+escrowedSubject[tradeId] = (subjectNftContract, subjectNftId)
+escrowStatus[tradeId] = OPEN
+sellerNonceState[seller][sellerNonce] = RESERVED
+```
+
+The nonce lifecycle is `UNUSED → RESERVED → CONSUMED`; cancellation also consumes it, so a cancelled or settled authorization cannot be replayed. The trade-tip genesis `TradeOpened` event **MUST** reference this already-live L1 escrow record and exact `sellerOrderHash`; committee signatures cannot create an unanchored order.
 
 **L1 Settlement Contract (product freeze sketch)**
 
@@ -228,7 +296,6 @@ Call shape (ABI names illustrative; semantics frozen):
 ```text
 settleTrade(
     tradeId,              // trade-class NFT / listing id
-    subjectNftId,         // asset- or storage-class NFT for sale
     buyer,
     paymentProof,         // escrow pull / pull-authorization for quote asset
     dleArchiveCertificate // AC proving tip SettleReady for this tradeId + quote + buyer + nonce + deadline
@@ -237,12 +304,14 @@ settleTrade(
 
 In **one** CoNET L1 transaction the contract **MUST**:
 
-1. Verify the **DLE Archive Certificate (= PrecommitQC)** under the rules below (tip identity, SettleReady typed payload, DA binding, `membershipRoot`, ≥ \(Q_A\) **EIP-712** precommit signatures—§5.2.1).
-2. Verify **quote** (`quoteAsset` + `quoteAmount`), **nonce**, **deadline**, and **buyer** against the AC-committed listing / match fields. **Do not** oracle-value the subject NFT or enforce a ≤100 USDC quote cap.
-3. Transfer **escrowed payment** to the seller (or release seller’s claim atomically with step 4).
-4. Transfer **`subjectNftId`** to `buyer` (from seller / freeze escrow that held the NFT).
-5. Mark **`tradeId` settled** (or burned / closed on the L1 trade NFT registry).
-6. **Reject re-execution** of the same `tradeId` / settle nonce (idempotent fail).
+1. Load the L1 escrow record and require `escrowStatus[tradeId]` to be `OPEN` / `LOCKED`, its seller nonce to be `RESERVED`, and the stored `sellerOrderHash` to be canonical.
+2. Verify the **DLE Archive Certificate (= PrecommitQC)** under the rules below (tip identity, SettleReady typed payload, DA binding, `membershipRoot`, ≥ \(Q_A=5/7\) **EIP-712** precommit signatures—§5.2.1).
+3. Require the AC’s `sellerOrderHash`, subject, seller, **quote** (`quoteAsset` + `quoteAmount`), `buyerConstraint`, `feePolicyHash`, deadline, and seller nonce to equal the L1 escrow record / anchored order exactly. **Do not** oracle-value the subject NFT or enforce a ≤100 USDC quote cap.
+4. Require `buyer != 0`; for a targeted order require `buyer==buyerConstraint`. For an open order (`buyerConstraint==0`), require the payment authorization / escrow debit and NFT recipient to be that same `buyer`.
+5. Re-check current custody: `ownerOf(subjectNftId)==Settlement`, and the collection + token ID equal `escrowedSubject[tradeId]`.
+6. Compute `tradeFeeAmount=ceilDiv(quoteAmount,10_000)` in `quoteAsset` native units and collect exact `buyerDebit=quoteAmount+tradeFeeAmount`. No oracle conversion to conet-USDC is permitted. Fee-on-transfer / rebasing assets are rejected unless a versioned adapter proves the exact anchored debit and proceeds.
+7. Before external transfers, mark the trade settled and seller nonce `CONSUMED`; then atomically pay the stored seller exactly `quoteAmount`, allocate `tradeFeeAmount` under the 50/50 fee split, and transfer the escrowed subject NFT to `buyer`.
+8. **Reject re-execution** of the same `tradeId`, order digest, or seller nonce (idempotent fail).
 
 If any check fails, the **entire L1 call reverts**—no partial NFT move, no partial payment release.
 
@@ -250,8 +319,9 @@ If any check fails, the **entire L1 call reverts**—no partial NFT move, no par
 
 | Rule | Normative requirement |
 | --- | --- |
+| **Seller authorization anchor** | AC validity is necessary but **never sufficient**. `settleTrade` must load `escrowOrderHash[tradeId]`, require exact equality with the AC-committed `sellerOrderHash`, and verify current Settlement custody. A validator/archive quorum cannot substitute a different order. |
 | **Signature scheme** | Commit signatures on the AC are **EIP-712** typed data (domain: `CoNET-DLE-Archive`, `chainId` = CoNET L1, `verifyingContract` = Settlement / MembershipCheckpoint registry). **EIP-191 text blobs are rejected** for settle / DA-binding ACs. |
-| **Typed SettleReady payload** | AC (or its `blockHash` / event commitment) **MUST** bind at least: `tradeId`, `subjectNftId`, `seller`, `buyer`, `quoteAsset`, `quoteAmount`, `nonce`, `deadline`, `tipStateRoot`, `daRoot` (+ DA fields in §5.2.1), `membershipEpoch`, `membershipRoot`. |
+| **Typed SettleReady payload** | AC (or its `blockHash` / event commitment) **MUST** bind at least: `tradeId`, `sellerOrderHash`, `subjectNftContract`, `subjectNftId`, `seller`, `buyer`, `buyerConstraint`, `quoteAsset`, `quoteAmount`, `tradeFeeAmount`, `feePolicyHash`, `sellerNonce`, `settleNonce`, `deadline`, `paymentAuthHash` / escrow reference, `tipStateRoot`, `daRoot` (+ DA fields in §5.2.1), `membershipEpoch`, `membershipRoot`. |
 | **Membership on L1** | Hosting shard publishes **`archiveMembershipRoot[membershipEpoch]`** to an L1 **MembershipCheckpoint** (via ≥ \(Q_A\) MembershipUpdateCertificate or bonded L1 forced update). `settleTrade` verifies AC signatures against **that checkpointed root**—not a tip-only gossip claim. |
 | **Quorum economics** | L1 **MUST NOT** verify \(Q_A\) raw ECDSA recoveries on every settle when gas would dominate small payment notionals. Preferred v1 path: L1 stores a **short AC checkpoint / inclusion proof** (e.g. Merkle / aggregate attestation already checked off-chain and bonded) that commits the typed SettleReady fields + `membershipRoot`; open bytecode may use multi-sig only for small \(N_A\) testnets. |
 | **Stale roster** | An AC with `membershipEpoch` / `membershipRoot` **not** equal to the L1 checkpoint for that shard+epoch is **invalid**. After roster change, old members **cannot** settle with a pre-change AC. |
@@ -259,15 +329,17 @@ If any check fails, the **entire L1 call reverts**—no partial NFT move, no par
 
 **DLE tip workflow (coordinator):**
 
-1. **Subject:** an existing **asset-class** or **storage-class** chain identified by its **L1 NFT** (`subjectNftId`). The seller must be the current L1 owner of that subject.
-2. **Open listing:** the seller **mints a trade-class** L1 NFT / DLE tip whose genesis binds `subjectNftId`, **seller-set** `quoteAsset` / `quoteAmount` (**no NFT oracle; no ≤100 USDC quote cap**), escrow / payment asset rules, and a settle **deadline**. Consensus verifies payment **matches** the committed quote—not that the quote equals some oracle “fair value.”
-3. **Listing freeze:** while the trade tip is **Open** / **Locked**, the subject NFT is **frozen against ordinary transfer** on L1 (registry / settlement escrow), and asset-class subjects reject outbound drains that would empty the tip before settle. Freeze is an L1 lock coordinated by the tip—not tip-only soft state.
-4. **Match → SettleReady:** buyer locks / authorizes payment (typically into the **L1 settlement escrow** or an allowance the settle call can pull). The tip records match fields and archives a **`SettleReady`** event under normal \(Q_V\) + **AC** rules. That AC is the `dleArchiveCertificate` input to `settleTrade`.
+1. **Subject + seller intent:** an existing **asset-class** or **storage-class** chain is identified by `(subjectNftContract, subjectNftId)`. Its current L1 owner signs `SellerOrder`; Settlement verifies the authorization and atomically takes custody.
+2. **Open listing:** only after the L1 escrow exists may the seller mint / open a trade-class L1 NFT / DLE tip whose genesis binds exact `sellerOrderHash`, subject, **seller-set** `quoteAsset` / `quoteAmount` (**no NFT oracle; no ≤100 USDC quote cap**), buyer constraint, fee policy, seller nonce, and deadline. Consensus verifies all fields against L1; it cannot amend them.
+3. **Listing freeze:** while the trade tip is **Open** / **Locked** / **SettleReady**, the subject NFT remains in Settlement custody, and asset-class subjects reject outbound drains that would empty the tip before settle. This is an L1 escrow lock—not tip-only soft state.
+4. **Match → SettleReady:** buyer locks / authorizes `quoteAmount + ceilDiv(quoteAmount,10_000)` in the same `quoteAsset` (typically into the **L1 settlement escrow** or through a single-use pull authorization). The tip records match fields and archives a **`SettleReady`** event under normal \(Q_V\) + **AC** rules, including exact `sellerOrderHash`, fee amount, and buyer/payment reference. That AC is the `dleArchiveCertificate` input to `settleTrade`.
 5. **L1 settle (atomic delivery):** any permitted caller submits `settleTrade(...)`. **Only after** the L1 tx succeeds is canonical ownership **buyer = L1 `ownerOf(subjectNftId)`** and payment finalized. The tip then records **Settled** (with L1 tx hash) and **closes**. The **subject asset/storage tip continues** under the new owner (it is **not** closed).
-6. **Failure / cancel / expire before L1 settle:** tip may **Cancelled** / **Expired → Closed** and signal L1 **unfreeze**; no claim that tip rollback undoes an already-final L1 transfer (there must not have been one). After a successful L1 settle, tip state **must** follow L1—never invent a tip-only “un-settle.”
+6. **Failure / cancel / expire before L1 settle:** the stored seller may cancel an `OPEN` order directly on L1; expiry is checked against L1 time. Cancellation / expiry consumes the seller nonce, returns the subject NFT only to the stored seller, and refunds already locked buyer funds under the frozen payment rule. The tip then records **Cancelled** / **Expired → Closed** from the L1 receipt. After successful L1 settle, tip state **must** follow L1—never invent a tip-only “un-settle.”
 7. **What is sold:** the **subject** NFT / ledger—not the trade-order shell. Transferring the trade NFT itself is not the product path for buying the listed chain.
 8. **Portfolio sale:** selling many asset-class fragments still requires **many** trade listings (one `subjectNftId` each), because each **asset tip** remains ≤100 USDC at the oracle book (§4.6)—not because trade quotes are capped.
 9. **Quote policy (product freeze):** DLE **MUST NOT** require an L1 oracle valuation of the listed NFT. Subject **asset tips** keep their own ≤100 USDC balance rules; **storage / copyright NFTs** have no oracle book value. Trade quotes are free market parameters between seller and buyer.
+
+**Security consequence and residual trust:** even if both the validator committee and archive group are captured, they can at most censor / delay or attest a match that is already permitted by the anchored order. They cannot change the subject, seller, quote asset, quote amount, buyer constraint, fee policy, deadline, or nonce; and they cannot release the NFT without the anchored payment predicate. This does **not** protect against compromise of the seller key / EIP-1271 policy, a malicious allowlisted payment adapter, or compromise of the Settlement upgrade authority. Production therefore requires a timelocked, publicly observable Settlement upgrade path and conservative token adapters.
 
 **Lifecycle (trade tip — normative, §10.2):** `None → Open → Locked → SettleReady → Settled → Closed` (or `Cancelled` / `Expired → Closed` without L1 settle). **Matched** is **not** a separate tip state: match fields are written on the **`SettleReady`** event while in **`Locked`**. **Settled** is defined by **L1 settlement success**, not by tip vote alone. Full transition table, encodings, `tipStateRoot`, and error codes: **§10**.
 
@@ -434,8 +506,8 @@ Product freeze: a storage tip is not only content + social history—it is also 
 
 - **Ownership** is defined by the **L1 NFT** (`ownerOf`) plus local genesis rules; trade settle updates **subject** ownership on L1 (§4.7). Storage **access** sales update purchase / delivery records, not NFT owner (§4.8). **Forks** mint a new NFT under the modifier; parent ownership is unchanged (§4.9). **Sales books** live on the storage tip and **reference** parallel asset-class txs (§4.10).
 - **Limited functionality (no tip VM):** genesis binds **exactly one class** (**asset** / **storage** / **trade**) and that class’s **frozen event schema** / transition table (§6.3, §10). Tips do **not** host a general-purpose VM or user-deployed programs. Chains do **not** freely message each other (isolation by design). Trade tips bind a subject id; cross-tip matching uses index / matcher tasks, not free cross-chain calls. Storage tips host content-index hashes, purchase/delivery events, **parent lineage**, **social event** records, and a **sales-revenue journal** with **asset-tip references** (§4.8–§4.10). Arbitrary application workflows compose tips + L1 at the **application layer**.
-- **Security source:** stake + random **small-group** selection + non-block-producing **archive-shard BFT** (Tendermint-style PrevoteQC→PrecommitQC=AC, §5.2.1) + **L1 NFT** binding; asset chains additionally inherit the **≤ 100 USDC** economic bound; trade listings use **seller-set quotes** (no NFT oracle) with **atomic delivery only via L1 `settleTrade`** (§4.7); storage content delivery relies on **PGP fragmentation + buyer re-encryption** so public tip observers never receive plaintext (§4.8); social valuation relies on **signed WoT history**, not forgeable counters (§4.9); revenue claims require **linkable AC-finalized asset-class events** (§4.10).
-- **Fee denomination (frozen):** **storage-class** content / access / retention fees → **conet-GB**; **asset-class / trade-class** tip event fees → **USDC** at **0.01%**, split **50% hosting archive / 50% \(Q_V\) validators** (§13). Asset-class tips remain the parallel **value rails** under the oracle ≤100 USDC cap.
+- **Security source:** stake + random **small-group** selection + non-block-producing **archive-shard BFT** (Tendermint-style PrevoteQC→PrecommitQC=AC, §5.2.1) + **L1 NFT** binding; asset chains additionally inherit the **≤ 100 USDC** economic bound; trade listings use **L1-anchored seller-signed orders** (no NFT oracle) with **atomic delivery only via L1 `settleTrade`** and AC never substituting seller intent (§4.7); storage content delivery relies on **PGP fragmentation + buyer re-encryption** so public tip observers never receive plaintext (§4.8); social valuation relies on **signed WoT history**, not forgeable counters (§4.9); revenue claims require **linkable AC-finalized asset-class events** (§4.10).
+- **Fee denomination (frozen):** **storage-class** content / access / retention → **conet-GB**; **asset-class transfers** → **1 bp of oracle USDC-6 notional in canonical conet-USDC**, pre-locked on L1; **trade-class settlement** → **1 bp in the seller-selected `quoteAsset`**, charged once on successful L1 settle. Both 1 bp rails split **50% hosting archive / 50% \(Q_V\) validators** (§13).
 
 ### 4.4 Role map
 
@@ -552,7 +624,7 @@ Classical public ledgers leak **who owns how much** because a user’s economic 
 
 ### 5.1 Pledge archive nodes
 
-- Global **full nodes** for the DLE plane: store chains and complete state needed for quality checks.
+- Global **full nodes** for the DLE plane: store chains and complete state needed for quality checks. Storage possession is not consensus membership: a node may retain old inventory or mirror another group’s finalized data as a proof-carrying read replica without acquiring that group’s vote.
 - Replicate the global **QUEUED / NewChainQueue** admission pool; detect assignments for their own `groupId`; select the on-demand validator committee; serve authenticated history/state proofs to that committee; receive its signature / DepositBundle pool; independently replay and quality-check the candidate (§5.2.0, §6.3).
 - Participate in **per-shard Tendermint-style BFT** without producing blocks: prevote / precommit only over validator-produced candidates. A single archive may withhold its own vote and propose a `CandidateRejectCertificate`, but **cannot unilaterally veto** a globally queued request or an already-finalized tip (§5.2.1).
 - Peer networking among archive nodes is primarily for **archive discovery and archive consensus**; they do not freely accept arbitrary role-node gossip as peers.
@@ -563,14 +635,16 @@ Classical public ledgers leak **who owns how much** because a user’s economic 
 
 Archive nodes register on CoNET via **NFT**, each obtaining a unique token ID. As **archive participants increase**, the **entire L2 archive plane** does **not** stay one monolithic cluster: it **fissions** into parallel groups, each containing **seven active voters and two dedicated ordered standbys**, so load and gossip bandwidth scale with participation while planned exit has a ready handoff path.
 
-**Canonical fission variables (product freeze):** active voting size \(N_A=7\), dedicated standby size \(S_A=2\), and total assigned identities per fully serviceable group \(G=9\). The prior symbol \(S_e\) was overloaded as both a derived capacity and “already-created groups”; that contradictory definition is removed.
+**Canonical fission variables (product freeze):** active voting size \(N_A=7\), dedicated standby size \(S_A=2\), and total assigned identities per fully serviceable group \(T_A=N_A+S_A=9\). The prior symbol \(S_e\) was overloaded as both a derived capacity and “already-created groups”; that contradictory definition is removed.
 
 | Symbol | Normative meaning |
 | --- | --- |
 | \(G_e\) | Number of L1-registered **live** archive groups in epoch \(e\) |
+| \(N_e\) | Number of **unique membership-active voting archive identities** across all live groups in epoch \(e\); “active” means present in the L1 roster, not merely online/reachable, and excludes standbys, unassigned identities, and read-only replicas |
 | \(U_e\) | Number of bonded, activated, cooldown-complete archives in **UnassignedPool**, not present in any live consensus roster |
 | \(A_g\) | Exact seven-member active consensus roster of live group \(g\) |
 | \(S_g\) | Exact two-member ordered standby roster; synced and challenge-ready, but non-voting until L1 promotion |
+| \(O_g\) | Operator-control commitments bound into the nine membership leaves of group \(g\); cloud/ASN/region concentration remains a separately monitored risk metric |
 | \(N_{\mathrm{eligible}}\) | Eligible archive identities, assigned or unassigned; \(\lfloor N_{\mathrm{eligible}}/9\rfloor\) is a fully serviceable capacity upper bound—not the created-group count |
 
 \[
@@ -579,19 +653,42 @@ Archive nodes register on CoNET via **NFT**, each obtaining a unique token ID. A
 G_{e+1}=G_e+1.
 \]
 
-Examples: once formation certificates complete, **18** eligible archives can support **2** groups and **27** can support **3**. At steady state with full disjoint active and standby rosters, \(N_{\mathrm{eligible}}=9G_e+U_e\). A group **MUST NOT** take a new-chain assignment unless it has all seven active voters and two ready standbys. Existing tips may continue only with five signatures from the current seven-member `membershipRoot`; fewer than five stalls rather than lowering quorum (read-only / replace / migrate / L1 escape).
+\[
+N_e
+=
+\left|\bigcup_{g\in\mathrm{Live}(e)} A_g\right|
+=
+\sum_{g\in\mathrm{Live}(e)}|A_g|
+=7G_e,
+\qquad
+N_{\mathrm{eligible}}=N_e+2G_e+U_e=9G_e+U_e.
+\]
+
+Examples: once formation certificates complete, **18** eligible archives can support **2** groups and **27** can support **3**. \(G_e\), \(N_e\), and \(U_e\) are therefore different state variables: created-group count, unique active-voter count, and eligible unassigned count. A group **MUST NOT** take a new-chain assignment unless it has all seven active voters and two ready standbys. Existing tips may continue only with five signatures from the current seven-member `membershipRoot`; fewer than five stalls rather than lowering quorum (read-only / replace / migrate / L1 escape).
 
 **Roster independence and monotonic group numbers (product freeze):**
 
 \[
-\forall i:\;m_i^{\mathrm{active\ or\ standby}}\le1,
+\forall i:\;
+m_i:=\sum_{g\in\mathrm{Live}(e)}
+\mathbf{1}[i\in A_g\cup S_g]\le1,
 \qquad
-\forall g\ne h:\;|A_g\cap A_h|=0.
+\forall g\ne h:\;(A_g\cup S_g)\cap(A_h\cup S_h)=\varnothing,
+\qquad
+A_g\cap S_g=\varnothing,
+\qquad
+\forall g\ne h:\;O_g\cap O_h=\varnothing.
 \]
 
-An archive NFT may be assigned to at most one live group in either its active or standby roster. History replication or temporary sync service does **not** make a node a member of the receiving group. `groupId` is globally monotonic: a newly created group MUST use a number greater than every existing group, MUST NOT reuse a dissolved number, and MUST be registered through L1 `nextGroupId`.
+An archive NFT may be assigned to at most one live group in either its active or standby roster: `maxGroupsPerArchive = 1`, and the maximum roster overlap between any two groups is zero. This is enforced at both identity and operator-control levels: splitting one operator into multiple archive NFTs does not authorize that operator to occupy multiple live groups. Membership leaves bind a challengeable `operatorCommitment`; proven duplicate control blocks formation or triggers replacement/slashing. The former **3 old + 2 new** construction is rejected; an old member is neither removed from its source group nor cloned into a new voting roster. History replication or temporary sync service does **not** make a node a member of the receiving group. `groupId` is globally monotonic: a newly created group MUST use a number greater than every existing group, MUST NOT reuse a dissolved number, and MUST be registered through L1 `nextGroupId`.
 
 **Seamless-fission history rule (product freeze):** at the fission checkpoint, every existing group keeps a read-only, verifiable copy of the pre-fission history, but write / finality authority for each chain remains with that chain’s recorded historical owner. The newly created group has **no authority to maintain pre-fission history**. It may serve copies, DA recovery, and audit proofs only; it may not issue a competing AC, alter the old state, or migrate the old history by itself.
+
+**Cross-group read-replica rule (product freeze):** any archive may retain old inventory and continuously mirror **finalized** data for a chain whose L1 `archiveGroupId` names another group. It may serve RPC history, current finalized state, DA fragments, and audit proofs only when the response carries a verifiable proof bundle such as `{chainNftId, archiveGroupId, height, AC, stateRoot, membershipRoot}`. This read role:
+
+- does **not** count toward \(A_g\), \(S_g\), \(N_e\), \(Q_A\), `GroupQueueAttestation`, or any reward reserved for that group’s consensus seats;
+- grants no proposal, prevote, precommit, certificate-aggregation, rejection, migration, or state-mutation authority for the foreign group;
+- cannot make its local head canonical or advertise an unfinalized candidate as current finalized state; clients resolve the host from L1 and verify the monotonic AC chain.
 
 **Rejected (previous freeze):** power-of-two width \(S_e\in\{2,4,8,\ldots\}\) with hash routing \(i=H(\mathrm{nftContract}\|\mathrm{tokenId}\|R_e)\bmod S_e\). That formula is **not** used for **new-chain host assignment**. It remains **rejected** to grind `tokenId mod S`.
 
@@ -603,8 +700,8 @@ An archive NFT may be assigned to at most one live group in either its active or
 | --- | --- |
 | `groupId` | Globally monotonic integer; the next group MUST be greater than all prior group ids and is never reused |
 | `groupKeyHash` | \(H(\texttt{"dle.archive.group.v1"}\,\|\,e\,\|\,\mathrm{groupId}\,\|\,\mathrm{membershipRoot}\,\|\,\mathrm{standbyRoot})\) — public fingerprint of the active and standby archive NFT ids + keys |
-| `membershipRoot` | Merkle / hash of the **exactly seven** bonded active voters (same object as §5.2.1) |
-| `standbyRoot` | Ordered commitment to the **exactly two** dedicated, synced, readiness-proven non-voting standbys |
+| `membershipRoot` | Merkle / hash of the **exactly seven** bonded active voters, with each leaf binding archive NFT, signing key, and `operatorCommitment` (same object as §5.2.1) |
+| `standbyRoot` | Ordered commitment to the **exactly two** dedicated, synced, readiness-proven non-voting standbys, with the same identity/operator binding |
 
 Archive nodes **do not** pick a group by grinding an archive NFT residue. When \(U_e\ge9\), public L1 finalized randomness selects **nine distinct eligible archives from UnassignedPool**: seven active voters and two dedicated ordered standbys. Selection MUST enforce distinct archive NFTs and SHOULD enforce distinct operator, key-management, cloud/ASN, and jurisdiction fault domains across all nine. Existing assigned members do not leave their source group or become assigned to the new group. Unbonded / cooldown archive NFTs do not enter either roster and cannot sign ACs.
 
@@ -640,11 +737,66 @@ Checkpoint signatures certify ordering / completeness of the L1 enqueue prefix; 
 
 1. User mints the chain’s **L1 ERC-1155** (class + ownership) and submits the signed request to any archive; all archives replicate it, while the L1 **NewChainQueue** event is the canonical enqueue.
 2. Requests are sorted by the L1 sequence + public request commitment and frozen in an ArchiveQueueCheckpoint—not by a single archive’s wall clock.
-3. Verifiable roulette consumes that checkpoint and maps the sorted batch onto fully serviceable live groups (\(N_A=7,S_A=2\)), optionally load-weighted under public \(R_e\).
+3. Verifiable **UniformPlacementV1** consumes that checkpoint and maps the sorted batch onto fully serviceable live groups (\(N_A=7,S_A=2\)) using the exact deterministic rule below. Dynamic load weighting is not valid in v1.
 4. The assigned group runs genesis (§6.2): draw \(N_V=7+2\), \(Q_V=5/7\); the validators produce the candidate, then archives perform Mode A replay and the §5.2.1 PrevoteQC → PrecommitQC (= AC) path without producing another block.
 5. After genesis AC, the group binds **`archiveGroupId[tokenId] = groupId`** on the **same L1 ERC-1155** (§5.2.0c). Subsequent events **MUST** be hosted by that L1-recorded group—**not** recomputed from `tokenId` hash.
 
 **Why not hash placement for new chains:** a seller / attacker must not choose the host group by minting until a residue matches a captured group. Roulette + L1 write makes host assignment a **public random draw at enqueue time**; the 1155 slot is the **canonical** pointer clients and miners follow.
+
+#### 5.2.0a Deterministic host roulette: uniform v1, versioned weighted v2
+
+**UniformPlacementV1 (product freeze).** Verifiability is more important than an unproven load optimum. v1 assigns new chains uniformly across the exact assignment-eligible group set:
+
+1. `eligibleGroupIds` contains only L1-live groups with a complete 7-active + 2-ready-standby roster, no L1-certified drain/degraded freeze, and a current membership checkpoint; sort ascending by `groupId`. A group cannot self-declare a local degraded flag merely to escape assignment.
+2. `ArchiveQueueCheckpoint` freezes the ordered request batch, `queueCheckpointHash`, and `liveGroupRegistryRoot` **before** a pre-declared future finalized beacon slot is revealed.
+3. Derive the domain-separated placement seed:
+
+\[
+R^{\mathrm{place}}_e =
+H(\texttt{"dle.newchain.placement.uniform.v1"}\|
+\mathrm{L1BeaconFinalizedRandomness}_e\|e\|
+\mathrm{queueCheckpointHash}_e\|
+\mathrm{liveGroupRegistryRoot}_e).
+\]
+
+4. Apply Fisher–Yates to the ascending array with \(m=n,n-1,\ldots,2\): counter words are \(r_c=\mathrm{uint256}(H(\texttt{"dle.shuffle.word.v1"}\|R^{\mathrm{place}}_e\|\mathrm{uint64be}(c)))\); reject and increment \(c\) while \(r_c\ge\lfloor2^{256}/m\rfloor m\), then swap positions \(m-1\) and \(r_c\bmod m\). This produces \(\pi_e\) without modulo bias or implementation ambiguity. Assign zero-based sorted request position \(j\) to \(\pi_e[j\bmod |\pi_e|]\). Thus one frozen batch differs by at most one assignment per eligible group.
+5. For re-roulette, define `retryEligible = eligibleGroupIds \ expiredGroupIds(requestId)` and
+   \[
+   R^{\mathrm{retry}} =
+   H(\texttt{"dle.newchain.placement.retry.v1"}\|
+   R^{\mathrm{place}}_e\|\mathrm{requestId}\|
+   \mathrm{attemptNonce}\|H(\mathrm{retryEligible})).
+   \]
+   Apply the same unbiased Fisher–Yates and choose the first entry. If `retryEligible` is empty, the request waits for a new checkpoint / beacon epoch; the exclusion set MUST NOT be silently reset under the old seed. Membership eligibility and request order MUST NOT change after seeing the seed.
+
+No floating point, local clock, RPC ordering, self-reported load, or implementation-defined tie break participates. The L1 reservation records `placementPolicyId = UNIFORM_V1`, the checkpoint roots, beacon reference, and proof inputs; a different mapping is invalid.
+
+**LoadWeightedPlacementV2 (reserved, not active in v1).** The informal phrase “inverse current tip count” is not a protocol. A future version may activate dynamic load weighting only through a new L1 `placementPolicyId` after all implementations freeze the same integer formula, units, caps, snapshot window, and cumulative-weight mapping. A dimensionally safe form is:
+
+\[
+\widehat L_g=\left\lfloor\frac{\min(L_g,L_{\max})}{L_{\mathrm{unit}}}\right\rfloor,\quad
+\widehat B_g=\left\lfloor\frac{\min(B_g,B_{\max})}{B_{\mathrm{unit}}}\right\rfloor,\quad
+\widehat P_g=\left\lfloor\frac{\min(P_g,P_{\max})}{P_{\mathrm{unit}}}\right\rfloor,
+\]
+\[
+d_g=1+\alpha\widehat L_g+\beta\widehat B_g+\gamma\widehat P_g,\qquad
+q_g=\max\!\left(1,\left\lfloor\frac{W_{\mathrm{scale}}}{d_g}\right\rfloor\right).
+\]
+
+Here \(L_g\) is L1-recorded active hosted tips, \(B_g\) is fee-paid, AC-finalized processed bytes in one fixed prior window, and \(P_g\) is L1-canonical / certificate-derived pending event count at that window boundary. \(\alpha,\beta,\gamma,L_{\mathrm{unit}},B_{\mathrm{unit}},P_{\mathrm{unit}},L_{\max},B_{\max},P_{\max},W_{\mathrm{scale}}\), integer widths, rounding, and overflow behavior are protocol constants—not operator choices. Their numeric values MUST be activated together with the v2 policy; until then they have no consensus default.
+
+Every load leaf is independently derivable from public L1 / AC / queue roots and does **not** require the measured group to self-report or sign its own counters. A global **ArchiveLoadCheckpoint** commits the groupId-sorted leaves and becomes valid only after `GroupLoadAttestation`s from the same \(Q_G\) cross-group threshold as `ArchiveQueueCheckpoint`, each group attestation backed by \(Q_A\) members. Both `loadSnapshotRoot_e` and the eligible-group root MUST be frozen before the bound future beacon is known:
+
+\[
+R^{\mathrm{place,v2}}_e =
+H(\texttt{"dle.newchain.placement.weighted.v2"}\|
+\mathrm{L1BeaconFinalizedRandomness}_e\|e\|
+\mathrm{queueCheckpointHash}_e\|
+\mathrm{liveGroupRegistryRoot}_e\|
+\mathrm{loadSnapshotRoot}_e).
+\]
+
+For each request, let \(W=\sum_g q_g\) and \(r_c=\mathrm{uint256}(H(\texttt{"dle.weight.word.v2"}\|R^{\mathrm{place,v2}}_e\|\mathrm{requestId}\|\mathrm{attemptNonce}\|\mathrm{uint64be}(c)))\). Starting at \(c=0\), reject and increment \(c\) while \(r_c\ge\lfloor2^{256}/W\rfloor W\), then set \(x=r_c\bmod W\). Choose the first ascending `groupId` whose cumulative integer weight exceeds \(x\). Missing/stale/unverifiable source evidence deterministically maps the affected metric to its protocol cap and triggers readiness/service penalties; it MUST NOT be interpreted as zero load or allow the measured group to omit itself. Self-reported byte or pending counters are forbidden. Until this complete v2 policy is activated on L1, every “load-aware” implementation is non-canonical.
 
 **Anti-grinding (product freeze):**
 
@@ -703,7 +855,7 @@ finalizeArchiveGroup(
 | **L1 minimum** | L1 MUST verify ≥\(Q_A\) distinct signatures against the checkpointed roster and that the reservation is current, unexpired, and matches the exact genesis AC. A lone archive signature is insufficient. |
 | **Idempotence** | The first valid finalize transaction sets `archiveGroupId[tokenId]`; duplicate submissions of the same assignment are no-ops / rejected without changing state. |
 | **Standby readiness** | Both dedicated standbys must already be readiness-proven before the group is assignment-eligible. They do not sign PlacementCertificate and do not delay `BOUND` once the active 5/7 certificate exists. |
-| **Timeout / re-roulette** | If no valid \(Q_A\) certificate lands by `deadline`, L1 marks the reservation `EXPIRED`, increments `attemptNonce`, and re-roulettes. Every old partial certificate and old genesis AC is non-canonical and cryptographically unusable for a later attempt. The random seed binds the new nonce. |
+| **Timeout / re-roulette** | If no valid \(Q_A\) certificate lands by `deadline`, L1 marks the reservation `EXPIRED`, records the failed `groupId`, increments `attemptNonce`, and applies the exact retry/exclusion rule in §5.2.0a. Every old partial certificate and old genesis AC is non-canonical and cryptographically unusable for a later attempt. |
 | **Canonical host** | After a successful bind, `archiveGroupId[tokenId]` on L1 is the **sole** host pointer. Tip ACs **MUST** carry matching `archiveShardId` / `groupId`. Clients **MUST NOT** infer host from `tokenId` hash. |
 | **What L1 stores** | Current assignment state, `attemptNonce`, `groupId`, `groupKeyHash`, `membershipEpoch`, `membershipRoot`, `standbyRoot`, deadline, and final bind status. Full roster may live in MembershipCheckpoint. L1 also enforces monotonic `groupId`, disjoint 7-active + 2-standby formation, and the formation/history witness proof. |
 
@@ -755,9 +907,11 @@ Here \(N_A=3f+1\) and \(Q_A=2f+1\). Two 5-of-7 quorums intersect in at least thr
 
 Only signatures from active members in that root count toward \(Q_A\). Standbys, unbonded, or cooldown archive NFTs **cannot** sign before an L1 promotion. Roster changes require the checkpointed **MembershipUpdateCertificate** below (≥5/7 of the old active set) or an evidence-backed L1-forced replacement. Fission remapping still uses **MigrationCertificate** (§5.2.2). A removed or unavailable identity does not lower quorum; fewer than five current-root signatures stops new ACs.
 
+**Unified archive-certificate threshold (product freeze).** Except for cross-group \(Q_G\), `PrevoteQC`, `PrecommitQC / AC`, `GroupQueueAttestation`, `PlacementCertificate`, `MembershipFormationCertificate` formation witnesses, `CandidateRejectCertificate`, old-roster approval of `MembershipUpdateCertificate`, and both source/target sides of `MigrationCertificate` all require **\(Q_A=5/7\)** distinct active signers under the applicable `membershipRoot`. No separate 4/5, 7/7, dynamic-online quorum, or “last signer” privilege exists for any of these certificates.
+
 #### 5.2.1a Normal archive exit, standby promotion, and atomic roster switch
 
-Archive-node exit is a **bonded service handoff** and is distinct from a chain owner’s AssetVault `forceWithdraw`. A planned exit follows:
+Archive-node exit is a **bonded service handoff** and is distinct from a chain owner’s AssetVault `requestForceWithdraw → challengeForceWithdraw → finalizeForceWithdraw` claim. A planned exit follows:
 
 ```text
 ACTIVE
@@ -853,6 +1007,8 @@ ArchiveValue = {
   decision: ACCEPT,
   candidateId, validatorProducedBlockHash,
   parentBlockHash, parentStateRoot,
+  parentArchiveCertificateHash,
+  l1ContextBlockNumber, l1ContextBlockHash,
   selectionLogRef, validatorBundleHash,
   tipStateRoot, daRoot,
   erasureCodingVersion, chunkCount,
@@ -865,6 +1021,10 @@ valueHash =
 ```
 
 The `decision` field is deliberately inside `valueHash`; the same validator block cannot be signed as both accept and reject in independent domains. In v1, `decision=REJECT` is forbidden in `ArchiveValue` and uses `CandidateRejectCertificate`. If a later version makes reject a ledger value, it MUST use this same conflict domain and consume the same tip height.
+
+Every non-genesis AC MUST therefore commit the immediately preceding canonical `parentArchiveCertificateHash` (genesis uses the fixed zero hash). This makes AC ancestry independently provable and prevents a merely higher-height certificate from being treated as a descendant in L1 settlement, migration, or forced-exit challenges.
+
+`l1ContextBlockNumber/hash` freezes the finalized CoNET L1 view used by replay. Any AC that claims to observe an AssetVault exit request MUST cite an L1 context at or after that request’s finalized block and include the corresponding deterministic asset-FSM freeze transition.
 
 **Round proposal (a reference, not a block):**
 
@@ -978,7 +1138,7 @@ Each archive may independently fail quality checks, refuse to vote for the candi
 
 **Network partition (safety over liveness).** Only a component able to form both QCs (≥\(Q_A\) each) may finalize. A minority cannot finalize; if no component reaches \(Q_A\), the tip stalls rather than forks. Clients ignore single-node RPC claims without a verifiable AC.
 
-**Archive censorship (L1 escape hatch — no AC progress).** After timeout \(T_{\mathrm{archive}}\) with no new AC for a live chain (despite round TCs), the chain owner (or a challenger holding the latest **\(Q_V\)-valid** validator attestation plus witness evidence) may post a bonded **`ArchiveCensorshipChallenge`** on CoNET L1 with reason `NO_PROGRESS`. On success: suspend that shard’s custody, allow **deterministic re-home**, and/or escalate to **`forceWithdraw`** (§ below). Malicious challenges lose the bond. **Round TC ≠ censorship challenge.**
+**Archive censorship (L1 escape hatch — no AC progress).** After timeout \(T_{\mathrm{archive}}\) with no new AC for a live chain (despite round TCs), the chain owner (or a challenger holding the latest **\(Q_V\)-valid** validator attestation plus witness evidence) may post a bonded **`ArchiveCensorshipChallenge`** on CoNET L1 with reason `NO_PROGRESS`. On success: suspend that shard’s custody, allow **deterministic re-home**, and/or establish the frozen AC reference required to open the challenged forced-exit protocol (§ below). Malicious challenges lose the bond. **Round TC ≠ censorship challenge.**
 
 **Verifiable data availability (product freeze).** “Signing an AC” is a **cryptographic attestation of share custody**, not a verbal promise. Production **MUST** freeze encoding, thresholds, pre-sign duties, and an **UnavailableChallenge** game.
 
@@ -1003,32 +1163,66 @@ Each archive may independently fail quality checks, refuse to vote for the candi
 4. Timeout / wrong open → slash that member’s archive bond; reassign chunk duty if needed.
 5. If after the game fewer than k valid opens exist → FREEZE height:
    - tip spendable state reverts to previousAC.tipStateRoot (events at frozen height are non-spendable);
-   - owner MAY forceWithdraw against previous good AC (§ below);
+   - owner MAY open a challenged forced-exit claim against the L1-frozen previous good AC (§ below);
    - shard may be suspended / re-homed under ArchiveCensorshipChallenge reason UNAVAILABLE.
 ```
 
 **Economic truth:** only tip states covered by an AC **with reconstructible DA** are spendable. Uncertified or frozen-height events are not final.
 
-**Forced exit / `forceWithdraw` (executable protocol).** Intent “recover from previous AC state root” is **not** enough—unlock **MUST** hit the L1 AssetVault (§4.6):
+**Forced exit (request → challenge → finalize; one-shot `forceWithdraw` is forbidden).** The old shape `forceWithdraw(assetNftId,lastAC,proof,userChosenNullifier)` is unsafe: a claimant can select a pre-spend AC and race the current claim holder. A dispute window alone is still only optimistic, so v1 combines an L1 monotonic AC-freshness registry, an owner-spend freeze, permissionless challenge, deterministic identifiers, and cumulative vault accounting:
 
 ```text
-forceWithdraw(
+requestForceWithdraw(
     assetNftId,
-    lastArchiveCertificate,   // last good AC (or previousAC if height frozen)
-    accountStateProof,        // Merkle (or equivalent) proof of account balance under tipStateRoot
-    nullifier                 // unique exit id; prevents double unlock + tip double-spend
+    acHeight,
+    acHash,
+    accountStateProof,
+    claimType,
+    requestedAmount
+) returns (claimId)
+
+challengeForceWithdraw(
+    claimId,
+    newerArchiveCertificate,
+    newerAccountStateProof,
+    ancestryProof
 )
+
+finalizeForceWithdraw(claimId)
+
+claim state:
+NONE → PENDING ↔ PROOF_REQUIRED → FINALIZED | CANCELLED
 ```
+
+ABI names are illustrative; the following semantics are frozen:
+
+1. **Request and freshness.** The requester is `owner = msg.sender`; the proof must open that owner’s `(netTipBalance,appliedL1Withdrawn,…)` leaf under a valid, reconstructible-DA AC for this `assetNftId`. AssetVault maintains monotonic `latestKnownAC[assetNftId] = (height,hash)`. A request below that height is rejected; equal height must match the stored hash; a higher AC advances the registry only with valid quorum/membership/DA checks and proof that it descends from the stored AC through `parentArchiveCertificateHash` (or an equivalent checkpoint-inclusion proof).
+2. **Contract-assigned identity.** AssetVault allocates a monotonically increasing `exitEpoch` for `(assetNftId,owner,claimType)` and derives—never accepts from the user:
+
+   \[
+   \mathrm{claimId}=\mathrm{nullifier}
+   =H(\texttt{"CoNET-DLE-ForceExit-v1"}\|
+      \mathrm{l1ChainId}\|\mathrm{AssetVaultAddress}\|
+      \mathrm{assetNftId}\|\mathrm{owner}\|
+      \mathrm{claimType}\|\mathrm{exitEpoch}).
+   \]
+
+   Only one pending claim per tuple is allowed. Reusing an epoch or finalized `claimId` fails.
+3. **Pending freeze.** The finalized L1 request records `requestL1Block`, `requestL1Timestamp`, claimant bond, requested amount, best AC, and `challengeDeadline = requestL1Timestamp + T_exit`. Once that L1 event is observable, validators and archives MUST reject new outgoing spends from the pending owner claim. Pre-request/in-flight events remain valid and can produce a newer AC that defeats the stale request. The first AC citing the finalized request becomes the normal `exitSnapshotAC`; during proven `NO_PROGRESS` / `UNAVAILABLE`, the L1 dispute result instead names one exact `frozenExitReferenceAC`.
+4. **Permissionless challenge.** Before the deadline, anyone may submit a strictly higher, valid descendant AC with reconstructible DA and a Merkle inclusion/non-inclusion proof for the same owner. The challenge advances `latestKnownAC`, replaces the claim’s best state proof, and recomputes its cap with the §4.6 `netTipBalance` / `appliedL1Withdrawn` formula. It may reduce or cancel the claim but never increase it above the originally requested amount. An accepted higher AC starts a fresh response window so a last-block challenge cannot be finalized immediately. A successful stale/double-spend challenge earns a protocol share of the requester bond; an invalid challenge loses its bond.
+5. **Finalize.** `finalizeForceWithdraw` succeeds only after the window, with no unresolved challenge, when the claim’s `(bestAcHeight,bestAcHash)` equals AssetVault’s current `latestKnownAC`, and when that AC is either (a) the `exitSnapshotAC` whose `l1ContextBlockNumber/hash` proves it observed this finalized request, or (b) the exact `frozenExitReferenceAC` established by an L1 `NO_PROGRESS` / `UNAVAILABLE` dispute. A pre-request AC cannot finalize on the normal path. If a newer AC is known but its owner proof has not been supplied, the claim is `PROOF_REQUIRED` and cannot finalize.
+6. **Checks-effects-interactions.** Before transferring value, L1 marks the deterministic nullifier consumed, increments `withdrawnByAssetOwner[assetNftId][owner]` and vault-wide `released`, reduces `remainingLocked`, and marks the claim `FINALIZED`. Payout is bounded by §4.6. Full exhaustion may mark the vault `EXITED`; partial exits preserve cumulative accounting. Changing `exitEpoch` cannot claim the same proven balance again.
+7. **Tip/re-home writeback.** `ForceWithdrawFinalized`—not request or challenge—is a mandatory L1-observed asset-FSM debit. Any resumed or re-homed tip state MUST reconcile L1 `withdrawnByAssetOwner` against the leaf’s `appliedL1Withdrawn` and subtract only the unapplied delta; later ACs cannot spend the released claim. Cancellation unfreezes only after the L1 cancellation event is final.
 
 | Rule | Normative requirement |
 | --- | --- |
-| **Where value lives** | Unlockable funds sit in **L1 AssetVault[`assetNftId`]** (ingress collateral). Tip balances are claims, not a second free float |
-| **Proof** | `accountStateProof` proves `(owner, balance, …)` under `lastArchiveCertificate.tipStateRoot`. L1 pays ≤ `min(vault.locked, proven balance)` |
-| **Nullifier** | On success, L1 stores `nullifier` / marks vault **Exited** (or reduced). Tip **MUST** treat any later spend of the exited claim as invalid; archives **MUST** reject events that spend exited balances |
-| **Post-AC events** | Events **after** `lastArchiveCertificate.height` are **ignored** for this withdraw. Challengers may submit a **newer valid AC + DA** during the dispute window to raise the proven balance or cancel a fraudulent exit |
-| **Dispute window** | \(T_{\mathrm{exit}}\) (engineering constant; same family as \(T_{\mathrm{archive}}\) / \(T_{\mathrm{daResponse}}\)). During \(T_{\mathrm{exit}}\), bonds may be slashed if a counter-AC proves the withdraw under-stated / double-spent |
-| **NFT ownership** | `ownerOf(assetNftId)` stays on L1; forceWithdraw moves **vault assets**, not necessarily the NFT (product MAY burn/transfer NFT on full exit) |
-| **Trade tips** | Incomplete trades use cancel/unfreeze (§4.7)—not this vault path—unless the **subject** asset tip itself is force-exiting |
+| **Where value lives** | Unlockable funds sit in **L1 AssetVault[`assetNftId`]**. Tip balances are claims, not a second free float |
+| **No caller-selected old final** | A valid signature set on height \(h\) proves finality at \(h\), not that no AC exists above \(h\). Caller-selected stale ACs and user-selected nullifiers cannot unlock |
+| **Watcher assumption** | If no exact L1 freeze/checkpoint exists, the challenge path is an optimistic bridge assumption: at least one honest watcher must surface a newer AC. Production MUST run permissionless checkpoint relayers, expose reconstructible DA, and fund challenger rewards; prose MUST NOT claim the window cryptographically proves “latest” |
+| **NFT ownership** | `ownerOf(assetNftId)` stays on L1; finalization moves vault assets, not necessarily the NFT (product MAY burn/transfer NFT on full exit) |
+| **Trade tips** | Incomplete trades use cancel/unfreeze (§4.7), not this vault path, unless the **subject** asset tip itself is force-exiting |
+
+**Worked stale-AC case.** If height 100 proves Alice = 100 USDC and height 101 finalizes Alice → Bob 100 USDC, Alice’s height-100 request is rejected immediately when height 101 is already checkpointed. Otherwise it remains pending: a height-101 descendant challenge proves Alice = 0 and cancels/reduces the claim, while the normal path cannot finalize until a post-request `exitSnapshotAC` is available. Bob’s height-101 claim therefore remains the only spendable entitlement. Only the explicitly stated optimistic-watcher failure remains when a newer AC exists but has neither reached L1 nor any honest challenger.
 
 #### 5.2.2 Epoch fission migration & MigrationCertificate
 
@@ -1109,13 +1303,13 @@ MC = {
 ### 6.2 Genesis block flow
 
 1. User **mints / configures a unique CoNET L1 NFT** and selects **exactly one** class: **asset**, **storage**, or **trade**.
-2. **Asset-class only:** deposit L1 assets; **L1 oracle** values them; reject if valuation **> 100 USDC-equivalent**.
-3. **Trade-class only:** bind `subjectNftId` (existing asset or storage NFT owned by the seller); commit seller-set `quoteAsset` / `quoteAmount` (**reject zero / unsupported payment assets; do not oracle-cap the quote**—§4.7).
+2. **Asset-class only:** require `AssetAdmissionRegistry.status(asset)==ACTIVE` and, for **every asset including conet-USDC**, its approved CoNET L1 decentralized pool/route + TWAP adapter + minimum liquidity. Deposit L1 assets; reject stale/unavailable valuation or value **> 100 USDC-equivalent**.
+3. **Trade-class only:** require a live L1 Settlement escrow whose `escrowOrderHash[tradeId]` exactly equals genesis `sellerOrderHash`; bind its subject collection + NFT ID, seller, quote, buyer constraint, fee policy, seller nonce, and deadline. Reject absent / mismatched custody, zero / unsupported payment assets, or replayed nonce; **do not oracle-cap the quote** (§4.7).
 4. **Storage-class creator content (optional):** owner may attach `contentIndexHash`, authorized miner PGP key hashes, and **access price in conet-GB** (§4.8).
 5. **Storage-class fork (optional):** if minting a branch, bind `parentNftId` / `rootNftId` / `lineageHash` for the Copyright ZERO version tree (§4.9).
 6. User submits a **new ledger request** (referencing the NFT id + class + deposit / subject proof) to **NewChainQueue** (sorted; §5.2.0).
-7. Load-aware **roulette** assigns a fully serviceable **7-active + 2-standby group** (\(N_A=7,S_A=2\)).
-8. Roulette selects an **issuer** among staking miners; issuer assembles genesis from the **class-fixed event schema** (global definitions for this chain, including fee hooks per class—**USDC 0.01%** for asset/trade, **conet-GB** for storage—§13)—**no tip VM**.
+7. **UniformPlacementV1 roulette** assigns a fully serviceable **7-active + 2-standby group** (\(N_A=7,S_A=2\)); dynamic load weighting is reserved for the versioned v2 policy (§5.2.0a).
+8. Roulette selects an **issuer** among staking miners; issuer assembles genesis from the **class-fixed event schema** (including class-specific fee hooks: asset 1 bp in conet-USDC, trade 1 bp in `quoteAsset` on settle, storage in conet-GB—§13)—**no tip VM**.
 9. Assigned **archive group** draws **\(N_V=7\)** on-demand validators + **\(S_{\mathrm{sb}}=2\)** standbys from **that group’s** waiting queue; optional issuer assembles genesis.
 10. The committee votes; on **≥ \(Q_V=5\)** accept signatures, submit genesis attestations.
 11. Archive group independently replays the validator-produced genesis and, if qualified, forms **PrevoteQC → PrecommitQC (= AC)** without producing another block (§5.2.1).
@@ -1146,18 +1340,18 @@ user → RequestPool
 ```
 
 1. A **new event** enters the hosting shard **RequestPool**. **If there is no event, no block is produced.**
-2. **Asset-class only — revalue:** run **L1 oracle** revaluation of chain balance / transfer (§4.6). If revalued balance **> 100 USDC**, require **spillover new chain(s)** for the outbound / excess portion before this tip may accept the transfer; otherwise reject.
-3. **Trade-class only — listing invariants:** reject zero/unsupported quotes, quote mutations after freeze that break buyer auth, unfreeze of the subject NFT without cancel/expire/L1 settle, **Settled** without a verified L1 `settleTrade` tx, or tip-only “atomic rollback” of L1 state (§4.7). **Do not** reject solely because quote > 100 USDC. After **Closed**, refuse all new blocks.
+2. **Asset-class only — admission, revalue, fee lock:** require `ACTIVE` asset admission and a fresh canonical pool/TWAP report; revalue chain balance / transfer (§4.6). Require the proposer’s finalized conet-USDC `feeLockId` for 1 bp of USDC-6 transfer notional. Reject missing/consumed/underfunded fee, inactive/stale pricing, or over-cap balance without spillover new chain(s).
+3. **Trade-class only — listing invariants:** reject `TradeOpened` without exact L1 `escrowOrderHash`, any AC/order mismatch, zero/unsupported quotes, quote / subject / buyer-constraint / fee-policy / nonce mutations, release of Settlement custody without cancel/expire/L1 settle, **Settled** without a verified L1 `settleTrade` tx, or tip-only “atomic rollback” of L1 state (§4.7). **Do not** reject solely because quote > 100 USDC. After **Closed**, refuse all new blocks.
 4. **Storage-class only — content access:** purchase events require **conet-GB** payment + **buyer PGP** binding; delivery-complete events require a valid authorized-miner first-completer proof (`buyerEncryptedContentHash`). Reject events that would put plaintext content into tip state (§4.8).
 5. **Storage-class only — social / fork:** like / comment / citation events require a valid signer binding (EIP-191 / AddressPGP); fork genesis must reference an existing `parentNftId`. Reject unsigned “celebrity” attributions (§4.9).
 6. **Storage-class only — sales books:** `SaleBooked` / revenue journal events that claim value movement MUST include `assetNftId` + `assetTxId` (or an explicit GB-only access sale with no asset rail); reject unlinked inflate-the-books rows (§4.10).
 7. Rotating **ArchiveCoordinator** (deterministic per round — §5.2.1) pulls a cap-compliant request and appends a **SelectionLog** entry: verifiable roulette over the **on-demand miner waiting queue** (coordinator assembles evidence; peers attest — §5.2.1, §7.8). Seat assignment is publicly recomputeable from `poolRoot_e` + \(R_e\); the coordinator has **no** unilateral seat veto.
 8. Archive shard **draws \(N_V=7\) validators + \(S_{\mathrm{sb}}=2\) standbys** for **this chain’s current block** (§6.5).
 9. Candidate block is assembled from typed events against the class transition table (optional issuer among staking miners or committee assembler)—**no tip VM** (§10).
-10. **Fee collection (dual denomination — §13):**
-   - **Asset-class transfer:** **0.01%** of transferred value in **USDC**; of that fee **50% → hosting archive shard** (among AC signers), **50% → \(Q_V\) accepting validators** (equal among ≥5 accept signers on the archived tip).
-   - **Storage-class write / retention / access purchase / social:** **content-based** fees in **conet-GB** (not the USDC 0.01% rail); unpaid retention → refuse new blocks; access price paid to owner (delivery miners may take a configured share).
-   - **Trade-class listing / settle:** listing / settle hooks charge **USDC** on the quote / settle notional under the same **0.01% → 50/50 archive/validators** split where applicable; unpaid listing fees may halt further trade events.
+10. **Fee collection (class-specific denomination — §13):**
+   - **Asset-class transfer:** proposer pre-locks **1 bp of canonical oracle USDC-6 notional in conet-USDC**; invalid lock rejects. After AC, split **50% hosting archive / 50% \(Q_V\) accepting validators**.
+   - **Storage-class write / retention / access purchase / social:** **content-based** fees in **conet-GB**; unpaid retention → refuse new blocks; access price goes to owner (delivery miners may take a configured share).
+   - **Trade-class settle:** exactly once on successful L1 settle, buyer pays `quoteAmount + ceilDiv(quoteAmount,10_000)` in the same `quoteAsset`; seller receives exact `quoteAmount`; split the fee 50/50. No second percentage fee at listing-open.
 11. The committee **votes**; on **≥ \(Q_V=5\)** accept signatures within \(T_{\mathrm{vote}}\), it **submits** a **DepositBundle** into the **ArchiveIngressPool** (**proposal / witness layer only**—not final).
 12. **Every active archive (Mode A)** independently replays the validator-produced candidate and checks the vote set, block quality, DA, and class invariants. **Forbidden:** PrecommitQC from committee signatures alone without replay; any archive-produced substitute block.
 13. If qualified, archive members run **PrevoteQC → PrecommitQC**; a valid **AC (= PrecommitQC)** finalizes and stores the validator-produced block. If not qualified, place it in ArbitrationPool and apply reselection; on exhaustion use CandidateRejectCertificate / stalled / L1 escape.
@@ -1355,7 +1549,9 @@ Collect ECDSA signatures from the **validator committee** (and optional issuer /
 
 ### 7.8 Verifiable roulette cryptography
 
-**Product freeze:** production roulette **MUST** derive \(R_e\) from **CoNET L1 beacon-chain finalized randomness** plus a **\(Q_A\)-attested** waiting-pool root `poolRoot_e`. **Commit–reveal is MVP / bootstrap only**—it is **not** the production randomness claim. The informal slogan “bias-free if at least one honest reveal” is **incomplete** (see §7.8.3 last-revealer bias). Concatenating **optional per-archive ECVRF outputs** into \(R_e\) is **rejected for v1** (see selective-omission bias below).
+**Scope distinction.** This section governs the hosting shard’s **on-demand validator / standby draw** from its waiting pool. New-chain **host-group placement** uses the separate domain, eligibility root, and UniformPlacementV1 mapping frozen in §5.2.0a. Implementations MUST NOT reuse `shardId`-scoped validator selection as an implementation-defined host-placement rule.
+
+**Product freeze:** production validator roulette **MUST** derive \(R_e\) from **CoNET L1 beacon-chain finalized randomness** plus a **\(Q_A\)-attested** waiting-pool root `poolRoot_e`. **Commit–reveal is MVP / bootstrap only**—it is **not** the production randomness claim. The informal slogan “bias-free if at least one honest reveal” is **incomplete** (see §7.8.3 last-revealer bias). Concatenating **optional per-archive ECVRF outputs** into \(R_e\) is **rejected for v1** (see selective-omission bias below).
 
 #### 7.8.1 Production: L1 beacon finalized randomness ∥ epoch ∥ shardId ∥ poolRoot
 
@@ -1487,6 +1683,7 @@ L2Envelope {
 - [ ] EIP-191 on every command; reject bad `ecrecover`.
 - [ ] AES-GCM (or CBC+HMAC) for listen session keys; ban bare CBC.
 - [ ] Production roulette = \(R_e = H(\texttt{"dle.roulette.v1"}\,\|\,\mathrm{L1BeaconFinalizedRandomness}_e\,\|\,e\,\|\,\mathrm{shardId}\,\|\,\mathrm{poolRoot}_e)\); `poolRoot_e` frozen before beacon known; commit–reveal only for MVP; no optional-VRF concatenation (§7.8).
+- [ ] New-chain host placement = `UniformPlacementV1` with frozen queue checkpoint + eligible-group root before beacon reveal; no dynamic load or self-reported counters in v1 (§5.2.0a).
 - [ ] Block acceptance = full set of secp256k1 votes on `blockHash`.
 - [ ] No private keys in logs; no plaintext mirroring on relays.
 
@@ -1578,7 +1775,7 @@ Every class FSM **MUST** specify the following. Implementations that differ on a
 | **Nonce** | Per-tip `u64`, strictly increasing by **1** on each accepted event. Replay of equal/lower nonce → `ERR_FSM_NONCE`. Genesis initializes nonce `0`; first event uses `1`. |
 | **Timestamp source** | Consensus-relevant time is **only**: (a) event field `deadline` / `expiresAt` as absolute unix **seconds** `u64`, and/or (b) L1 block timestamp of a **cited** L1 tx / oracle update when the transition requires L1 observation. **Forbidden** as consensus truth: validator wall-clock, local PoH alone, archive host clock. Soft UX clocks may display locally but **MUST NOT** alter accept/reject. |
 | **Integer widths** | Addresses `bytes20`; ids `bytes32`; amounts **`u128`** in token native units; percentages / bps **`u32`**; enums **`u8`/`u16`**. No floating point in tip state. |
-| **USDC / quote decimals** | Quote and fee amounts that are USDC-denominated use **6 decimals** (`1 USDC = 1_000_000`). If the payment token is conet-USDC or another allowlisted ERC-20, the event carries `quoteAsset` + `quoteAmount` in **that** token’s decimals. The **≤ 100 USDC** oracle cap applies to **asset-class tip balances** (§4.6)—**not** to trade-class listing quotes (no NFT oracle). |
+| **Fee / quote decimals** | Canonical conet-USDC asset fees and USDC-6 oracle notionals use **6 decimals** (`1 conet-USDC = 1_000_000`). Trade `quoteAmount` and `tradeFeeAmount` use **`quoteAsset` native units / decimals**; settlement performs no decimal conversion or quote-token oracle conversion. An optional token-risk oracle may gate admission / circuit breakers only. The **≤ 100 USDC-equivalent** oracle cap applies only to asset-class tip balances (§4.6), not trade quotes. |
 | **Oracle round** | Any transition that depends on valuation **MUST** bind `oracleRoundId:u64`, `oracleAnswerUsdc6:u128`, `oracleUpdatedAt:u64` (or an equivalent oracle report hash) inside the event payload. Accept iff the report is from the allowlisted oracle and `answerUsdc6 ≤ 100_000_000` when the cap applies. |
 | **`tipStateRoot`** | `Keccak256` Merkle root over sorted leaves `(path:bytes, value:bytes)`. Mandatory leaves include at least: `state`, `nonce`, class-specific account/object leaves, and (trade) listing/match fields. Empty optional leaves use fixed zero hash. Path encoding: ASCII path strings as in §10.2–§10.4. Parent AC’s `tipStateRoot` **MUST** equal the root after applying the event. |
 | **Error codes** | Stable `u16` in `0x01xx` (metamodel), `0x11xx` (asset), `0x12xx` (storage), `0x13xx` (trade). Mode A reject **MUST** surface the same code the validators used. |
@@ -1606,38 +1803,40 @@ Every class FSM **MUST** specify the following. Implementations that differ on a
 
 | Current | Event | Preconditions (summary) | Next | Tip effects | L1 effects |
 | --- | --- | --- | --- | --- | --- |
-| `None` | `TradeOpened` | Signer = seller; `seller = ownerOf(subjectNftId)` on L1; `quoteAsset` allowlisted; `quoteAmount > 0`; `deadline >` cited L1 time; genesis class=`trade`; **no** NFT-oracle / ≤100 USDC quote check | `Open` | Init listing leaves: subject, seller, quoteAsset, quoteAmount, deadline; nonce←1 | Freeze / escrow **subject NFT** (registry or Settlement) |
-| `Open` | `BuyerLocked` | Signer authorized buyer path; payment authorization / escrow deposit valid for exact quote; nonce ok | `Locked` | Record `buyer`, `paymentAuthHash` / escrow ref | Lock **funds** (or pull-authorization) in Settlement escrow |
-| `Locked` | `SettleReady` | `buyer` / quote / deadline still valid; match fields equal locked auth; nonce ok | `SettleReady` | Commit match + fields required by SettleReady AC (§4.7); expose `tipStateRoot` | **none** (AC is tip/archive plane) |
+| `None` | `TradeOpened` | A live L1 Settlement escrow exists; its `sellerOrderHash`, subject, seller, quote, buyer constraint, fee policy, seller nonce, and deadline equal this event; Settlement currently owns the subject NFT; genesis class=`trade`; **no** NFT-oracle / ≤100 USDC quote check | `Open` | Init anchored-order leaves; nonce←1 | Already escrowed by `escrowSubject`; tip only references the L1 record |
+| `Open` | `BuyerLocked` | Signer authorized buyer path; payment authorization / escrow deposit covers exact `quoteAmount + ceilDiv(quoteAmount,10_000)` in `quoteAsset`; nonce ok | `Locked` | Record `buyer`, `tradeFeeAmount`, `paymentAuthHash` / escrow ref | Lock **funds** (or single-use pull authorization) in Settlement escrow |
+| `Locked` | `SettleReady` | `sellerOrderHash`, buyer constraint, buyer / payment, quote, computed `tradeFeeAmount`, seller nonce, fee policy, and deadline still equal the L1 escrow + locked auth; nonce ok | `SettleReady` | Commit exact seller order + match / fee fields required by SettleReady AC (§4.7); expose `tipStateRoot` | **none** (AC is tip/archive plane) |
 | `SettleReady` | `L1Settled` | Observe successful L1 `settleTrade` for this `tradeId`+nonce; receipt fields match AC payload | `Settled` then auto-`Closed` in same accept (or two-step with identical effects) | Record `l1TxHash`; mark closed | Already applied on L1 (NFT+payment); tip **follows** |
-| `Open` or `Locked` | `Cancelled` | Signer = seller **or** buyer under frozen cancel rule; not past irreversible L1 settle | `Closed` | Clear match intent | Unlock subject NFT + funds |
-| `Open` or `Locked` | `Expired` | Cited L1 time `>` `deadline`; no L1 settle | `Closed` | Mark expired | Unlock subject NFT + funds |
+| `Open` or `Locked` | `Cancelled` | Observe valid L1 cancel receipt by stored seller (or frozen buyer-refund rule); no L1 settle | `Closed` | Clear match intent | Consume seller nonce; return subject only to stored seller; refund locked funds |
+| `Open` or `Locked` | `Expired` | Observe valid L1 expiry receipt with L1 time `>` `deadline`; no L1 settle | `Closed` | Mark expired | Consume seller nonce; return subject only to stored seller; refund locked funds |
 | `SettleReady` | `Cancelled` / `Expired` | Same as above **and** no L1 settle observed | `Closed` | Clear SettleReady | Unlock |
 | `Settled` / `Closed` | * | — | — | reject `ERR_FSM_NO_TRANSITION` | — |
 
-**Forbidden:** tip-only `Settled` without `L1Settled` observation; inventing `Matched` as a tip state; accepting `SettleReady` from `Open` without `BuyerLocked`.
+**Forbidden:** tip-only `TradeOpened` without the exact L1 `escrowOrderHash`; tip-only `Settled` without `L1Settled` observation; inventing `Matched` as a tip state; accepting `SettleReady` from `Open` without `BuyerLocked`; treating an AC as seller authorization.
 
 **Trade payload field order (normative widths):**
 
 | Event | Payload fields (in order) |
 | --- | --- |
-| `TradeOpened` | `subjectNftId:bytes32`, `seller:address`, `quoteAsset:address`, `quoteAmount:u128`, `deadline:u64` |
+| `TradeOpened` | `sellerOrderHash:bytes32`, `subjectNftContract:address`, `subjectNftId:bytes32`, `seller:address`, `quoteAsset:address`, `quoteAmount:u128`, `buyerConstraint:address`, `feePolicyHash:bytes32`, `deadline:u64`, `sellerNonce:u256` |
 | `BuyerLocked` | `buyer:address`, `paymentAuthHash:bytes32`, `escrowRef:bytes32` |
-| `SettleReady` | `buyer:address`, `quoteAsset:address`, `quoteAmount:u128`, `deadline:u64`, `settleNonce:u64` (= tip nonce) |
+| `SettleReady` | `sellerOrderHash:bytes32`, `buyer:address`, `buyerConstraint:address`, `quoteAsset:address`, `quoteAmount:u128`, `tradeFeeAmount:u128`, `feePolicyHash:bytes32`, `sellerNonce:u256`, `deadline:u64`, `settleNonce:u64` (= tip nonce) |
 | `L1Settled` | `l1TxHash:bytes32`, `l1BlockNumber:u64`, `l1BlockHash:bytes32` |
 | `Cancelled` | `reasonCode:u16`, `initiator:address` |
 | `Expired` | `citedL1BlockNumber:u64`, `citedL1Timestamp:u64` |
 
-**Trade `tipStateRoot` paths (minimum):** `/state`, `/nonce`, `/subjectNftId`, `/seller`, `/buyer`, `/quoteAsset`, `/quoteAmount`, `/deadline`, `/paymentAuthHash`, `/l1TxHash`.
+**Trade `tipStateRoot` paths (minimum):** `/state`, `/nonce`, `/sellerOrderHash`, `/subjectNftContract`, `/subjectNftId`, `/seller`, `/sellerNonce`, `/buyer`, `/buyerConstraint`, `/quoteAsset`, `/quoteAmount`, `/tradeFeeAmount`, `/feePolicyHash`, `/deadline`, `/paymentAuthHash`, `/l1TxHash`.
 
-**Trade error codes:** `0x1301 ERR_TRADE_NOT_OWNER`, `0x1302 ERR_TRADE_BAD_QUOTE`, `0x1303 ERR_TRADE_BAD_PAYMENT`, `0x1304 ERR_TRADE_AC_MISMATCH`, `0x1305 ERR_TRADE_L1_NOT_FOUND`, `0x1306 ERR_TRADE_ALREADY_SETTLED`.
+**Trade error codes:** `0x1301 ERR_TRADE_NOT_OWNER`, `0x1302 ERR_TRADE_BAD_QUOTE`, `0x1303 ERR_TRADE_BAD_PAYMENT`, `0x1304 ERR_TRADE_AC_MISMATCH`, `0x1305 ERR_TRADE_L1_NOT_FOUND`, `0x1306 ERR_TRADE_ALREADY_SETTLED`, `0x1307 ERR_TRADE_SELLER_ORDER_MISMATCH`, `0x1308 ERR_TRADE_ESCROW_CUSTODY`, `0x1309 ERR_TRADE_SELLER_NONCE`.
 
 ### 10.3 Asset-class FSM (form freeze; table skeleton)
 
 **States:** `Active`, `SpilloverPending`, `Exited` (plus ordinary holding under `Active`).  
-**Core events (ids `0x11xx`):** `DepositAck`, `Transfer`, `FeePaid`, `Revalue`, `SpilloverOpen`, `ForceWithdrawn` (ties §4.6 / `forceWithdraw`).
+**Core events (ids `0x11xx`):** `DepositAck`, `Transfer`, `FeePaid`, `Revalue`, `SpilloverOpen`, `ForceWithdrawn`. `ForceWithdrawn` is emitted into the tip FSM only after an L1 `finalizeForceWithdraw` receipt; request/challenge events freeze or update the pending claim but do not debit value.
 
-Each accepted transfer/revalue **MUST** bind oracle round fields and enforce post-event oracle value **≤ 100 USDC-6** or require spillover new-chain events before outbound excess. Full leaf paths and every precondition row follow the §10.1 metamodel; engineering may extend the table without adding a tip VM. Open: exact fee-split leaf updates and spillover multi-event packaging (§15).
+Each asset-owner leaf MUST include `netTipBalance:u128` and `appliedL1Withdrawn:u128`. Applying `ForceWithdrawn` debits only `L1.withdrawnByAssetOwner - appliedL1Withdrawn` (saturating at zero), then sets `appliedL1Withdrawn` to the observed L1 cumulative value. This is the anti-replay bridge between AssetVault accounting and later AC roots (§4.6).
+
+Each accepted transfer/revalue **MUST** bind `asset`, the `ACTIVE` admission record/version, oracle round fields, `feePayer`, `feeAsset=CONET_USDC`, exact `feeUsdc6`, and single-use L1 `feeLockId`; it enforces post-event oracle value **≤ 100 USDC-6** or requires spillover new-chain events before outbound excess. Missing/stale admission, oracle, or fee-lock proof is deterministic reject. Full leaf paths and every precondition row follow the §10.1 metamodel; engineering may extend the table without adding a tip VM. Open: exact fee-distribution receipt leaf updates and spillover multi-event packaging (§15).
 
 ### 10.4 Storage-class FSM (form freeze; table skeleton)
 
@@ -1673,11 +1872,11 @@ Committee \(Q_V\) attestations **do not** replace this function (§6.3).
 | On-demand role participation | Role-split actors need not sync all data; join/exit consensus as capacity allows. |
 | L1 NFT birth certificate | Unique CoNET L1 NFT before genesis; class = asset **or** storage **or** trade. |
 | Asset cap + micro-fragmentation | Oracle ≤ **100 USDC** at mint **and** on each event; over-cap outbound → **new chain** (§4.6). |
-| Trade-class atomic NFT sale | Tip = L2 coordinator; L1 `settleTrade` atomically pays + moves **subject NFT**; tip then **closes** (§4.7). |
+| Trade-class atomic NFT sale | Seller EIP-712 / EIP-1271 order + subject custody are anchored on L1 first; tip = L2 coordinator; L1 `settleTrade` requires exact order/AC equality and atomically pays + moves **subject NFT**; tip then **closes** (§4.7). |
 | Storage / CopyrightContent delivery | Fragmented ciphertext; private index → authorized miner PGP; tip = hashes only; **conet-GB** access; first-completer → buyer PGP package; short-lived URLs + `storagePaidUntil` (§4.8). |
 | Copyright ZERO version tree | Parent/child storage NFTs; each branch independently trade-listable; social likes/comments/citations as tip history; WoT-weighted auction signals (§4.9). |
 | Storage sales ↔ asset txs | Storage tip keeps sales-revenue journal; value moves on parallel **asset-class** tips; rows link `assetNftId`/`assetTxId` (§4.10). |
-| Dual fee rails (§13) | **Storage:** content / access / retention in **conet-GB**. **Asset/trade:** **0.01%** in **USDC**; of that fee **50% archive / 50% \(Q_V\) validators**. **0.01% alone** is not a full security budget. |
+| Class-specific fee rails (§13) | **Storage:** content / access / retention in **conet-GB**. **Asset transfer:** 1 bp of oracle USDC-6 notional in canonical **conet-USDC** via an L1 fee lock. **Trade settle:** 1 bp in the same **`quoteAsset`**, with no NFT valuation or quote-token conversion in settlement arithmetic. Each 1 bp fee is **50% archive / 50% \(Q_V\) validators**; 1 bp alone is not a full security budget. |
 | No tip VM (§10) | Class-fixed FSMs + normative metamodel; Trade full transition table; Mode A deterministic replay; app-layer composes tips + L1; **no** user bytecode. |
 | Event-driven blocks | **No event ⇒ no block**; empty tips are never mined. |
 | Natural privacy (dual) | Comms: DePIN + OpenPGP (§7); assets: raise clustering cost + break one-address portfolio map; **not** strong anonymity (§4.5). |
@@ -1857,7 +2056,7 @@ At \(p_A=10\%\) and \(G_e=100\), these are approximately **92.59%** and **1.75%*
 **Production interpretation (normative):**
 
 1. The binomial model is only an approximation. Selection without replacement uses a hypergeometric distribution; shared operators, hosting providers, regions, key custody, software supply chains, bribery, and adaptive compromise make groups **correlated** and can increase real risk.
-2. Formation MUST enforce nine distinct operator-domain commitments across seven active and two standby seats, no identity-assignment overlap between live groups, and no old-member cloning into new groups. A single archive identity has \(m_i=1\) across active/standby roles.
+2. Formation MUST enforce nine distinct operator-domain commitments across seven active and two standby seats, zero identity **and operator-control** overlap between live groups, and no old-member cloning into new groups. A single archive identity and a single operator-control commitment each have membership multiplicity one across all active/standby roles.
 3. L1 / monitoring MUST publish concentration metrics and recompute both per-group and any-shard risk under conservative \(p_A\); random selection rhetoric is not a control.
 4. A fixed seven-active group is a long-lived attack target. Membership re-key / replacement requires the one-slot-per-epoch checkpointed transition, standby readiness, cooldown, and no simultaneous old/new write authority.
 5. If policy cannot keep `P_any-shard-capture` below its governance threshold, the protocol MUST enlarge group size / quorum or reduce adversarial concentration before increasing \(G_e\). The ≤100 USDC asset-tip cap limits direct loss per tip but does not repair archive finality.
@@ -1902,7 +2101,7 @@ Archive plane grows as disjoint 7-active + 2-standby groups when \(U_e\ge9\); \(
 
 **BFT assumption (product freeze):** each shard uses non-block-producing Tendermint-style **PrevoteQC → PrecommitQC (= AC)** with \(f=\lfloor(N_A-1)/3\rfloor\), \(Q_A=\lfloor2N_A/3\rfloor+1\), durable locks, and membership-bound votes (§5.2.1). Safety holds only at ≤\(f\) Byzantine members. A partition without \(Q_A\) stalls. Archive-group breach / capture probabilities are explicitly quantified in §12.3.1a.
 
-**Censorship:** a single archive (or minority) cannot unilaterally reject or withhold finality forever—reject needs \(Q_A\); sustained non-progress past \(T_{\mathrm{archive}}\) unlocks bonded L1 **`ArchiveCensorshipChallenge`** and re-home. **DA:** AC-bound `daRoot` + \((n,k)=(7,4)\) + pre-sign hold-≥\(k\) + **UnavailableChallenge**; spendable balances require an AC with **reconstructible DA**; failure escalates to **`forceWithdraw`** ↔ AssetVault. Inactivity, abrupt shutdown, DA fraud, and equivocation follow §5.2.1a’s evidence-bound replacement/slashing ladder. Long-term security still depends on the \(f=2\) bound per shard and mainchain registry integrity.
+**Censorship:** a single archive (or minority) cannot unilaterally reject or withhold finality forever—reject needs \(Q_A\); sustained non-progress past \(T_{\mathrm{archive}}\) unlocks bonded L1 **`ArchiveCensorshipChallenge`** and re-home. **DA:** AC-bound `daRoot` + \((n,k)=(7,4)\) + pre-sign hold-≥\(k\) + **UnavailableChallenge**; spendable balances require an AC with **reconstructible DA**; failure escalates to the challenged forced-exit state machine ↔ AssetVault. Inactivity, abrupt shutdown, DA fraud, and equivocation follow §5.2.1a’s evidence-bound replacement/slashing ladder. Long-term security still depends on the \(f=2\) bound per shard and mainchain registry integrity.
 
 ### 12.7 Transport / privacy adversaries
 
@@ -1918,71 +2117,144 @@ On classical chains, stealing **one** hot-wallet key often empties the user’s 
 
 **Product obligation:** wallets SHOULD implement hierarchical key-vault practices (online scan key; batched spend derivation; hardware/threshold for high-value fragments; encrypted recovery map; per-shard derivation domains; per-device hourly merge/withdraw caps). Tip / archive / validator infrastructure does **not** enforce these client controls.
 
+### 12.10 Priority-six correction closure review (normative)
+
+The six highest-severity review findings are closed as follows. Earlier five-member examples are historical critique, not current parameters:
+
+1. **Fission mathematics — closed.** \(G_e\), \(N_e\), and \(U_e\) separately denote live groups, unique active voters, and eligible unassigned identities. With disjoint 7-active + 2-standby rosters, \(N_e=7G_e\), \(N_{\mathrm{eligible}}=9G_e+U_e\), and a new serviceable group forms iff \(U_e\ge9\).
+2. **Cross-group membership ambiguity — closed.** `maxGroupsPerArchive=1`; both membership identities and `operatorCommitment` sets have zero overlap between live groups. The 3-old + 2-new construction is rejected. Retaining old inventory or mirroring another group’s finalized chain grants proof-carrying read service only—never foreign-group voting, certification, rejection, migration, or write authority.
+3. **Archive capture quantification — closed and upgraded to seven members.** The former five-member \(P_{\ge2}\) critique is superseded by \(P_{\ge3}\) for breach of the \(f=2\) proof assumption, \(P_{\ge5}\) for direct \(Q_A=5\) capture, and both any-shard probabilities across \(G_e\) (§12.3.1a).
+4. **Placement liveness — closed and upgraded to seven members.** The old recommendation \(4/5\) becomes the current group’s \(Q_A=5/7\). Any relayer may submit the nonce-bound certificate; the first valid L1 transition is idempotent, and “last signer executes” has no protocol meaning (§5.2.0c).
+5. **High-value NFT seller authorization — closed.** A direct EIP-712 `SellerOrder` is verified and hash-anchored when L1 takes custody; an AC cannot mutate quote, subject, buyer constraint, deadline, fee policy, or nonce (§4.7).
+6. **Stale-AC force exit — closed.** Exit uses request → challenge → finalize, contract-derived nullifiers, newer-AC contradiction, owner-spend freeze, and cumulative `withdrawnByAssetOwner` / `released` AssetVault accounting (§5.2.1).
+
 ---
 
 ## 13. Economics (Design Outline)
 
 ### 13.1 Why **0.01% alone** is not a full security budget
 
-Each asset tip is capped at **≤ 100 USDC**. At fee rate **0.01%**, the **maximum** tip-event fee on a full-cap transfer is:
+Each asset tip is capped at **≤ 100 USDC-equivalent**. Asset transfer fees are paid in canonical **CoNET L1 conet-USDC**. At fee rate **0.01% = 1 bp**, the **maximum** tip-event fee on a full-cap transfer is:
 
 \[
-100\ \mathrm{USDC} \times 0.01\% = 0.01\ \mathrm{USDC}.
+100\ \mathrm{USDC\text{-}equivalent} \times 0.01\% = 0.01\ \mathrm{conet\text{-}USDC}.
 \]
 
-Under the frozen **50% hosting archive / 50% \(Q_V\) validators** split (§13.3):
+Under the frozen **50% hosting archive / 50% \(Q_V\) validators** split (§13.4):
 
 \[
 \begin{aligned}
-\text{archive half} &= 0.01 \times 50\% = 0.005\ \mathrm{USDC},\\
-\text{validator half} &= 0.01 \times 50\% = 0.005\ \mathrm{USDC},\\
-\text{per accepting validator (among 5)} &= 0.005 / 5 = 0.001\ \mathrm{USDC}.
+\text{archive half} &= 0.01 \times 50\% = 0.005\ \mathrm{conet\text{-}USDC},\\
+\text{validator half} &= 0.01 \times 50\% = 0.005\ \mathrm{conet\text{-}USDC},\\
+\text{per accepting validator (among 5)} &= 0.005 / 5 = 0.001\ \mathrm{conet\text{-}USDC}.
 \end{aligned}
 \]
 
-Do **not** illustrate “\(0.01/5=0.002\) USDC per validator”—that ignores the archive half. Even \(0.001\) USDC/validator is **before** paying: **network transport**, **oracle**, **L1 NFT mint**, **data retention**, **reselection / failed-draw costs**, and **conet-GB ↔ USDC** price volatility.
+Do **not** illustrate “\(0.01/5=0.002\) conet-USDC per validator”—that ignores the archive half. Even \(0.001\) conet-USDC/validator is **before** paying: **network transport**, **oracle**, **L1 NFT mint**, **data retention**, **reselection / failed-draw costs**, and **conet-GB / trade-quote-asset volatility**.
 
-**Honest freeze:** the **0.01%** tip-event fee is a **product constant for asset/trade consensus payouts**, **not** a claim that it alone funds a sustainable end-to-end security budget. Sustainable economics **must** combine (i) the USDC 0.01% split below, (ii) **storage-class conet-GB content fees** (volume-scaled), (iii) separate L1 mint / oracle / challenge bonds where configured, and (iv) optional later governance of rates—not “0.01% covers everything.”
+**Honest freeze:** the **0.01%** rate is a **product constant**, but its payment asset differs by class: asset transfers pay conet-USDC; a successful trade pays its own `quoteAsset`; storage uses conet-GB content pricing. It is **not** a claim that 1 bp alone funds a sustainable end-to-end security budget. Sustainable economics also needs separate L1 mint / oracle / challenge bonds and volume-scaled storage fees—not “0.01% covers everything.”
 
 ### 13.2 Fee denomination (product freeze)
 
 | Chain class | Fee base | Currency |
 | --- | --- | --- |
 | **Storage-class** | **Content size / retention / access / social** as configured (§4.8–§4.9) | **conet-GB** (CoNET L1 `GBToken` ERC-20) |
-| **Asset-class** | Each **transfer** event: **0.01%** of transferred (oracle-valued) amount | **USDC** |
-| **Trade-class** | Listing / settle hooks on quote or settle notional: **0.01%** where the fee applies | **USDC** |
+| **Asset-class** | Each **transfer** event: **0.01%** of the canonical oracle’s USDC-6 notional | canonical **CoNET L1 conet-USDC** |
+| **Trade-class** | **Exactly once on successful L1 settlement:** **0.01%** of `quoteAmount` | the same **`quoteAsset`** as the seller order |
 
 CNET stake remains the **qualification / slash** asset for roles; it is **not** the per-event fee unit.
 
-### 13.3 Split of the **0.01%** (asset / trade)
+**Frozen arithmetic (integer-only):**
 
-Of every **USDC 0.01%** tip-event fee:
+```text
+BPS_DENOMINATOR = 10_000
+
+assetNotionalUsdc6 = canonicalOracle.quoteUsdc6(asset, transferAmount, oracleRoundId)
+assetFeeUsdc6      = ceilDiv(assetNotionalUsdc6, BPS_DENOMINATOR)
+assetFeeAsset      = CONET_USDC
+
+tradeFeeAmount = ceilDiv(quoteAmount, BPS_DENOMINATOR)
+tradeFeeAsset  = quoteAsset
+buyerDebit     = quoteAmount + tradeFeeAmount
+sellerProceeds = quoteAmount
+```
+
+Rounding is **up** in the fee token’s smallest unit; no floating point is allowed. The fee is therefore at least one smallest unit for any non-zero chargeable amount. To stop a dust transfer from facing an effective fee far above 1 bp, `AssetAdmissionRegistry` and each trade-token adapter MUST publish a `minChargeableNotional`; requests below it are rejected or explicitly batched before consensus. A seller’s quoted amount remains the seller’s exact gross proceeds, while the buyer pays the 1 bp fee **on top**. `SellerOrder.feePolicyHash` binds at least `{version="dle.trade.fee.v1", feeBps=1, feeAsset=quoteAsset, buyerPaysOnTop=true, rounding=ceil, archiveShareBps=5000, validatorShareBps=5000}`. A listing-open hook does **not** charge another percentage fee: any anti-spam listing bond / fixed fee is separate, explicitly named, and refundable under its own rule. This prevents accidental double charging at both listing and settlement.
+
+`quoteAsset` is economically seller-selected and requires **no NFT valuation oracle**, but “freely selected” means selected from the current versioned Settlement adapter / allowlist—not an arbitrary contract address. V1 admits native CNET only through its explicit native-asset path and standard ERC-20s covered by an adapter. Wrapped / bridged ETH is eligible only through such an adapter. A quote-token oracle MAY support admission, UI reference, anti-spam bonds, or circuit breakers, but it MUST NOT rewrite `quoteAmount`, convert the 1 bp fee to conet-USDC, or participate in settlement arithmetic. Fee-on-transfer, rebasing, callback-capable, or otherwise non-standard tokens are rejected unless an adapter proves exact buyer debit, seller proceeds, and protocol-fee allocation.
+
+### 13.3 Asset admission, oracle, and fee-lock rule
+
+Every newly created **asset-class** tip is restricted to an asset registered `ACTIVE` in the CoNET L1 `AssetAdmissionRegistry`. **Every asset, including canonical conet-USDC,** requires the following. Conet-USDC remains the fee asset and USDC-6 accounting reference, but asset-chain admission must still use a depeg-sensitive decentralized pool/route rather than hard-code USD 1.00:
+
+| Registry field | Requirement |
+| --- | --- |
+| `pool` | Approved **decentralized CoNET L1 trading pool / route** yielding a USDC-6 reference; conet-USDC itself uses a depeg-sensitive governance-approved route and cannot use conet-USDC as its sole circular reference |
+| `oracleAdapter` | Deterministic adapter deriving USDC-6 notional from that pool; no centralized API |
+| `referenceSetHash` | Commitment to the economically independent reference assets/routes used for valuation; conet-USDC depeg checks require at least one non-conet-USDC reference and SHOULD use a median across independent liquidity / bridge domains |
+| `routeHash / policyVersion` | Immutable route + adapter parameters for the cited event; governance updates are timelocked and create a new version |
+| `twapWindow` | Governance-frozen observation window; same-block spot reserve is insufficient |
+| `minObservationCount` | Minimum independent observations / cardinality required by the TWAP |
+| `minLiquidity` | Minimum manipulation-resistant pool depth |
+| `minChargeableNotional` | Dust floor ensuring smallest-unit ceiling does not turn the advertised 1 bp into an unbounded effective rate |
+| `maxAggregateExposureUsdc6 / maxPerEpochNotionalUsdc6` | Route-wide risk limits across all tips; splitting one asset into many ≤100-USDC tips cannot bypass oracle-manipulation exposure limits |
+| `maxStaleness` | Maximum age of the cited observation |
+| `maxDeviationBps` | Circuit breaker against excessive spot/TWAP or route/reference deviation |
+| `status` | `ACTIVE / PAUSED / REMOVED`; only `ACTIVE` permits new asset tips and ordinary state changes |
+
+**No approved CoNET L1 pool / adapter ⇒ no asset-class chain creation.** Pool existence alone is not enough: insufficient depth, missing history, stale observations, invalid decimals, or paused status also rejects creation. If eligibility later becomes unavailable, validators and archives reject ordinary value-changing events rather than inventing a price or treating failure as zero; challenged L1 force exit remains available under §4.6 using the frozen good AC.
+
+The party proposing an asset state change is the default fee payer. Before the request can enter validator voting, that party must lock `assetFeeUsdc6` canonical conet-USDC in the L1 `FeeVault`. The event binds:
+
+```text
+feePayer, feeAsset=CONET_USDC, feeUsdc6, feeLockId,
+eventDigest, oracleRoundId, oracleAnswerUsdc6, oracleUpdatedAt,
+routeHash, admissionPolicyVersion, deadline
+```
+
+`FeeVault` derives—not accepts caller choice of—
+
+\[
+\mathrm{feeLockId}=H(\texttt{"dle.asset.fee.v1"}\parallel chainNftId\parallel eventNonce\parallel eventDigest\parallel feePayer\parallel feeUsdc6\parallel oracleRoundId\parallel admissionPolicyVersion\parallel deadline).
+\]
+
+Its state machine is `NONE → LOCKED → DISTRIBUTED | REFUNDABLE → REFUNDED`. Validators and archives verify the same finalized L1 fee lock, event digest, admission version, and oracle report. Missing / underfunded / already-consumed fee lock, stale oracle data, inactive pool, route-version mismatch, exposure-limit breach, or tripped deviation breaker is a deterministic reject. An optional sponsor may pay only with an EIP-712 authorization binding the exact event digest and fee.
+
+L1 maintains `consumedEvent[chainNftId][eventNonce]` and performs `LOCKED → DISTRIBUTED` atomically with acceptance of the corresponding AC. After `deadline`, anyone may perform `LOCKED → REFUNDABLE` only while `consumedEvent == false`; that transition permanently invalidates every late AC for the same event nonce. This is an L1 state check—not an unverifiable “proof of absence.” `REFUNDABLE → REFUNDED` pays only the recorded `feePayer` / authorized sponsor. A bare ERC-20 allowance is not a fee proof because it can be raced or reused.
+
+### 13.4 Split of class-specific **1 bp** fees
+
+Every 1 bp fee is split in the **fee asset of that flow**—conet-USDC for asset transfers, `quoteAsset` for trade settlement:
 
 | Share | Recipient | Split rule |
 | --- | --- | --- |
 | **50%** | **Hosting archive shard** | Internally split by \(w_{\mathrm{service}}+w_{\mathrm{vote}}+w_{\mathrm{standby}}=1\): active storage/history service, timely PrecommitQC / AC signers, and readiness-proven dedicated standbys. Exact weights are governance parameters. |
 | **50%** | **\(Q_V\) accepting validators** | Equal among the ≥5 accept signers on the archived tip |
 
-Standbys do **not** receive voting rewards and their readiness stipend grants no consensus authority. A standby earns only the \(w_{\mathrm{standby}}\) share while it passes periodic sync, DA, history, and challenge-readiness proofs; failure withholds that share and can trigger replacement. Reject-only or absent active voters receive no \(w_{\mathrm{vote}}\) share, while valid timely nil/reject evidence still counts as protocol participation under §5.2.1b. Storage-class **conet-GB** content / access streams are **separate** from this 50/50 USDC split (owner / delivery-miner shares per §4.8).
+Integer dust is deterministic: `archiveFee = floor(feeAmount/2)` and `validatorFee = feeAmount - archiveFee`; validator division uses ascending signer-address order, assigning one extra smallest unit to the first `validatorFee mod signerCount` signers. No fee unit may be stranded or assigned by relayer order.
 
-### 13.4 Flow table
+Distribution is **accounting-first, pull-payment**. FeeVault / Settlement credits `claimable[feeAsset][recipient]` atomically with AC acceptance / trade settlement; it MUST NOT call arbitrary quote-token recipients or fan out untrusted ERC-20 transfers inside the critical settlement transaction. Recipients claim later through a non-reentrant adapter path. Unsupported callback / transfer semantics reject the asset before listing, and a failed claim cannot roll back an already-finalized trade or reassign another recipient’s balance.
+
+Standbys do **not** receive voting rewards and their readiness stipend grants no consensus authority. A standby earns only the \(w_{\mathrm{standby}}\) share while it passes periodic sync, DA, history, and challenge-readiness proofs; failure withholds that share and can trigger replacement. Reject-only or absent active voters receive no \(w_{\mathrm{vote}}\) share, while valid timely nil/reject evidence still counts as protocol participation under §5.2.1b. Storage-class **conet-GB** content / access streams are **separate** from this 50/50 event-fee split (owner / delivery-miner shares per §4.8).
+
+### 13.5 Flow table
 
 | Flow | Intent |
 | --- | --- |
 | Stake CONET (CNET) | Qualify as archive / witness / validator / issuer; slash collateral. |
 | L1 NFT mint + class | Birth certificate of every chain; binds **asset / storage / trade**; mint gas / protocol mint fee **separate** from tip 0.01%. |
-| Asset ingress | Deposit L1 assets; **L1 oracle** valuation; **≤ 100 USDC-equivalent** hard cap. |
+| Asset admission / ingress | Asset must be `ACTIVE` in L1 `AssetAdmissionRegistry`; **every asset including conet-USDC** needs an approved decentralized CoNET L1 pool/route + TWAP adapter + minimum liquidity; then deposit and enforce **≤ 100 USDC-equivalent**. |
 | Asset event revalue | Each asset **event** revalues balance; if **> 100 USDC**, outbound excess requires **new chain(s)** (§4.6). |
-| Asset event fee | **0.01%** of transferred value in **USDC**; **50% archive / 50% \(Q_V\) validators** (§13.3). |
+| Asset event fee | Proposer pre-locks **0.01%** of oracle USDC-6 notional in canonical **conet-USDC**; missing fee lock rejects; **50% archive / 50% \(Q_V\) validators** (§13.3–§13.4). |
 | Storage fees | Scale with **stored content**; paid in **conet-GB**; unpaid → halt new blocks. |
 | Storage access purchase | Owner-priced **conet-GB** payment for buyer-bound delivery; does **not** transfer storage NFT (§4.8). |
 | Delivery-node retention fee | Periodic **conet-GB** to first-completer / authorized set; advances `storagePaidUntil` (§4.8). |
 | Storage social / fork | Signed like / comment / cite events; fork mints child storage NFT with `parentNftId`; WoT inputs for auctions (§4.9). |
 | Storage sales journal | Book access / NFT / royalty sales on storage tip; link parallel **asset-class** payment txs (§4.10). |
-| Trade listing / settle | Seller-set quote (**no NFT oracle / no ≤100 USDC quote cap**); tip → **SettleReady** AC; **L1 `settleTrade`** atomizes payment + **subject NFT** transfer; tip then **close**; event fees in **USDC** under §13.3 when payment is USDC (§4.7). |
-| Mining / task rewards | Pay honest group members primarily from the **USDC 0.01%** stream (validators + archive) and **storage conet-GB** streams; fund slash redistributions. |
-| Group size vs income | Fission to more disjoint 7-active + 2-standby groups → greater **parallel bandwidth**; the archive 50% is weighted among active service/AC signers and standby-readiness duties (§5.2, §13.3). |
-| Mainchain governance | Supported deposit assets, listing rules; may revise rates. Defaults: **0.01%**, **100 USDC cap**, **50/50 archive/validators**, **storage = conet-GB / other = USDC**. |
+| Trade listing / settle | L1-anchored seller-signed order + seller-set quote (**no NFT oracle / no ≤100 USDC quote cap**); one successful settle charges buyer `quoteAmount + ceil(quoteAmount/10,000)` in the same `quoteAsset`; seller receives exact `quoteAmount`; AC/order/payment/custody must match (§4.7). |
+| Mining / task rewards | Pay honest group members from asset **conet-USDC**, trade **quoteAsset**, and storage **conet-GB** streams; fund slash redistributions. |
+| Group size vs income | Fission to more disjoint 7-active + 2-standby groups → greater **parallel bandwidth**; the archive 50% is weighted among active service/AC signers and standby-readiness duties (§5.2, §13.4). |
+| Mainchain governance | Asset-admission registry, pools / adapters, quote-asset adapters, and rates. v1 defaults: **1 bp**, **100 USDC-equivalent asset cap**, **50/50 archive/validators**, **asset fee = conet-USDC**, **trade fee = quoteAsset**, **storage = conet-GB**. |
 
 ---
 
@@ -2002,17 +2274,17 @@ CoNET-DLE is closest in spirit to **“many tiny ledgers + random committees + a
 
 ## 15. Open Design Questions / Implementation Notes
 
-**2026-08-12 normative addendum:** Archive nodes have **no block-production right**. Validators alone produce event blocks; archives independently replay and finalize them through Tendermint-style PrevoteQC → PrecommitQC. Fission uses \(G_e\) (registered live groups) and \(U_e\) (eligible unassigned archives): one disjoint group of seven active voters plus two dedicated ordered standbys may form iff \(U_e\ge9\). Existing groups retain their assignments and only witness formation / serve history. Placement uses \(Q_A=5/7\), a nonce-bound reservation, and any relayer—not seven-of-seven or “last signer.” These rules supersede every older conflicting sentence.
+**2026-08-12 normative addendum:** Archive nodes have **no block-production right**. Validators alone produce event blocks; archives independently replay and finalize them through Tendermint-style PrevoteQC → PrecommitQC. Fission uses \(G_e\) (registered live groups), \(N_e=7G_e\) (unique active voters), and \(U_e\) (eligible unassigned archives): one disjoint group of seven active voters plus two dedicated ordered standbys may form iff \(U_e\ge9\). Each identity occupies at most one active/standby group; foreign-group inventory is read-only and proof-carrying, never consensus membership. Existing groups retain their assignments and only witness formation / serve history. Placement uses \(Q_A=5/7\), a nonce-bound reservation, and any relayer—not seven-of-seven or “last signer.” These rules supersede every older conflicting sentence.
 
 These items are left explicit so engineering can freeze parameters without rewriting the thesis:
 
-1. Archive-plane width is product-frozen as disjoint **7-active + 2-standby groups**. \(G_e\) is the L1-registered live-group count; \(U_e\) is the eligible `UnassignedPool` count; form one fully serviceable group iff \(U_e\ge9\). New-chain admission is the globally replicated **QUEUED / NewChainQueue**, followed by a frozen checkpoint, load-aware roulette, L1 reservation, validator-produced genesis, archive AC, and \(Q_A=5/7\) PlacementCertificate submitted by any relayer. Growth does not remap existing tips; MC is for dissolve/re-home only. Validator block production is frozen at \(N_V=7,Q_V=5,S_{\mathrm{sb}}=2\). Archives have no block-production right; Mode A replay and RequestPool → SelectionLog → ArchiveIngressPool → ArbitrationPool are frozen; Mode B is out of v1. Archive finality is frozen to Tendermint-style PrevoteQC → PrecommitQC (= AC), with durable vote/lock state, `membershipRoot`, TC pacemaker, and L1 escape. Exit is an atomic standby handoff; forced shutdown before membership switch is evidence-bound non-participation, not automatic equivocation. Open engineering items include timeout values, EIP-712 ABI encoding, membership/standby leaves, queue-checkpoint ABI, MC ABI, load weights, DepositBundle encoding, slash fractions, strike windows, rebuttal duration, and unbonding duration. Validator and archive risk formulae are both normative (§12.3.1–§12.3.1a); measured concentration and correlation remain operational inputs.
-2. Roulette randomness is product-frozen in form (§7.8): production \(R_e = H(\texttt{"dle.roulette.v1"}\,\|\,\mathrm{L1BeaconFinalizedRandomness}_e\,\|\,e\,\|\,\mathrm{shardId}\,\|\,\mathrm{poolRoot}_e)\) with **CoNET beacon / CL finalized randomness** (not execution `block.hash`) and \(Q_A\)-attested `poolRoot_e` frozen **before** that beacon is known; optional ECVRF tickets may consume \(R_e\) but **MUST NOT** rewrite it; concatenating optional archive VRF into \(R_e\) is **rejected** (selective-omission / last-publisher bias). Commit–reveal **MVP-only** (last-revealer bias acknowledged). Open items: exact CL randomness field / slot alignment ABI, `poolRoot` Merkle encoding, freeze-vs-beacon timing constants. Phase-2 candidates: \(\mathrm{ThresholdVRF}_{t,N}(m_e)\); if archive VRF mixing returns, require a pre-beacon `vrfContributorRoot` with no “drop missing outputs” aggregation.
+1. Archive-plane width is product-frozen as disjoint **7-active + 2-standby groups**. \(G_e\) is the L1-registered live-group count; \(U_e\) is the eligible `UnassignedPool` count; form one fully serviceable group iff \(U_e\ge9\). New-chain admission is the globally replicated **QUEUED / NewChainQueue**, followed by a frozen checkpoint, deterministic **UniformPlacementV1**, L1 reservation, validator-produced genesis, archive AC, and \(Q_A=5/7\) PlacementCertificate submitted by any relayer. Growth does not remap existing tips; MC is for dissolve/re-home only. Validator block production is frozen at \(N_V=7,Q_V=5,S_{\mathrm{sb}}=2\). Archives have no block-production right; Mode A replay and RequestPool → SelectionLog → ArchiveIngressPool → ArbitrationPool are frozen; Mode B is out of v1. Archive finality is frozen to Tendermint-style PrevoteQC → PrecommitQC (= AC), with durable vote/lock state, `membershipRoot`, TC pacemaker, and L1 escape. Exit is an atomic standby handoff; forced shutdown before membership switch is evidence-bound non-participation, not automatic equivocation. Open engineering items include timeout values, EIP-712 ABI encoding, membership/standby leaves, queue-checkpoint ABI, MC ABI, **versioned-v2** load units/caps/weights and `ArchiveLoadCheckpoint` encoding, DepositBundle encoding, slash fractions, strike windows, rebuttal duration, and unbonding duration. Validator and archive risk formulae are both normative (§12.3.1–§12.3.1a); measured concentration and correlation remain operational inputs.
+2. Roulette randomness is product-frozen in two domain-separated uses. Validator selection (§7.8) uses \(R_e = H(\texttt{"dle.roulette.v1"}\,\|\,\mathrm{L1BeaconFinalizedRandomness}_e\,\|\,e\,\|\,\mathrm{shardId}\,\|\,\mathrm{poolRoot}_e)\). New-chain host placement (§5.2.0a) uses \(R^{\mathrm{place}}_e\) over the queue checkpoint and eligible-group registry root, with deterministic uniform batch permutation in v1. Both freeze all participant-set roots before the bound **CoNET beacon / CL finalized randomness** is known; neither uses execution `block.hash`. Optional ECVRF tickets may consume \(R_e\) but **MUST NOT** rewrite it; concatenating optional archive VRF into a seed is **rejected** (selective-omission / last-publisher bias). Commit–reveal is **MVP-only**. Open items: exact CL randomness field / slot alignment ABI, Merkle encodings, and freeze-vs-beacon timing constants. Phase-2 candidates: \(\mathrm{ThresholdVRF}_{t,N}(m_e)\) and the fully specified `LoadWeightedPlacementV2`; if archive VRF mixing returns, require a pre-beacon `vrfContributorRoot` with no “drop missing outputs” aggregation.
 3. Exact bonded fraction \(B_{\mathrm{refuse}}\) for unjustified refuse-to-sign, optional light availability-score decay for network-fault silence, and whether \(T_{\mathrm{vote}}\) / \(T_{\mathrm{sb}}\) remain wall-clock-only or also cite local PoH measurements (§6.5)—**without** treating PoH as shared order (§7.9).
 4. PoH is product-frozen as a local sequencing clock only; canonical order comes from queue checkpoints, selection attestations, and ACs—not archive-produced blocks (§7.9).
-5. Slash amounts, bounty shares, ban durations, and concrete \(T_{\mathrm{archive}}\) / bond sizes for **`ArchiveCensorshipChallenge`** (fee rate **0.01%**, **50/50 archive/validators**, asset cap **100 USDC**, and dual denomination **storage=conet-GB / asset·trade=USDC** are product-frozen defaults—see §13). Open: exact \(w_{\mathrm{service}},w_{\mathrm{vote}},w_{\mathrm{standby}}\) weights inside the archive **50%** and the measurement window for standby readiness; whether tip **USDC** is native Base USDC, conet-USDC, or an oracle unit; separate L1 mint / oracle / retention fee lines beyond 0.01%.
+5. Slash amounts, bounty shares, ban durations, and concrete \(T_{\mathrm{archive}}\) / bond sizes for **`ArchiveCensorshipChallenge`** remain open. Fee currency is **not** open: product-frozen v1 uses **storage=conet-GB**, **asset transfer=canonical CoNET L1 conet-USDC after approved pool/TWAP valuation and L1 fee lock**, and **trade settle=the same `quoteAsset`**; every 1 bp fee splits **50/50 archive/validators** (§13). Open: exact \(w_{\mathrm{service}},w_{\mathrm{vote}},w_{\mathrm{standby}}\) weights inside the archive 50%, standby-readiness window, concrete `AssetAdmissionRegistry` / `FeeVault` / adapter addresses and governance delays, and separate fixed L1 mint / oracle / retention fees beyond 1 bp.
 6. **Class FSM metamodel + Trade transition table** are product-frozen (§10): no tip VM; shared rules for event encoding widths, replay domain `CoNET-DLE-TipFSM-v1`, nonce, timestamp source, USDC-6, oracle round binding, `tipStateRoot` Merkle paths, and error codes; Trade states `None/Open/Locked/SettleReady/Settled/Closed` with events `TradeOpened…Expired` (§10.2). Asset / Storage tables are **form-frozen skeletons** (§10.3–§10.4). Open items: exact SSZ vs RLP container choice, DepositBundle byte layout, Asset/Storage full precondition rows, fee-split leaf updates, storage challenge / sales↔asset timing constants—**not** whether Mode A may skip deterministic replay.
-7. Matcher / order-index discovery for open trade tips (off-tip index vs dedicated index role)—must not bypass L1 ownership / freeze rules (§4.7); **must not** invent an NFT price oracle or re-impose a ≤100 USDC **quote** cap. **`settleTrade` AC verification** is product-frozen (§4.7): EIP-712 SettleReady fields, L1 `archiveMembershipRoot` checkpoint, stale-roster rejection, tip Settled only after L1 success. Open items: Settlement / MembershipCheckpoint **addresses**, payment-token allowlist, caller policy (anyone vs bonded relayer), and the exact **gas-efficient** AC checkpoint / aggregate format (vs raw multi-ECDSA on every settle).
+7. Matcher / order-index discovery for open trade tips (off-tip index vs dedicated index role)—must not bypass L1 ownership / escrow rules (§4.7); **must not** invent an NFT price oracle or re-impose a ≤100 USDC **quote** cap. Direct seller intent is product-frozen: versioned EIP-712 `SellerOrder` (EIP-1271 for AA sellers), typed digest stored as `escrowOrderHash[tradeId]` in the same L1 transaction that takes subject custody, nonce `UNUSED→RESERVED→CONSUMED`, and exact `sellerOrderHash` binding in TradeOpened / SettleReady AC. **`settleTrade` AC verification** is also frozen: L1 seller-order equality, custody, payment / buyer constraint, EIP-712 SettleReady fields, L1 `archiveMembershipRoot` checkpoint, stale-roster rejection, and tip Settled only after L1 success. Open items: Settlement / MembershipCheckpoint **addresses**, payment-token / adapter allowlist, concrete fee-policy encoding, caller policy (anyone vs bonded relayer), and the exact **gas-efficient** AC checkpoint / aggregate format (vs raw multi-ECDSA on every settle).
 8. Delivery-miner authorization set size, first-completer **challenge / heartbeat** before retention payout, signed-URL TTL, multi-recipient vs per-miner index ciphertext, and optional blinded-purchase privacy (§4.8 / CopyrightContentModule thesis).
 9. Open **Web of Trust** scoring formulas for auction UIs (which identity graphs, decay, anti-sybil)—DLE freezes **signed history**, not a single global WoT oracle (§4.9).
 10. Archive cross-check policy for storage `SaleBooked` ↔ asset-tip finality (timing windows, multi-asset fragment proceeds) (§4.10)—asset tip “final” means **AC present**.
@@ -2022,17 +2294,17 @@ These items are left explicit so engineering can freeze parameters without rewri
 14. Clear separation between **historical Avalanche-subnet era mainchain sketches** and **later CoNET L1 / DePIN deployments**—DLE cluster logic remains the same thesis either way.
 15. Wallet-layer **ERC-5564 CoNET profile** details (announcement contract / registry, default *n*, view-tag parameters, recover/scan UX) and how clients advertise the **stealth meta-address** (AddressPGP / off-tip QR)—must stay **off** tip/archive/validator-committee paths; do **not** leave BIP-47 / BIP-352 as alternate CoNET L1 runtimes (§4.5).
 16. Hierarchical **key vault** parameters (batch size for spend derivation, hardware/threshold policy, recovery-map encryption, per-shard derivation domain IDs, default per-device hourly merge/withdraw caps) and UX for **key-domain / recovery-domain** isolation—client product only; not tip/archive/validator consensus (§4.5, §12.9).
-17. **Verifiable DA + force exit** are product-frozen in form (§5.2.1, §4.6): Reed–Solomon-class coding **\((n,k)=(7,4)\)**, AC fields `daRoot` / `erasureCodingVersion` / `chunkCount=7` / `recoveryThreshold=4` / `chunkAssignmentRoot` / `tipStateRoot`, pre-sign hold-≥\(k\) duty, **UnavailableChallenge** open/response game, **`forceWithdraw(assetNftId, lastAC, accountStateProof, nullifier)`** against **L1 AssetVault**, tip nullifier / Exited marking, dispute window \(T_{\mathrm{exit}}\). Open items: numeric \(T_{\mathrm{daOpen}}\) / \(T_{\mathrm{daResponse}}\) / \(T_{\mathrm{exit}}\) / \(T_{\mathrm{archive}}\), bond sizes, chunk byte size, Merkle vs KZG open encoding, and AssetVault token allowlist—**not** whether signing alone counts as DA.
+17. **Verifiable DA + force exit** are product-frozen in form (§5.2.1, §4.6): Reed–Solomon-class coding **\((n,k)=(7,4)\)**, AC fields `daRoot` / `erasureCodingVersion` / `chunkCount=7` / `recoveryThreshold=4` / `chunkAssignmentRoot` / `tipStateRoot` / `parentArchiveCertificateHash` / `l1ContextBlockNumber/hash`, pre-sign hold-≥\(k\) duty, **UnavailableChallenge** open/response game, and L1 AssetVault **`requestForceWithdraw → challengeForceWithdraw → finalizeForceWithdraw`**. Force exit uses a monotonic `latestKnownAC`, deterministic contract-derived claim id/nullifier, pending-owner spend freeze, cumulative `withdrawnByAssetOwner` + vault `released`, and dispute window \(T_{\mathrm{exit}}\); the old one-shot caller-selected-AC interface is forbidden. Open items: numeric \(T_{\mathrm{daOpen}}\) / \(T_{\mathrm{daResponse}}\) / \(T_{\mathrm{exit}}\) / \(T_{\mathrm{archive}}\), request/challenge bond sizes and bounty shares, chunk byte size, Merkle vs KZG open encoding, exact AC ancestry/checkpoint proof encoding, and AssetVault token allowlist—**not** whether signing alone counts as DA or whether a user may choose the nullifier.
 
 ---
 
 ## 16. Conclusion
 
-CoNET-DLE maintains many parallel, event-driven atomic chains: **no event ⇒ no block**. A globally replicated `QUEUED / NewChainQueue` accepts a new-ledger request through any archive node; a quorum checkpoint freezes ordering, and load-aware roulette reserves one fully serviceable 7-active + 2-standby host group on L1. The hosting group selects \(N_V=7\) on-demand validators plus two standbys. The validator committee is the **only block-production layer**: it builds the class-fixed FSM candidate and deposits it with \(Q_V=5/7\) signatures. Archives produce no block. They independently replay the immutable candidate, enforce quality and DA, and finalize only through Tendermint-style **PrevoteQC → PrecommitQC (= Archive Certificate)** at \(Q_A=5/7\).
+CoNET-DLE maintains many parallel, event-driven atomic chains: **no event ⇒ no block**. A globally replicated `QUEUED / NewChainQueue` accepts a new-ledger request through any archive node; a quorum checkpoint freezes ordering, and deterministic **UniformPlacementV1** reserves one fully serviceable 7-active + 2-standby host group on L1. Dynamic load weighting remains a versioned-v2 feature requiring a pre-beacon `ArchiveLoadCheckpoint`, fully frozen integer arithmetic, and L1 policy activation. The hosting group selects \(N_V=7\) on-demand validators plus two standbys. The validator committee is the **only block-production layer**: it builds the class-fixed FSM candidate and deposits it with \(Q_V=5/7\) signatures. Archives produce no block. They independently replay the immutable candidate, enforce quality and DA, and finalize only through Tendermint-style **PrevoteQC → PrecommitQC (= Archive Certificate)** at \(Q_A=5/7\).
 
 Archive growth uses \(G_e\) registered groups and \(U_e\) eligible unassigned archives. When \(U_e\ge9\), seven new active operator domains plus two dedicated standbys form the next group; existing groups retain their assignments and only witness formation / serve history. Existing tips never move merely because width increases. Dissolve/re-home requires a dual-\(Q_A\) MigrationCertificate. Genesis placement likewise uses a nonce-bound \(Q_A=5/7\) PlacementCertificate submitted by any relayer; “last signer” and 7/7 placement are rejected. Planned exit uses standby promotion plus an atomic MembershipUpdateCertificate; shutdown before that switch is punishable non-participation under an evidence/rebuttal process.
 
-Security remains conditional. The ≤100 USDC asset-tip cap limits direct loss per tip but does not repair committee or archive capture. Production must track validator \(P_{\mathrm{prop}}\)/\(P_{\mathrm{year}}\), archive \(P_{\ge3}\)/\(P_{\ge5}\)/any-shard risk, correlated operator domains, and cumulative committee exposure \(E_C\le E_{\max}\). L1 NFT identity, settlement, membership checkpoints, standby readiness, reconstructible DA, force-exit, and client key-domain isolation remain independent safety layers. Aggregate throughput can grow with disjoint archive groups and event streams, but the design does not claim to eliminate the blockchain trilemma.
+Security remains conditional. The ≤100 USDC-equivalent asset-tip cap limits direct loss per tip but does not repair committee or archive capture. Asset chains additionally require L1 `AssetAdmissionRegistry` admission, approved pool/TWAP valuation, and proposer-funded canonical conet-USDC fee locks; trade settlement instead charges the seller-selected `quoteAsset` directly and never oracle-values the NFT or converts the quote token for settlement arithmetic. Optional quote-token pricing may only support admission / risk circuit breakers. Production must track validator \(P_{\mathrm{prop}}\)/\(P_{\mathrm{year}}\), archive \(P_{\ge3}\)/\(P_{\ge5}\)/any-shard risk, correlated operator domains, and cumulative committee exposure \(E_C\le E_{\max}\). L1 NFT identity, settlement, membership checkpoints, standby readiness, reconstructible DA, force-exit, and client key-domain isolation remain independent safety layers. Aggregate throughput can grow with disjoint archive groups and event streams, but the design does not claim to eliminate the blockchain trilemma.
 
 ---
 
@@ -2073,8 +2345,9 @@ Security remains conditional. The ≤100 USDC asset-tip cap limits direct loss p
 | **100 USDC per-tip ceiling** | Caps **direct** oracle loss on one asset tip; does **not** zero collusion motive or replace \(P_{\mathrm{year}}\) / archive BFT / \(E_{\max}\) (§12.2). |
 | **On-demand miner waiting queue** | Queue of lightweight miners ready for single-block draw (§8.1). |
 | **Archive node** | Non-block-producing full-state replayer, quality checker, DA/history server, QUEUED replica, validator selector, and BFT voter. |
-| **\(G_e\) / \(U_e\)** | Registered live archive-group count / eligible unassigned archive count; one fully serviceable disjoint group may form iff \(U_e\ge9\). |
+| **\(G_e\) / \(N_e\) / \(U_e\)** | Registered live-group count / unique active voting archive count / eligible unassigned count. With disjoint seven-voter rosters, \(N_e=7G_e\); one fully serviceable group may form iff \(U_e\ge9\). |
 | **Archive-plane fission** | L2 archive groups of seven newly assigned active voters plus two dedicated ordered standbys; assigned identities do not overlap; no existing-tip remap (§5.2). |
+| **Cross-group read replica** | An archive retaining old inventory or mirroring another group’s finalized AC chain. It may serve proof-carrying history/current-finalized-state/DA reads, but is not a member and has no foreign-group consensus or write authority (§5.2). |
 | **Placement salt \(R_e\)** | Public epoch salt from **L1 beacon finalized randomness** for archive placement hash (§5.2.0, §7.8). |
 | **L1BeaconFinalizedRandomness** | CoNET CL finalized random beacon field (RANDAO or equivalent) bound into production \(R_e\); **not** execution `block.hash` (§7.8.1). |
 | **MigrationCertificate (MC)** | Dual-\(Q_A\) EIP-712 certificate for a tip handoff during dissolve/re-home; binds membership roots and nonce; forbids silent remapping (§5.2.2). |
@@ -2099,8 +2372,8 @@ Security remains conditional. The ≤100 USDC asset-tip cap limits direct loss p
 | **ArchiveCensorshipChallenge** | Bonded L1 escape hatch: `NO_PROGRESS` after \(T_{\mathrm{archive}}\), or escalate after failed DA / UnavailableChallenge (§5.2.1). |
 | **UnavailableChallenge** | L1 game: AC exists but chunks missing; accused members must open assigned shares or be slashed; < \(k\) opens → freeze height (§5.2.1). |
 | **\((n,k)=(7,4)\)** | v1 erasure coding for seven active archives: 7 chunks, any 4 reconstruct; AC binds `chunkCount` / `recoveryThreshold` (§5.2.1). |
-| **L1 AssetVault** | Holds asset-class ingress collateral per `assetNftId`; tip balances are claims; unlock via ordinary path or `forceWithdraw` (§4.6, §5.2.1). |
-| **forceWithdraw** | L1 call unlocking vault funds with last good AC + `accountStateProof` + `nullifier`; prevents tip double-spend after exit (§5.2.1). |
+| **L1 AssetVault** | Holds asset-class ingress collateral per `assetNftId`; tracks `latestKnownAC`, cumulative owner withdrawals, vault-wide released/remaining value, and pending challenged exits (§4.6, §5.2.1). |
+| **Forced-exit claim** | L1 `request → challenge → finalize` state machine. Claim id/nullifier is contract-derived; a higher descendant AC can reduce/cancel a stale claim; only finalization releases cumulatively accounted vault value (§5.2.1). |
 | **Natural privacy** | Dual: DePIN **comms** privacy + **asset** privacy that **raises clustering cost** and breaks one-address portfolio equivalence—**not** strong anonymity (§4.5, §7.6). |
 | **Stealth meta-address (ERC-5564)** | Payee’s public receive code on CoNET L1/EVM; sender derives *n* stealth EOAs (client layer) (§4.5). |
 | **Forward-predict *n* wallets** | Sender client derives *n* receive addresses via the **ERC-5564** CoNET profile; pays ≤100 USDC atomic quotas each (§4.5). |
@@ -2114,6 +2387,8 @@ Security remains conditional. The ≤100 USDC asset-tip cap limits direct loss p
 | **Witness** | Chain-local full participant storing chain data. |
 | **Validator** | Lightweight consensus participant. |
 | **Verifiable roulette** | Publicly recomputeable committee draw: production \(R_e\) from L1 beacon finalized randomness + epoch + `shardId` + frozen `poolRoot_e`; commit–reveal MVP-only (§7.8). |
+| **UniformPlacementV1** | New-chain host policy: pre-beacon-frozen queue checkpoint + eligible-group root, canonical Fisher–Yates over ascending `groupId`, then balanced round-robin assignment; no dynamic load inputs (§5.2.0a). |
+| **ArchiveLoadCheckpoint** | Reserved v2 cross-group certificate over publicly derivable, normalized load leaves; `loadSnapshotRoot_e` must be frozen before beacon reveal and is invalid as a self-reported counter root (§5.2.0a). |
 | **Selective-omission bias** | Optional archive VRF concatenation where missing outputs are dropped; a late party chooses publish vs withhold to pick among aggregates—rejected for v1 \(R_e\) (§7.8.1). |
 | **Last-revealer bias** | Commit–reveal abort channel: last party sees others’ reveals then reveals or withholds; slash raises cost, does not remove bias (§7.8.3). |
 | **Selection chain** | Log of agreed draws before tip genesis / block assembly; entries are canonical only with **≥ \(Q_A\)** attestation. |
@@ -2122,7 +2397,9 @@ Security remains conditional. The ≤100 USDC asset-tip cap limits direct loss p
 | **tipStateRoot** | Keccak Merkle root of tip FSM leaves after an accepted event; bound into SettleReady / DA ACs (§4.7, §5.2.1, §10.1). |
 | **Proof of History (PoH)** | Verifiable **local** sequencing clock / anti-rollback aid (\(h_{t+1}=\mathrm{SHA256}(h_t)\)); **not** shared cross-archive order (§7.9). |
 | **Canonical event order** | Determined by **archive quorum certificates** (AC / selection-log / `poolRoot_e`), not by any single PoH chain (§7.9). |
-| **Asset-class chain** | Transferable ledger; L1 deposit ≤ **100 USDC** (oracle); revalue on each event; over-cap outbound → new chain (§4.6); **0.01%** fee in **USDC** (**50% archive / 50% validators**—§13). |
+| **Asset-class chain** | Transferable ledger for an `ACTIVE` L1-admitted asset; **every asset including conet-USDC** requires an approved decentralized CoNET L1 pool/route + TWAP; L1 deposit ≤ **100 USDC-equivalent** and revalued on each event; over-cap outbound → new chain (§4.6). Transfer proposer pre-locks **1 bp of oracle USDC-6 notional in canonical conet-USDC** (§13). |
+| **AssetAdmissionRegistry** | CoNET L1 registry that gates asset-class creation and events by `ACTIVE` status, independent reference-set commitment, canonical pool/TWAP adapter, liquidity, dust floor, aggregate/per-epoch exposure, staleness, deviation breaker, and policy version (§13.3). |
+| **FeeVault / feeLockId** | CoNET L1 conet-USDC lock for an asset event’s exact `feeUsdc6`; one event nonce atomically consumes one finalized lock id exactly once or becomes refundable after deadline, then credits pull-based 50/50 archive/validator claims (§13.3–§13.4). |
 | **Spillover new chain** | When revalued asset balance **> 100 USDC**, outbound / excess must mint new asset tip(s) (§4.6). |
 | **Storage-class chain** | Data/state / creator-content ledger; retention fees + optional **GB-priced access** (§4.8); Copyright ZERO tree node (§4.9); sales books (§4.10). |
 | **Content access purchase** | Pay **conet-GB** for buyer-bound encrypted delivery; does not transfer storage NFT ownership (§4.8). |
@@ -2135,11 +2412,12 @@ Security remains conditional. The ≤100 USDC asset-tip cap limits direct loss p
 | **Web of Trust (WoT) signal** | Signed social/citation history weighted by signer identity for auction discovery—not a consensus price (§4.9). |
 | **Sales-revenue journal** | Append-only storage-tip books for access / NFT / royalty sales; links `assetNftId`/`assetTxId` (§4.10). |
 | **Parallel asset-class tx** | Value-rail tip event referenced by a storage sale row; still ≤ **100 USDC** revalued (§4.6, §4.10). |
-| **Trade-class chain** | Short-lived **L2 listing / match coordinator** tip; binds subject asset/storage NFT; **seller-set quote** (no NFT oracle / no ≤100 USDC quote cap); tip reaches **SettleReady**; **atomic** pay + NFT transfer only via CoNET **L1 Settlement Contract** `settleTrade`; then tip **close** (§4.7). |
-| **L1 Settlement Contract** | CoNET L1 contract that executes `settleTrade` in **one** L1 transaction: verify DLE archive certificate + quote/nonce/deadline/buyer, transfer escrowed payment, transfer `subjectNftId`, mark `tradeId` settled, prevent re-exec. The only place cross-layer trade atomicity is realized (§4.7). |
+| **Trade-class chain** | Short-lived **L2 listing / match coordinator** tip; mirrors an L1-escrowed subject and **seller-signed order digest**; **seller-set quote** (no NFT valuation / no quote-token conversion in settlement / no ≤100 USDC quote cap); tip reaches **SettleReady**; successful L1 settle charges buyer `quoteAmount + tradeFeeAmount` in the same `quoteAsset`, pays seller exact `quoteAmount`, atomically transfers the NFT, then closes (§4.7, §13). |
+| **SellerOrder / sellerOrderHash** | Versioned EIP-712 seller authorization binding seller, trade, subject collection+ID, quote, buyer constraint, fee policy, deadline, and seller nonce. Settlement stores the **typed digest** (not signature-byte hash) when it takes NFT custody; EOA signatures use ECDSA and AA sellers use EIP-1271 (§4.7). |
+| **L1 Settlement Contract** | CoNET L1 seller-intent anchor and atomic executor: `escrowSubject` verifies SellerOrder + ownership and stores `escrowOrderHash`; `settleTrade` requires exact AC/order equality, custody, buyer/payment predicate, and reserved nonce, then pays seller + transfers the subject NFT in **one** L1 transaction and prevents replay. AC alone is insufficient (§4.7). |
 | **SettleReady** | Trade-tip status after matched freeze + buyer intent are AC-archived; signals readiness for L1 `settleTrade`—**not** yet L1 ownership transfer (§4.7). |
 | **Subject NFT** | The asset or storage L1 NFT being sold via a trade tip; ownership authority is L1 `ownerOf`. |
-| **conet-GB** | **Storage-class** fee currency (content / access / retention): CoNET L1 `GBToken` ERC-20. Asset/trade tip-event fees are **USDC** (§13). |
+| **conet-GB** | **Storage-class** fee currency (content / access / retention): CoNET L1 `GBToken` ERC-20. Asset transfer fees use canonical conet-USDC; trade-settlement fees use the seller order’s `quoteAsset` (§13). |
 | **Blockchain trilemma** | Classical trade-off among decentralization, security, and scalability; CoNET-DLE **redefines the operating boundary** and does **not** claim to eliminate it (§3.4). |
 | **EIP-191 vote** | secp256k1 signature over canonical block/task digest. |
 
@@ -2147,16 +2425,25 @@ Security remains conditional. The ≤100 USDC asset-tip cap limits direct loss p
 
 ```text
 User → mint unique CoNET L1 NFT (class = asset)
-     → deposit L1 assets; L1 oracle valuation ≤ 100 USDC
-     → NewChainQueue + load-aware roulette → live group of 7 active + 2 standbys (§5.2)
+     → require asset ACTIVE in AssetAdmissionRegistry;
+       every asset including conet-USDC requires approved CoNET L1
+       pool/route + independent reference set + TWAP + minimum liquidity;
+       enforce dust floor + aggregate/per-epoch route exposure
+     → deposit L1 assets; L1 oracle valuation ≤ 100 USDC-equivalent
+     → any active archive receives request → global QUEUED / L1 NewChainQueue
+     → ArchiveQueueCheckpoint freezes ordered prefix
+     → UniformPlacementV1 → live group of 7 active + 2 standbys (§5.2)
      → that group draws N_V=7 + S_sb=2 from its on-demand waiting queue
      → validator committee produces genesis; 5/7 vote + submit
      → archives replay only; PrevoteQC → PrecommitQC / AC (QA)
      → 5/7 PlacementCertificate; any relayer finalizes L1 reservation
      → (later) each new event → oracle revalue balance (§4.6)
      → if balance > 100 USDC → mint new chain(s) for outbound excess
-     → same shard draws new 7+2 → Q_V=5/7 vote → archive (cap-compliant tip only)
-     → transfer fee 0.01% in USDC: 50% archive shard / 50% to that block’s ≥5 accept validators (§13)
+     → proposer pre-locks ceilDiv(transferNotionalUsdc6,10,000) canonical conet-USDC
+       in L1 FeeVault; event binds finalized single-use feeLockId
+     → same shard draws new 7+2 → Q_V=5/7 vote → archive (cap/admission/fee-lock compliant only)
+     → accept AC + atomically consume feeLockId/eventNonce once;
+       credit pull-based claims: 50% archive shard / 50% to that block’s ≥5 accept validators (§13)
      → no event ⇒ no block; fail ⇒ standbys / dissolve + reselect (≤ R_max) (§6.5)
 ```
 
@@ -2167,7 +2454,7 @@ User → mint unique CoNET L1 NFT (class = storage)
      → (optional creator content) fragment + encrypt content;
        encrypt assembly index to authorized miner PGPs;
        upload fragments/index to IPFS; set access price in conet-GB (§4.8)
-     → NewChainQueue + roulette → live group of 7 active + 2 standbys (§5.2)
+     → NewChainQueue + UniformPlacementV1 → live group of 7 active + 2 standbys (§5.2)
      → that group draws 7+2 → Q_V=5/7 → genesis AC → L1 archiveGroupId bind
      → request pool on that archive group (NFT id + contentIndexHash)
      → write / retain events → content-based fees in conet-GB
@@ -2178,20 +2465,29 @@ User → mint unique CoNET L1 NFT (class = storage)
 
 ```text
 Seller owns subject chain C (asset or storage L1 NFT #S)
-     → mint unique CoNET L1 NFT (class = trade), bind subjectNftId = #S
-     → set seller quote (quoteAsset + quoteAmount); no NFT oracle / no ≤100 USDC quote cap
-     → NewChainQueue + roulette → live group of 7 active + 2 standbys; L1 archiveGroupId after genesis AC (§5.2)
-     → L1 freeze / escrow subject NFT while Open/Locked (§4.7)
+     → sign versioned EIP-712 SellerOrder (subject contract+#S, quote, buyerConstraint,
+       feePolicyHash, deadline, sellerNonce); no NFT oracle / no ≤100 USDC quote cap
+     → L1 Settlement.escrowSubject(order, sellerAuthorization)
+           → verify quoteAsset adapter/allowlist + minChargeableNotional
+           → verify EOA ECDSA / AA EIP-1271 + current owner + fresh nonce
+           → take #S custody and store escrowOrderHash[tradeId] = sellerOrderHash
+     → mint/open unique CoNET L1 NFT (class = trade), bind #S + exact sellerOrderHash
+     → NewChainQueue + UniformPlacementV1 → live group of 7 active + 2 standbys; L1 archiveGroupId after genesis AC (§5.2)
+     → Settlement custody remains while Open/Locked/SettleReady (§4.7)
      → archive draws 7+2 → Q_V=5/7 → open listing tip archived
-     → buyer locks / authorizes payment in L1 settlement escrow
-     → tip match → SettleReady event → Archive Certificate (AC)
-     → caller: L1 Settlement.settleTrade(tradeId, #S, buyer, paymentProof, AC)
-           → verify AC + quote/nonce/deadline/buyer
-           → transfer payment to seller AND subject NFT → buyer (one L1 tx)
-           → mark tradeId settled (no re-exec)
+     → buyer locks / authorizes quoteAmount + ceilDiv(quoteAmount,10,000)
+       in the same quoteAsset in L1 settlement escrow
+     → tip match binds sellerOrderHash + tradeFeeAmount → SettleReady event → Archive Certificate (AC)
+     → caller: L1 Settlement.settleTrade(tradeId, buyer, paymentProof, AC)
+           → verify stored sellerOrderHash == AC order hash
+           → verify AC + custody + quote/buyerConstraint/payment/tradeFeeAmount/deadline/reserved nonce
+           → pay seller exact quoteAmount; credit pull-based tradeFeeAmount claims 50/50;
+             transfer subject NFT → buyer (one L1 tx)
+           → consume seller nonce + mark tradeId settled before external transfer (no re-exec)
      → tip records Settled (L1 tx hash) → Closed; archive keeps proof
      → subject chain C continues under new owner
-     → cancel/expire before L1 settle → tip Closed + L1 unfreeze #S
+     → L1 cancel/expire before settle → consume nonce, return #S only to stored seller,
+       refund locked buyer funds, then tip Closed
      → tip alone cannot undo an L1-finalized transfer (must not happen)
 ```
 
@@ -2227,7 +2523,8 @@ Modifier → mint storage NFT #B with parentNftId=#R, new contentIndexHash (§4.
 Visitor V (high-trust wallet) → like + comment on #B (EIP-191 / AddressPGP)
      → tip records signed social events (immutable history)
 Indexer / auction UI → WoT-weight V’s signals higher than sybil wallets
-Seller → open trade-class tip listing subjectNftId=#B (seller-set quote; no NFT oracle / no ≤100 USDC quote cap)
+Seller → sign + L1-escrow SellerOrder for subjectNftId=#B, then open trade tip
+         (seller-set quote; no NFT oracle / no ≤100 USDC quote cap; tip binds sellerOrderHash)
 Buyer → settle → L1 ownerOf(#B)=buyer; #R unchanged; #B tip continues
 Market still shows #B’s tree position + social/WoT histogram for discovery
 ```
