@@ -4,7 +4,7 @@
 
 **作者：** Peter Xie  
 **初稿：** 2023  
-**修订：** 2026-08-13（每组 5 名活跃归档 + 2 名专属有序备选、严格 4/5 quorum、五槽 AdaptiveRotationV1、OperatorDomainRegistryV1、L1QueueAccumulatorV1、线级 Tendermint/SSZ/WAL 规则、确定性 `dle.rs.v1` 正确编码证明、带挑战期强制退出、Treasury V3 规范 ERC-20 burn/remint 网关、**P1 实测证据边界：100-USDC 安全封顶已冻结，10-USDC 下限与 1.2× coverage 仍属临时参数**、L1 锚定卖方订单、协议费/执行准备金/可用性预算三账本、Treasury 规范资产 L1 pool/TWAP 准入；归档无出块权）
+**修订：** 2026-08-13（每组 5 名活跃归档 + 2 名专属有序备选、严格 4/5 quorum、五槽 AdaptiveRotationV1、OperatorDomainRegistryV1、L1QueueAccumulatorV1、线级 Tendermint/SSZ/WAL 规则、确定性 `dle.rs.v1` 正确编码证明、带挑战期强制退出、Treasury V3 规范 ERC-20 burn/remint 网关、**P1 实测证据边界：100-USDC 安全封顶已冻结，10-USDC 下限与 1.2× coverage 仍属临时参数**、L1 锚定卖方订单、x402 v2 AI pay-per-use / API gateway 目标 profile、协议费/执行准备金/可用性预算三账本、Treasury 规范资产 L1 pool/TWAP 准入；归档无出块权）
 
 **成对译本（必须同步更新）：** [`Decentralization Cluster multi-chain.md`](./Decentralization%20Cluster%20multi-chain.md)
 **同步守则：** `.cursor/rules/conet-layer2-whitepaper-bilingual-sync.mdc`
@@ -30,6 +30,7 @@
 - **资产价值区间：** 每笔外部 burn 流入和每个新分配的 spillover tip 激活时必须位于**证据批准的 `minIngressUsdc6`** 与已冻结 **100-USDC 等值封顶**之间；当前 10-USDC 下限只是预生产校准种子。后续每个资产事件都重估 tip，若余额 **> 100 USDC**，转出 / 超额 **须建新链**。市场价格下跌导致低于 active floor 时不得没收资产，也不得阻断安全退出（§4.6、§13.3）。
 - **资产流入/退出守恒：** DLE v1 只接受 **CoNET L1 Treasury V3 规范 ERC-20**——即经 `TreasuryBridgeV3` 规范资产路径发行/登记、地址稳定的 `TreasuryCanonicalERC20V3` 代理。资产进入 L2 时，由 `AssetBurnMintGateway` 协调 Treasury V3 权限轨精确 burn；仅在失败创世退款终局或普通/强制退出终局后，由 Treasury V3 精确 remint 同一规范 token。任意外部 ERC-20 与调用方私自提供的 burn/mint adapter 均不得准入（§4.6）。
 - **交易类（原子 NFT 式出售）：** 用户开设 **交易** tip 作为 **L2 订单 / 状态协调器**，挂牌既有 **资产** 或 **存储** 链。挂单报价由卖方设定（`quoteAsset` + `quoteAmount`），**无 ≤100 USDC oracle 封顶**——去中心化系统 **无法** 对 NFT 做可靠 oracle 估值（§4.7）。Tip 开启前，卖方 EIP-712 订单摘要与标的 NFT 必须在 CoNET **L1 Settlement Contract** 内原子锚定。Tip 按冻结的 **Trade FSM** 前进（`Open→Locked→SettleReady→…`，§10.2）。**最终原子交割**（支付卖方 **且** 转移标的 L1 NFT 所有权）在一笔 Settlement 调用中完成；交易 tip 随后 **关闭**。AC 只能证明已就绪，不能发明或改写卖方条款。
+- **AI pay-per-use / x402 API gateway：** x402 v2 保持为标准侧 HTTP 支付边缘——`402 Payment Required`、`PAYMENT-REQUIRED`、`PAYMENT-SIGNATURE` 与 `PAYMENT-RESPONSE`；DLE 提供可选的不可变用量回执与未来的资本担保批量结算轨。固定价调用使用 `exact`；单请求可变 LLM / 计算用量可使用单次消费 `upto`；高频 agent/tool 调用须另行规范 `batch-settlement` 网络 binding。CoNET profile 以 `eip155:224422` 标识 L1，只准入带版本的规范资产，不把 prompt/output 明文写入公共 tip，也 **不** 把任意 API 代码变成 tip VM（§4.7a）。
 - **存储类创作者经济 / 私密版权交付：** 与 Beamio `CopyrightContentModule` 同一论题：所有者碎片化并以授权 DePIN miner 封存私密组装 index；tip/L1 仅存 hash；买方付 **conet-GB**、绑定买方 PGP；**最先完成者** miner 交付买方绑定密文；短期访问 URL + 周期存储费；明文永不上链（§4.8）。
 - **版权 ZERO / 版本树：** 存储 tip 形成 **谱系树**（原创 + 修改者）；每个分支点是可经交易类挂牌的 **独立 L1 NFT**；tip 记录 **社交历史**（点赞、评论、引用）作为拍卖估值的 **Web of Trust** 信号（§4.9）。
 - **存储销售账本：** 每条存储 tip 维护仅追加的 **销售收入流水**，并 **引用** 实际发生价值转移的并行 **资产类** tip 交易（§4.10）。
@@ -450,6 +451,123 @@ settleTrade(
 **安全结果与剩余信任：** 即使验证人委员会和归档组同时被俘获，它们最多只能审查 / 延迟，或为锚定订单本就允许的撮合出具证明。它们不能改变标的、卖方、报价资产、报价金额、买方约束、fee policy、deadline 或 nonce，也不能在不满足锚定付款谓词时释放 NFT。该机制 **不能** 防御卖方密钥 / EIP-1271 policy 被攻破、恶意白名单付款 adapter，或 Settlement 升级权限被攻破。因此生产环境须采用带 timelock、公开可观察的 Settlement 升级路径及保守的 token adapter。
 
 **交易 tip 生命周期（规范，§10.2）：** `None → Open → Locked → SettleReady → Settled → Closed`（或未经 L1 成交的 `Cancelled` / `Expired → Closed`）。**Matched 不是** 独立 tip 状态：撮合字段在 **`Locked`** 下由 **`SettleReady`** 事件写入。**Settled** 由 **L1 结算成功** 定义，而非仅 tip 投票。完整转移表、编码、`tipStateRoot` 与错误码见 **§10**。
+
+### 4.7a AI pay-per-use：x402 v2 HTTP / API gateway 目标 profile
+
+本节定义的是 **目标互操作 profile**，不表示当前已部署 Beamio API 已通过 x402 v2 一致性验证。x402 是资源服务器边缘面向标准的支付协议；CoNET-DLE 是其后方可选的回执、可用性与聚合结算基底。DLE **不** 替代 x402 类型、header、scheme 或 facilitator 语义；x402 也 **不** 自动证明 AI 服务者上报的用量真实。
+
+**组件边界（规范目标）：**
+
+| 组件 | 职责 |
+| --- | --- |
+| **AI client / agent** | 请求受保护的模型、tool、数据、推理、检索或存储资源；选择一项已公布付款要求；签署 scheme 专属 payload |
+| **x402 API gateway / resource server** | 使用规范 x402 v2 HTTP；冻结资源/价格/计量 policy；校验幂等性；只计 policy 定义的单位；所选 payment flow 的执行前检查未成功前，不交付或只在担保上限内交付不可逆结果 |
+| **Facilitator** | 暴露标准 `POST /verify`、`POST /settle` 与 `GET /supported`；只验证和结算已公布的 scheme/network/asset-transfer-method/payment-flow 组合 |
+| **CoNET-DLE** | 可选归档保护隐私的 `AiUsageReceiptV1` 承诺、顺序、DA 与累计 voucher checkpoint；绝不执行模型或任意 API 代码 |
+| **CoNET L1 结算轨** | 持有权威 token/channel/escrow 状态，消费授权 nonce 或 commitment，转移或预留规范价值 |
+
+**规范 x402 v2 线协议。** HTTP 集成必须使用：
+
+1. 首次请求不带付款 payload → 返回 `402 Payment Required`，并在 **`PAYMENT-REQUIRED`** 中携带 base64 编码的 `PaymentRequired`。
+2. 客户端重试 → 在 **`PAYMENT-SIGNATURE`** 中携带 base64 编码的 `PaymentPayload`。
+3. 资源成功响应 → 在 **`PAYMENT-RESPONSE`** 中携带 base64 编码的 `SettlementResponse`。
+4. `x402Version=2`；CoNET L1 使用 `network="eip155:224422"`；金额为最小单位十进制字符串；`asset` 与 `payTo` 必须准确；`maxTimeoutSeconds` 有界。CoNET profile 拒绝任意 ERC-20：`asset` 必须是适用 L1 registry 与已公布 x402 mechanism 均准入、版本已钉定且状态为 active 的 Treasury V3 规范 ERC-20 proxy。
+5. Facilitator `/verify` 只读；`/settle` 持久提交付款状态；`/supported` 是已实现 scheme、network、extension、signer、transfer method 与 payment flow 的可发现真相。
+
+Gateway 只能公布自己实际实现的组合。不得把 legacy `X-PAYMENT` / `X-PAYMENT-RESPONSE`、`network:"base"` 一类别名或私有 JSON 402 body 静默翻译成「已兼容 x402 v2」。截至本次修订，`src/x402sdk` 含一套有参考价值、基于 `@coinbase/x402` 0.7.x、`X-PAYMENT` 与 Base USDC 的 legacy exact 付款实现；它是迁移输入，**不是** 已冻结的 CoNET-DLE x402-v2 profile。生产一致性要求 v2 headers/schemas、CAIP-2 网络标识、`/supported` 可发现表面，以及已发布 golden/interoperability vectors。
+
+**Scheme 与 payment-flow 选型：**
+
+| AI 用量模式 | x402 profile | DLE / 风险规则 |
+| --- | --- | --- |
+| 固定价 embedding、lookup、model call、tool call 或数据对象 | `exact` | 一个签名金额、一个收款人、一个授权 nonce、一次 settle；只使用已公布 transfer method |
+| 单请求可变量——LLM 输入/输出 token、字节或有界计算单位 | `upto` | 客户端授权最大额；服务端结算一个 `≤` 最大额的实际值。即使实际扣款为零，该授权也最多消费一次；`upto` **不是** 多次结算 streaming |
+| 高频 agent/tool loop，单次 L1 gas 高于调用价格 | `batch-settlement` | 须另行冻结 CoNET network binding。DLE 基线 **应当**为资本担保（预注资 escrow/channel）；信用担保 profile 必须具名 underwriter，不得把违约风险外部化给验证人或归档 |
+| 昂贵且不可逆任务 | 机制支持的 `upfront` 或 `escrow` flow | Gateway 可要求计算前已持久承诺价值；只有所选 scheme/transfer method 明确定义时才可公布该 flow |
+| 普通可逆请求 | `authorization` flow | 只读 verify → 资源执行 → settle → response；服务者只承担显式有界的结算前暴露 |
+
+核心 payment-flow 顺序继续服从 x402：`authorization = verify → resource → settle → respond`，`upfront = settle → resource → respond`，`escrow = settle → resource → settle → respond`。受保护资源执行前至少须完成一次有效 verify 或 settle。对于 streaming AI 输出，gateway 不得先放出无界响应，再假设付款可回滚；它只能：（a）先 escrow / settle；（b）只释放已验证资本覆盖的有界前缀；或（c）滚动使用短期、单次消费授权。一个 `upto` 授权只结算一次；逐 chunk 多次收费须使用新的授权或一致的 batch/channel scheme。
+
+**DLE 集成不增加第四种 v1 链类别。** x402 profile 组合现有表面：
+
+1. 服务者可在 **存储类** tip 上公布带版本的资源、价格、tokenizer/meter、retention 与 dispute policy 承诺。
+2. 规范价值通过所选 CoNET L1 x402 结算机制，或显式关联的 **资产类**付款事件移动。
+3. 存储流水可追加 `UsageBooked` / `AiUsageReceiptV1`，关联 x402 结算 tx / commitment id 与可选 asset-tip tx——语义类似 §4.10 销售流水。
+4. DLE 支持的 `batch-settlement` 轨须有独立 network-binding 规范、L1 escrow/channel 合约、voucher 编码、redemption 规则与固定 FSM 版本。既有交易类 NFT 出售 FSM **不得**改作任意 API 调用。
+5. 若现有类别没有显式支持该回执事件，x402 结算真相仍在 L1/facilitator，DLE 只可作为 index/audit mirror。「在 DLE 上运行 AI」绝不等于向通用 tip VM 部署服务者代码。
+
+**DLE extension 与回执承诺。** DLE 专属数据应进入 x402 v2 `extensions` map 的带版本键（如 `conet-dle`）；不得覆盖核心 `PaymentRequirements` 字段，也不得改写协议保留的 `extra.assetTransferMethod` / `extra.paymentFlow`。服务端同时提供 `info` 与 JSON Schema；客户端回显已公布 extension 时不得删除或改写服务端字段。最小承诺 profile 为：
+
+```text
+extensions["conet-dle"].info = {
+  profile: "dle.x402.ai.v1",
+  requestId,
+  resourceHash,
+  pricingPolicyHash,
+  meteringPolicyHash,
+  requestBodyHash,
+  feeQuoteHash,
+  receiptMode,            // "l1-final" | "dle-batch"
+  maxUsageUnits,
+  expiry
+}
+
+AiUsageReceiptV1 = {
+  requestId,
+  payer, payTo,
+  network, asset, scheme,
+  authorizationNonce,
+  resourceHash,
+  pricingPolicyHash,
+  meteringPolicyHash,
+  inputCommitment,
+  outputCommitment,
+  usageUnits,
+  authorizedMaxAmount,
+  actualAmount,
+  settlementRef,          // L1 tx hash 或 batch commitment id
+  dleEventNonce,
+  status,
+  startedAt,
+  completedAt
+}
+```
+
+`resourceHash` 承诺规范 method + resource URL + media type；`requestBodyHash` 按冻结的 canonicalization 规则承诺请求字节。Prompt 文本、模型输出、secret、API key、tool credential 与私密检索上下文不得进入 extension、公共 tip leaf、L1 calldata、日志或回执。可选审计材料须先加密给授权方再进入 DA；公共状态只保留承诺与非敏感计数。
+
+**计量与价格完整性。** x402 传递授权；它不证明 AI 服务者隐藏的 GPU 时间或 token 计数。每个 `meteringPolicyHash` 至少须冻结：model/version、tokenizer/version、输入/输出计数规则、tool call 与 cache hit 处理、取整、单位价格、失败/取消收费、最大单位及争议窗口。应优先采用客户端可复算单位——规范输入/输出 tokenization、响应字节或显式 tool calls。服务者单方可见的 CPU/GPU milliseconds 并非客观 DLE 事实，除非另有 attestation/challenge 规范。委员会 AC 可终局回执承诺，但不能凭签名制造真实用量。
+
+对 `upto` profile：
+
+```text
+authorizedMaxAmount =
+  serviceChargeCap
+  + applicableProtocolFeeCap
+  + executionReserveCap
+
+actualSettlement =
+  meteredServiceCharge
+  + applicableProtocolFee
+  + deterministicExecutionCharge
+
+0 ≤ actualSettlement ≤ authorizedMaxAmount
+```
+
+Facilitator verify 阶段的 `PaymentRequirements.amount` 表示授权上限；settle 阶段表示实际金额。Facilitator 必须根据已签署上限重新验签——不能按较低实际金额验签——并另行校验 actual `≤` maximum。x402 amount 是所选要求允许的最大总扣款。任何 service principal / protocol / execution 拆分均须成为可审计 DLE extension 与 fee-policy 承诺，不得在签名外追加收费。固定 epoch 可用性资金仍由服务者/链承担，除非已接受 policy 显式披露每请求贡献。AI/API 用量 **不** 自动继承 NFT 交易 1 bp；启用任何百分比协议费前，必须先有经 timelock 激活的专用 `AiUsageFeePolicyV1`。
+
+**防重放、重试与终局。**
+
+\[
+\mathrm{requestId}=H(\texttt{"dle.x402.ai.v1"}\parallel network\parallel resourceHash\parallel requestBodyHash\parallel payer\parallel payTo\parallel asset\parallel authorizationNonce\parallel pricingPolicyHash).
+\]
+
+- x402 authorization nonce、API `requestId`、DLE `eventNonce`、facilitator settlement/commitment id 与 Treasury operation id 是 **相互隔离的 replay domain**，不得互相替代。
+- 一个授权最多 settle/commit 一次。以相同身份重复 `/settle` 或原 HTTP 请求时，须返回同一终态结果或确定性的 already-consumed 错误，绝不能二次扣款。
+- 相同 `requestId` 若请求字节、资源、policy、金额上限、收款人、资产或 nonce 不同，必须拒绝。只有付款终态匹配后，才可从校验完整性的缓存重新提供响应。
+- 对 `exact` / `upto`，`PAYMENT-RESPONSE` 成功表示所选机制已经持久结算。对 `batch-settlement`，成功只表示 commitment 已接受；响应必须带非空 commitment id，且不得谎称 token redemption 已完成。
+- 资源在用量产生前失败时，按冻结 policy 执行：scheme 允许时 settle zero / void，或只收显式授权的失败单位。Facilitator 故障、不支持 scheme、授权过期、L1 重组未达所需终局、DLE 回执失败或计量歧义均不得变成「免费成功」，也不得成为二次收费理由。
+
+**Cluster / Master 实现映射。** Beamio 部署可保留既有内部拆分：公共 x402 adapter 与 **Cluster** 解析规范 v2 headers、规范化 resource，完成全部格式/业务/签名/余额/replay 预检，并在转发标准化 job 前执行 scheme 在 settle 阶段要求的全部重新验签（含 `upto` 上限绑定）。**Master** 只排队并执行已批准 settlement；不得重新解释不可信 header 或重复产品校验。`authorization` 的资源执行位于必需的只读 verify 与状态提交 settle 之间；`upfront` / `escrow` 按 `/supported` 公布顺序执行。该内部拓扑不是 x402 标准的一部分，对互操作客户端必须不可见。
 
 ### 4.8 存储类创作者经济（碎片化内容 + GB 访问权）
 
@@ -2913,6 +3031,7 @@ AvailabilityBudgetV1 = {
 | 交付节点保留费          | 周期 **conet-GB** 付给最先完成者 / 授权集；推进 `storagePaidUntil`（§4.8）                                                                 |
 | 存储社交 / 分叉        | 已签名点赞 / 评论 / 引用事件；分叉 mint 带 `parentNftId` 的子存储 NFT；拍卖 WoT 输入（§4.9）                                                        |
 | 存储销售流水           | 在存储 tip 上记录访问 / NFT / 版税销售；关联并行 **资产类** 付款 tx（§4.10）                                                                      |
+| AI / API 按量付费     | x402 amount 是已签名的最大总扣款额。`exact` / `upto` 经声明的 CoNET L1 机制结算；`batch-settlement` 仅在 CoNET binding 已存在后使用资本担保累计 voucher。服务 principal、经 timelock 的 `AiUsageFeePolicyV1` 费用与确定性执行准备金须分别可审计；DLE receipt commitment 可选，且不得替代 L1 付款终局性（§4.7a、§13.7） |
 | 交易挂单 / 成交        | L1 锚定卖方签名订单 + 卖方设定报价（**无 NFT oracle / 无 ≤100 USDC 报价封顶**）；成功成交仅收一次，买方在同一 `quoteAsset` 支付 `quoteAmount + ceil(quoteAmount/10,000)`，卖方精确收到 `quoteAmount`；订单 / AC / 付款 / 托管必须完全匹配（§4.7） |
 | 挖矿 / 任务奖励        | 从资产 **conet-USDC**、交易 **quoteAsset** 与存储 **conet-GB** 流支付诚实组成员；资助罚没再分配 |
 | 组规模 vs 收益        | 裂变为更多互不重叠的 5 活跃 + 2 备选组 → **并行带宽**↑；归档 50% 在活跃服务/AC 签署与 standby readiness 职责间加权（§5.2、§13.4） |
@@ -3010,6 +3129,31 @@ N_{\mathrm{exec\text{-}break\text{-}even}}
 
 **交互式配套分析。** 参数化模型归档于 [dle-economic-fee-stress-model.md](../../../canvas/dle-economic-fee-stress-model.md)，完整实测报告归档于 [dle-p1-real-cost-measurement-report.md](../../../canvas/dle-p1-real-cost-measurement-report.md)，归档索引见 [src/canvas/README.md](../../../canvas/README.md)。Canvas 输出仅用于分析，不得覆盖实测且经 timelock 生效的 L1 policy。
 
+### 13.7 应用层 HTTP 结算 profile（x402 / API gateway）
+
+§4.7a 冻结面向协议的 profile；本节把它映射到三账本经济模型。**“API gateway”表示 tip 之外的 HTTP resource / orchestration 层，绝不是 `AssetBurnMintGateway` 的别名**；后者只负责 Treasury V3 规范 principal 的 burn/remint 与退出会计。
+
+| x402 路径 | 权威付款状态 | DLE 经济映射 |
+| --- | --- | --- |
+| `exact` | 经声明的 CoNET L1 机制完成的一次持久结算 transfer | 固定服务 principal；可选确定性执行准备金；不隐含 DLE 协议费 |
+| 单次 `upto` | 一个已签名 ceiling + 一次 `≤` ceiling 的终态实际结算 | 按量服务 principal + 明确适用的 fee-policy 金额 + 确定性执行费；未用授权额度不是收入 |
+| 资本担保 `batch-settlement` | 预注资 channel/escrow + 单调累计 voucher + 最终 L1 redemption | 每请求 `AiUsageReceiptV1` / checkpoint 可由 DLE 终局；channel collateral 与 L1 claim 仍是付款真相 |
+
+应用 gateway 可在 storage-class journal 承诺 `committedResourceUnits` 与 `AiUsageReceiptV1`，但只有可从冻结 `meteringPolicyHash` 推导出的单位才能进入经济会计。Relayer 自报成本、不透明 GPU 声明、prompt/output 明文与未签名附加费均不得进入。付款 credential 必须绑定 x402 resource 与 authorization domain；DLE event 还须绑定 `chainNftId`、`eventNonce`、event digest、`pricingPolicyHash`、`meteringPolicyHash` 及任何 `FeeQuoteV1` / `AiUsageFeePolicyV1` hash。HTTP idempotency 与 DLE nonce consumption 均为必需，且属于不同 replay domain。
+
+三类账本继续分离：
+
+1. **服务 principal** 按选定 x402 scheme 归 AI/API provider；
+2. **协议费** 默认为零；仅专用且经 timelock 的 `AiUsageFeePolicyV1` 可显式启用——AI 流量不继承交易 1 bp 规则；
+3. **执行准备金** 只偿付已接受 `FeeScheduleV1` 单位及实测 L1/facilitator 执行成本；未用 cap 按 scheme 释放或退回；
+4. **epoch 可用性资金** 仍由 chain/provider 供给，除非已签名 requirement 明示一个版本化的按请求贡献。
+
+用户可见终局性必须与所选路径一致。`exact` / `upto` 只有在 L1/facilitator 持久结算后才能显示 paid。`batch-settlement` 在 voucher redemption 完成前只能显示 **commitment accepted**。DLE AC 证明 usage-receipt commitment 的排序与终局，不会追溯性结算 token，也不证明 provider 的不透明计量。反之，x402 付款已结算也不代表可选 DLE receipt 已终局。若 API 在结算前返回不可逆结果，已释放工作必须受声明 payment flow 下已验证资本的约束。
+
+现役实现证据刻意窄于此目标 profile。`src/x402sdk` 目前只在部分 Beamio 路由中手工接入了 Base USDC 的遗留 `exact` 402 challenge / facilitator settlement。`/api/ai/*` 尚非按量付费，现有 GB charge 路径不是 x402，DLE `AssetBurnMintGateway` 与 CoNET `DepinGbSettlement1155` pay-by-use 轨也都尚未接入通用 HTTP gateway。这些事实可用于迁移设计，但不满足 x402 v2 conformance 或 CoNET 目标 profile。
+
+因此，生产激活除须满足 §4.7a wire/schema gate 与 §15 第 18 项外，还须有一个实测 cost epoch 覆盖 facilitator latency/failure、L1 settlement 或 redemption gas、channel collateral utilization、retry/idempotency 行为、metering dispute 与 p95/p99 执行责任。Gateway、facilitator、oracle 或可选 DLE receipt 路径不可用时，绝不能再次扣款、把不确定状态转化为免费不可逆交付、挪用用户 principal，或阻断独立的普通/强制资产退出安全路径。
+
 
 ---
 
@@ -3054,6 +3198,7 @@ CoNET-DLE 精神上最接近 **「许多微账本 + 随机委员会 + 归档终�
 15. 钱包层 **ERC-5564 CoNET 配置** 细节（announcement 合约 / 注册表、默认 *n*、view-tag 参数、恢复/扫描 UX）以及客户端如何公布 **隐身元地址**（AddressPGP / tip 外二维码）——必须留在 tip/归档/验证人委员会路径 **之外**；**不得** 把 BIP-47 / BIP-352 留作 CoNET L1 的备选运行时（§4.5）。
 16. 分层 **密钥保险库** 参数（spend 派生批次大小、硬件/阈值策略、恢复映射加密、分片 derivation domain ID、默认单设备每小时合并/转出上限）以及 **密钥域 / 恢复域** 隔离 UX——仅客户端产品；非 tip/归档/验证人共识（§4.5、§12.9）。
 17. **可验证 DA + burn/mint 退出** 形式已产品冻结（§5.2.1、§4.6）：字节精确 **`dle.rs.v1` \((7,4)\)**，含冻结的 \(GF(2^8)\) 矩阵、padding、叶树、测试向量、每个 precommit signer 的完整 body 重编码、`BadEncodingProof`、指派份额保管与 **UnavailableChallenge**。AC 字段含 `bodyCommitment`、`payloadLength`、`codecSpecHash`、`daRoot`、`chunkAssignmentRoot`、`tipStateRoot`、parent AC 与 L1 context。Treasury V3 精确 burn 规范 L1 单位；普通退出只在 AC 支持的 debit 后通过 Treasury V3 remint，并可使用 `ExitFeeQuoteV1`；强制退出采用 **`requestForceWithdraw → challengeForceWithdraw → finalizeForceWithdraw`**、单调 `latestKnownAC`、合约派生 claim id/nullifier、pending owner 支出冻结、累计 `totalBurnedIn` / `totalMintedOut` 会计、紧急准备金承保与 \(T_{\mathrm{exit}}\)。旧一步式接口和 escrow-vault 模型禁止。开放项：DA/exit/archive 超时、保证金/赏金、精确规范 `BlockBodyV1` 容器、欺诈证明执行环境/gas 基准、AC ancestry 证明编码、gateway + Treasury DLE authority interface ABI 与规范 token allowlist——**不是** chunk membership 是否足以证明正确编码。
+18. **AI pay-per-use / x402 v2 的边界已目标冻结，但实现尚未完成**（§4.7a）：HTTP 使用 `PAYMENT-REQUIRED` / `PAYMENT-SIGNATURE` / `PAYMENT-RESPONSE`；CoNET 标识为 `eip155:224422`；`exact`、单次消费 `upto` 与资本担保 `batch-settlement` 保持各自 scheme 语义；DLE 只存承诺，不存 prompt/output 明文或任意 API 代码。开放发布门包括：为每个公布 scheme 冻结 CoNET mechanism binding 与规范 asset-transfer method；facilitator `/supported` discovery；`conet-dle` extension JSON Schema；字节精确 `AiUsageReceiptV1` 及 voucher/FSM 编码；幂等/replay、零扣款、局部 streaming、timeout、facilitator 故障与 L1 reorg vectors；L1 escrow/channel 实现及 batch settlement gas/capacity 实测；metering-policy 挑战规则；以及显式 `AiUsageFeePolicyV1`。上述门未通过前，既有 `src/x402sdk` legacy exact 路径不得公布为 v2。
 
 ---
 
@@ -3082,6 +3227,8 @@ CoNET-DLE 以去中心化集群维护大量并行、事件驱动的原子链：�
 11. **BIP-352** — 面向 Bitcoin UTXO/Taproot 的 Silent Payments（**仅设计参考**；**不是** EVM 即插即用；收款方须扫描区块）。
 12. **ERC-5564** / **ERC-6538** — **CoNET L1 / EVM 规范** 隐身地址与隐身元地址注册表（钱包层冻结见 §4.5）。
 13. Buchman, Kwon, Milosevic — **The latest gossip on BFT consensus**；Tendermint 共识状态机。
+14. **x402 Foundation — x402 Specification v2**、HTTP transport v2、`exact`、`upto` 与 `batch-settlement` scheme 规范：<https://github.com/x402-foundation/x402/tree/main/specs>。
+15. **CAIP-2 / EIP-155 namespace** — 链无关区块链标识；CoNET L1 表示为 `eip155:224422`：<https://standards.chainagnostic.org/CAIPs/caip-2>。
 
 ---
 
@@ -3136,6 +3283,8 @@ CoNET-DLE 以去中心化集群维护大量并行、事件驱动的原子链：�
 | **`dle.rs.v1` / \((n,k)=(7,4)\)** | 字节精确的系统 \(GF(2^8)\) codec，固定矩阵、padding、Merkle leaves 与测试向量；每个 precommit signer 重放完整 body 并重算七份 chunk/root，任意 4 份可重建（§5.2.1）。 |
 | **BadEncodingProof** | 客观证明 AC 承诺的 chunk 不匹配 `bodyCommitment` 或确定性 `dle.rs.v1` codeword；有效证明冻结并罚没错误高度（§5.2.1）。 |
 | **L1 AssetBurnMintGateway + Treasury V3** | 只准入 Treasury V3 规范 ERC-20 principal。Treasury V3 执行精确物理 burn/remint 并持有全局单次消费 operation domain；gateway 记录 `BURNED_PENDING`、仅凭合法 genesis AC 激活 backing、只向原 burn 方退款已过期未激活 burn，并在 Treasury remint 前消费一份共同 exit right。它维护 `latestKnownAC`、per-tip/global credit 与 mint-out、replacement reservation、owner 累计 mint 及挑战退出（§4.6、§5.2.1）。 |
+| **x402 v2 API-gateway profile** | AI/API 资源的目标 HTTP 支付边缘：`402` + `PAYMENT-REQUIRED`、客户端 `PAYMENT-SIGNATURE`、服务端 `PAYMENT-RESPONSE`、facilitator `/verify` / `/settle` / `/supported`，以及 CoNET CAIP-2 网络 `eip155:224422`。DLE 可选承诺保护隐私的用量回执与未来资本担保 batch checkpoint；它既不执行 AI 代码，也不证明服务者不透明计量（§4.7a）。 |
+| **AiUsageReceiptV1** | 对资源/价格/计量 policy、输入/输出 hash、有界授权与实际扣款、隔离 replay 的 request/authorization/event 身份，以及 L1 settlement 或 batch-commitment reference 的带版本承诺；不含 prompt/output 明文（§4.7a）。 |
 | **ExitFeeQuoteV1** | 仅绑定一次普通资产退出的 conet-USDC 执行准备金 quote；支付客观 proof/relayer/L1 gas 成本，`protocolFeeAmount=0`，不得扣 remint principal（§13.2）。 |
 | **强制退出 claim** | L1 `request → challenge → finalize` 状态机；claim id/nullifier 由合约派生；更高合法后继 AC 可降低 / 取消过期 claim；仅 finalize 增加累计 `mintedByAssetOwner` 并 remint 已证明余额，gas 由紧急准备金承保（§5.2.1）。 |
 | **天然隐私**                                  | 双轨：DePIN **通讯** 隐私 + **提高聚类成本**、打断单地址投资组合等价的 **资产** 隐私——**非** 强匿名（§4.5、§7.6）。                                                                                                                   |

@@ -4,7 +4,7 @@
 
 **Author:** Peter Xie  
 **First draft:** 2023  
-**Revision:** 2026-08-13 (5-active + 2-standby archive groups + strict 4/5 quorum + line-level Tendermint/WAL rules + AdaptiveRotationV1 + OperatorDomainRegistryV1 + L1QueueAccumulatorV1 scale profile + deterministic `dle.rs.v1` correct-encoding proof + challenged force exit + Treasury V3 canonical ERC-20 burn/remint gateway + **measured P1 economic evidence boundary: 100-USDC safety cap frozen, 10-USDC floor and 1.2× coverage still provisional** + L1-anchored seller orders + three-ledger protocol/execution/availability economics + Treasury-canonical L1 pool/TWAP asset admission; archives have no block-production right)
+**Revision:** 2026-08-13 (5-active + 2-standby archive groups + strict 4/5 quorum + line-level Tendermint/WAL rules + AdaptiveRotationV1 + OperatorDomainRegistryV1 + L1QueueAccumulatorV1 scale profile + deterministic `dle.rs.v1` correct-encoding proof + challenged force exit + Treasury V3 canonical ERC-20 burn/remint gateway + **measured P1 economic evidence boundary: 100-USDC safety cap frozen, 10-USDC floor and 1.2× coverage still provisional** + L1-anchored seller orders + x402 v2 AI pay-per-use / API-gateway target profile + three-ledger protocol/execution/availability economics + Treasury-canonical L1 pool/TWAP asset admission; archives have no block-production right)
 
 **Paired translation (must stay in sync):** [`Decentralization Cluster multi-chain.zh-CN.md`](./Decentralization%20Cluster%20multi-chain.zh-CN.md)
 **Sync rule:** `.cursor/rules/conet-layer2-whitepaper-bilingual-sync.mdc`
@@ -30,6 +30,7 @@
 - **Asset value band:** each externally burned asset ingress and each newly allocated spillover tip must activate between the **evidence-approved `minIngressUsdc6`** and the frozen **100-USDC-equivalent cap**. The current 10-USDC floor is only a pre-production calibration seed. Every later asset event revalues the tip; if balance **> 100 USDC**, outbound / excess **requires new chain(s)**. Market-driven depreciation below the active floor does not confiscate value or block safety exit (§4.6, §13.3).
 - **Asset ingress/exit conservation:** DLE v1 accepts only a **CoNET-L1 Treasury V3 canonical ERC-20**—a stable-address `TreasuryCanonicalERC20V3` proxy issued/registered through the `TreasuryBridgeV3` canonical-asset path. Entering L2 burns exact units through the Treasury V3 authority rail coordinated by `AssetBurnMintGateway`; the same canonical token is reminted through Treasury V3 only for a finalized failed-genesis refund or a finalized normal/forced exit. Arbitrary external ERC-20s and privately supplied burn/mint adapters are ineligible (§4.6).
 - **Trade-class (atomic NFT-style sale):** users open a **trade** tip as an **L2 order / state coordinator** to list an existing **asset** or **storage** chain. Listing quote is **seller-set** (`quoteAsset` + `quoteAmount`) with **no ≤100 USDC oracle cap**—DLE **cannot** oracle NFT market value (§4.7). Before the tip may open, the seller’s EIP-712 order digest and the subject NFT are atomically anchored in the CoNET **L1 Settlement Contract**. Tip advances via the frozen **Trade FSM** (`Open→Locked→SettleReady→…`, §10.2). **Final atomic delivery** (pay seller **and** move subject L1 NFT ownership) runs in one Settlement call; the trade tip then **closes**. An AC can attest readiness but cannot invent or rewrite seller terms.
+- **AI pay-per-use / x402 API gateway:** x402 v2 remains the standards-facing HTTP payment edge—`402 Payment Required`, `PAYMENT-REQUIRED`, `PAYMENT-SIGNATURE`, and `PAYMENT-RESPONSE`—while DLE supplies optional immutable usage receipts and a future capital-backed batch-settlement rail. Fixed-price calls use `exact`; one-request variable LLM / compute usage may use single-use `upto`; high-frequency agent/tool calls require a separately specified `batch-settlement` network binding. The CoNET profile identifies L1 as `eip155:224422`, admits only versioned canonical assets, never places prompt/output plaintext in public tip state, and does **not** turn arbitrary API code into a tip VM (§4.7a).
 - **Storage-class creator economy / private copyright delivery:** same thesis as Beamio **`CopyrightContentModule`**: owner fragments + seals a private assembly index to authorized DePIN miners; tip/L1 holds only hashes; buyers pay **conet-GB**, bind buyer PGP; **first-completer** miners deliver buyer-bound ciphertext; short-lived access URLs + periodic storage fees; plaintext never on-chain (§4.8).
 - **Copyright ZERO / version tree:** storage tips form a **lineage tree** (original + modifiers); each branch point is an **independent L1 NFT** listable via trade-class; the tip stores **social history** (likes, comments, citations) as a **Web of Trust** signal for auction valuation (§4.9).
 - **Storage sales ledger:** each storage tip keeps an append-only **sales-revenue journal** and **references** the parallel **asset-class** tip txs that actually move value (§4.10).
@@ -440,6 +441,123 @@ If any check fails, the **entire L1 call reverts**—no partial NFT move, no par
 **Security consequence and residual trust:** even if both the validator committee and archive group are captured, they can at most censor / delay or attest a match that is already permitted by the anchored order. They cannot change the subject, seller, quote asset, quote amount, buyer constraint, fee policy, deadline, or nonce; and they cannot release the NFT without the anchored payment predicate. This does **not** protect against compromise of the seller key / EIP-1271 policy, a malicious allowlisted payment adapter, or compromise of the Settlement upgrade authority. Production therefore requires a timelocked, publicly observable Settlement upgrade path and conservative token adapters.
 
 **Lifecycle (trade tip — normative, §10.2):** `None → Open → Locked → SettleReady → Settled → Closed` (or `Cancelled` / `Expired → Closed` without L1 settle). **Matched** is **not** a separate tip state: match fields are written on the **`SettleReady`** event while in **`Locked`**. **Settled** is defined by **L1 settlement success**, not by tip vote alone. Full transition table, encodings, `tipStateRoot`, and error codes: **§10**.
+
+### 4.7a AI pay-per-use: x402 v2 HTTP / API-gateway target profile
+
+This subsection defines a **target interoperability profile**, not a claim that the currently deployed Beamio API is already x402-v2-conformant. x402 is the standards-facing payment protocol at the resource-server edge; CoNET-DLE is an optional receipt, availability, and aggregate-settlement substrate behind that edge. DLE does **not** replace x402 types, headers, schemes, or facilitator semantics, and x402 does **not** make provider-reported AI usage objectively true.
+
+**Component boundary (normative target):**
+
+| Component | Responsibility |
+| --- | --- |
+| **AI client / agent** | Requests a protected model, tool, data, inference, retrieval, or storage resource; selects one advertised payment requirement; signs the scheme-specific payload |
+| **x402 API gateway / resource server** | Speaks canonical x402 v2 HTTP, freezes resource/pricing/metering policy, verifies idempotency, meters only policy-defined units, and withholds or bounds irreversible delivery until the selected payment flow’s pre-execution check succeeds |
+| **Facilitator** | Exposes standard `POST /verify`, `POST /settle`, and `GET /supported`; verifies and settles only advertised scheme/network/asset-transfer-method/payment-flow combinations |
+| **CoNET-DLE** | Optionally archives privacy-preserving `AiUsageReceiptV1` commitments, ordering, DA, and cumulative voucher checkpoints; it never executes the model or arbitrary API code |
+| **CoNET L1 settlement rail** | Holds the authoritative token/channel/escrow state, consumes authorization nonces or commitments, and transfers or reserves canonical value |
+
+**Canonical x402 v2 wire contract.** HTTP integration MUST use:
+
+1. First request without a payment payload → `402 Payment Required` with base64-encoded `PaymentRequired` in **`PAYMENT-REQUIRED`**.
+2. Client retry → base64-encoded `PaymentPayload` in **`PAYMENT-SIGNATURE`**.
+3. Successful resource response → base64-encoded `SettlementResponse` in **`PAYMENT-RESPONSE`**.
+4. `x402Version=2`; `network="eip155:224422"` for CoNET L1; atomic-unit decimal strings; an exact `asset` address and `payTo`; a bounded `maxTimeoutSeconds`. The CoNET profile rejects arbitrary ERC-20s: `asset` MUST be an active, version-pinned Treasury V3 canonical ERC-20 proxy admitted by the applicable L1 registry and by the advertised x402 mechanism.
+5. Facilitator `/verify` is read-only. `/settle` durably commits payment state. `/supported` is the discoverable source for implemented schemes, networks, extensions, signers, transfer methods, and payment flows.
+
+The gateway MUST advertise only combinations it actually implements. It MUST NOT silently translate legacy `X-PAYMENT` / `X-PAYMENT-RESPONSE`, aliases such as `network:"base"`, or a private JSON 402 body into a claim of x402 v2 compatibility. As of this revision, `src/x402sdk` contains a useful legacy exact-payment implementation based on `@coinbase/x402` 0.7.x, `X-PAYMENT`, and Base USDC. That implementation is migration input, **not** the frozen CoNET-DLE x402-v2 profile. Production conformance requires the v2 headers/schemas, CAIP-2 network identifier, supported-surface discovery, and released golden/interoperability vectors.
+
+**Scheme and payment-flow selection:**
+
+| AI usage pattern | x402 profile | DLE / risk rule |
+| --- | --- | --- |
+| Fixed-price embedding, lookup, model call, tool call, or data object | `exact` | One signed amount, one recipient, one authorization nonce, one settle. Use only an advertised transfer method. |
+| Variable single request—LLM input/output tokens, bytes, or bounded compute units | `upto` | Client authorizes a maximum; server settles one actual amount `≤` that maximum. The authorization is consumed at most once even when actual charge is zero. `upto` is **not** multi-settlement streaming. |
+| High-frequency agent/tool loop where per-call L1 gas dominates price | `batch-settlement` | Requires a separately frozen CoNET network binding. DLE baseline SHOULD be **capital-backed** (pre-funded escrow/channel); a credit-backed profile requires a named underwriter and cannot externalize default risk to validators or archives. |
+| Expensive irreversible job | Mechanism-supported `upfront` or `escrow` flow | The gateway may require durable value commitment before compute. It may advertise these flows only when its selected scheme/transfer method specifies them. |
+| Ordinary reversible request | `authorization` flow | Read-only verify → resource execution → settle → response. The provider bears only the explicitly bounded pre-settlement exposure. |
+
+The core payment-flow ordering remains x402-defined: `authorization = verify → resource → settle → respond`, `upfront = settle → resource → respond`, and `escrow = settle → resource → settle → respond`. At least one valid verify or settle MUST occur before the protected resource executes. For streaming AI output, the gateway MUST NOT release an unbounded response and later assume payment can be rolled back. It either (a) escrows / settles first, (b) releases only a bounded prefix covered by verified capital, or (c) rotates short single-use authorizations. One `upto` authorization settles once; repeated per-chunk charges require new authorizations or a conformant batch/channel scheme.
+
+**DLE integration does not create a fourth v1 chain class.** The x402 profile composes existing surfaces:
+
+1. A provider MAY publish a versioned resource, price, tokenizer/meter, retention, and dispute policy commitment on a **storage-class** tip.
+2. Canonical value moves through the selected CoNET L1 x402 settlement mechanism or an explicitly linked **asset-class** payment event.
+3. The storage journal MAY append `UsageBooked` / `AiUsageReceiptV1`, linking the x402 settlement transaction or commitment identifier and any asset-tip transaction—analogous to §4.10 sales books.
+4. A DLE-backed `batch-settlement` rail requires a separate network-binding specification, L1 escrow/channel contract, voucher encoding, redemption rules, and fixed FSM version. The existing trade-class NFT-sale FSM MUST NOT be repurposed for arbitrary API calls.
+5. If no existing class explicitly supports the receipt event, the x402 settlement remains authoritative at L1/facilitator and DLE is only an index/audit mirror. “Running AI on DLE” never means deploying provider code into a general tip VM.
+
+**DLE extension and receipt commitments.** DLE-specific data belongs in the x402 v2 `extensions` map under a versioned key such as `conet-dle`; it MUST NOT overwrite core `PaymentRequirements` fields or protocol-reserved `extra.assetTransferMethod` / `extra.paymentFlow`. The server supplies both `info` and a JSON Schema; the client echoes the advertised extension without deleting or rewriting server fields. A minimum commitment profile is:
+
+```text
+extensions["conet-dle"].info = {
+  profile: "dle.x402.ai.v1",
+  requestId,
+  resourceHash,
+  pricingPolicyHash,
+  meteringPolicyHash,
+  requestBodyHash,
+  feeQuoteHash,
+  receiptMode,            // "l1-final" | "dle-batch"
+  maxUsageUnits,
+  expiry
+}
+
+AiUsageReceiptV1 = {
+  requestId,
+  payer, payTo,
+  network, asset, scheme,
+  authorizationNonce,
+  resourceHash,
+  pricingPolicyHash,
+  meteringPolicyHash,
+  inputCommitment,
+  outputCommitment,
+  usageUnits,
+  authorizedMaxAmount,
+  actualAmount,
+  settlementRef,          // L1 tx hash or batch commitment id
+  dleEventNonce,
+  status,
+  startedAt,
+  completedAt
+}
+```
+
+`resourceHash` commits the canonical method + resource URL + media type; `requestBodyHash` commits the request bytes after a frozen canonicalization rule. Prompt text, model output, secrets, API keys, tool credentials, and private retrieval context MUST NOT appear in the extension, public tip leaves, L1 calldata, logs, or receipts. Optional audit material is encrypted to authorized parties before DA storage; public state carries only commitments and non-sensitive counters.
+
+**Metering and price integrity.** x402 transports authorization; it does not prove an AI provider’s hidden GPU time or token count. Each `meteringPolicyHash` MUST freeze at least the model/version, tokenizer/version, input/output counting rule, tool-call and cache-hit treatment, rounding, unit prices, failure/cancellation charge, maximum units, and dispute window. Prefer client-recomputable units—canonical input/output tokenization, response bytes, or explicit tool calls. Opaque provider-only CPU/GPU milliseconds are not objective DLE facts unless backed by a separately specified attestation/challenge system. A committee AC may finalize a receipt commitment; it cannot manufacture truthful usage.
+
+For an `upto` profile:
+
+```text
+authorizedMaxAmount =
+  serviceChargeCap
+  + applicableProtocolFeeCap
+  + executionReserveCap
+
+actualSettlement =
+  meteredServiceCharge
+  + applicableProtocolFee
+  + deterministicExecutionCharge
+
+0 ≤ actualSettlement ≤ authorizedMaxAmount
+```
+
+At facilitator verify time, `PaymentRequirements.amount` is the authorized maximum; at settle time it is the actual amount. The facilitator MUST re-verify the signature against the signed maximum—not against the lower metered amount—and separately enforce actual `≤` maximum. The x402 amount is the maximum total debit under the selected requirement. Any service-principal / protocol / execution breakdown is an auditable DLE extension and fee-policy commitment, never an unsigned surcharge. Fixed epoch availability funding remains provider/chain funding unless an accepted policy explicitly includes a disclosed per-request contribution. AI/API use does **not** automatically inherit the NFT-trade 1 bp rule; a dedicated, timelocked `AiUsageFeePolicyV1` is required before any percentage protocol fee applies.
+
+**Replay, retries, and finality.**
+
+\[
+\mathrm{requestId}=H(\texttt{"dle.x402.ai.v1"}\parallel network\parallel resourceHash\parallel requestBodyHash\parallel payer\parallel payTo\parallel asset\parallel authorizationNonce\parallel pricingPolicyHash).
+\]
+
+- The x402 authorization nonce, API `requestId`, DLE `eventNonce`, facilitator settlement/commitment identifier, and Treasury operation id are **separate replay domains**. None may be substituted for another.
+- One authorization can settle/commit at most once. Repeating `/settle` or the original HTTP request with the same identity MUST return the same terminal result or a deterministic already-consumed error—never a second debit.
+- Same `requestId` with different request bytes, resource, policy, amount ceiling, recipient, asset, or nonce is rejected. A retried response may be served from an integrity-checked cache only after matching the terminal payment state.
+- For `exact` / `upto`, `PAYMENT-RESPONSE` success means the selected mechanism’s payment is durably settled. For `batch-settlement`, it means the commitment was accepted; the response MUST carry a non-empty commitment identifier and MUST NOT falsely claim that token redemption already occurred.
+- Resource failure before usage follows the frozen policy: settle zero / void where the scheme allows it, or charge only the explicitly authorized failure unit. Facilitator outage, unsupported scheme, stale authorization, L1 reorg below the required finality, DLE receipt failure, and metering ambiguity never become “free success” and never justify a second charge.
+
+**Cluster / Master implementation mapping.** A Beamio deployment may preserve its existing internal split: the public x402 adapter and **Cluster** parse canonical v2 headers, canonicalize the resource, run all format/business/signature/balance/replay checks, and perform every scheme-required settle-time re-verification (including `upto` maximum binding) before forwarding a normalized job. **Master** only queues and executes the approved settlement; it does not reinterpret untrusted headers or redo product validation. `authorization` resource execution occurs between the required read-only verify and state-committing settle; `upfront` / `escrow` use the ordering advertised by `/supported`. This internal topology is not part of x402 and MUST remain invisible to interoperable clients.
 
 ### 4.8 Storage-class creator economy (fragmented content + GB access)
 
@@ -2849,6 +2967,7 @@ The candidate production target is at least **1.2×** for new-chain admission, b
 | Delivery-node retention fee | Periodic **conet-GB** to first-completer / authorized set; advances `storagePaidUntil` (§4.8). |
 | Storage social / fork | Signed like / comment / cite events; fork mints child storage NFT with `parentNftId`; WoT inputs for auctions (§4.9). |
 | Storage sales journal | Book access / NFT / royalty sales on storage tip; link parallel **asset-class** payment txs (§4.10). |
+| AI / API pay-per-use | The x402 amount is the signed maximum total debit. `exact` / `upto` settle through the advertised CoNET L1 mechanism; `batch-settlement` uses capital-backed cumulative vouchers only after its CoNET binding exists. Service principal, any timelocked `AiUsageFeePolicyV1` charge, and deterministic execution reserve remain separately auditable; DLE receipt commitments are optional and do not replace L1 payment finality (§4.7a, §13.7). |
 | Trade listing / settle | L1-anchored seller-signed order + seller-set quote (**no NFT oracle / no ≤100 USDC quote cap**); one successful settle charges buyer `quoteAmount + ceil(quoteAmount/10,000)` in the same `quoteAsset`; seller receives exact `quoteAmount`; AC/order/payment/custody must match (§4.7). |
 | Mining / task rewards | Pay honest group members from asset **conet-USDC**, trade **quoteAsset**, and storage **conet-GB** streams; fund slash redistributions. |
 | Group size vs income | Fission to more disjoint 5-active + 2-standby groups → greater **parallel bandwidth**; the archive 50% is weighted among active service/AC signers and standby-readiness duties (§5.2, §13.4). |
@@ -2946,6 +3065,31 @@ Candidate `FeeScaleProfileV1` acceptance gates are:
 
 **Interactive companion analysis.** The parameterized model is archived at [dle-economic-fee-stress-model.md](../../../canvas/dle-economic-fee-stress-model.md), the full measurement report at [dle-p1-real-cost-measurement-report.md](../../../canvas/dle-p1-real-cost-measurement-report.md), and the archive index at [src/canvas/README.md](../../../canvas/README.md). Canvas outputs remain analytical and never override the measured, timelocked L1 policy.
 
+### 13.7 Application-layer HTTP settlement profile (x402 / API gateway)
+
+Section §4.7a freezes the protocol-facing profile; this subsection maps it into the three-ledger economics. **“API gateway” means the off-tip HTTP resource/orchestration layer and is never an alias for `AssetBurnMintGateway`**, whose only role is Treasury V3 canonical-principal burn/remint and exit accounting.
+
+| x402 path | Authoritative payment state | DLE economic mapping |
+| --- | --- | --- |
+| `exact` | One durably settled transfer under the advertised CoNET L1 mechanism | Fixed service principal; optional deterministic execution reserve; no implicit DLE protocol fee |
+| Single-use `upto` | One signed ceiling plus one terminal actual settlement `≤` ceiling | Metered service principal + explicitly applicable fee-policy amount + deterministic execution charge; unused authorization is not revenue |
+| Capital-backed `batch-settlement` | Pre-funded channel/escrow plus monotonic cumulative voucher and eventual L1 redemption | Per-request `AiUsageReceiptV1` / checkpoint may be DLE-finalized; channel collateral and L1 claim remain the payment truth |
+
+The application gateway MAY commit `committedResourceUnits` and an `AiUsageReceiptV1` on a storage-class journal, but only units derivable from the frozen `meteringPolicyHash` enter economics. Relayer self-reported cost, opaque GPU claims, prompt/output plaintext, and unsigned surcharges do not. The payment credential MUST bind the x402 resource and authorization domains; a DLE event additionally binds `chainNftId`, `eventNonce`, event digest, `pricingPolicyHash`, `meteringPolicyHash`, and any `FeeQuoteV1` / `AiUsageFeePolicyV1` hash. HTTP idempotency and DLE nonce consumption are both required and remain separate replay domains.
+
+The three ledgers remain separate:
+
+1. **service principal** belongs to the AI/API provider under the selected x402 scheme;
+2. **protocol fee** is zero unless a dedicated, timelocked `AiUsageFeePolicyV1` explicitly activates it—AI traffic does not inherit the trade 1 bp rule;
+3. **execution reserve** reimburses only accepted `FeeScheduleV1` units and measured L1/facilitator execution; unused caps are released or returned according to the scheme;
+4. **epoch availability funding** remains chain/provider funding unless the signed requirement explicitly discloses a versioned per-request contribution.
+
+User-visible finality MUST match the chosen path. `exact` / `upto` can report paid only after durable L1/facilitator settlement. `batch-settlement` can report only **commitment accepted** until voucher redemption is complete. A DLE AC proves ordering and finality of the usage-receipt commitment; it does not retroactively settle tokens or prove opaque provider metering. Conversely, a settled x402 payment does not imply that an optional DLE receipt has finalized. If the API returns an irreversible result before settlement, the released work must be bounded by verified capital under the advertised payment flow.
+
+Existing implementation evidence is deliberately narrower than this target profile. `src/x402sdk` currently has manually integrated legacy `exact` 402 challenge / facilitator settlement paths for Base USDC in selected Beamio routes. The `/api/ai/*` routes are not pay-per-use, the existing GB charge path is not x402, and neither the DLE `AssetBurnMintGateway` nor the CoNET `DepinGbSettlement1155` pay-by-use rail is wired into a general HTTP gateway. These facts may inform migration, but they do not satisfy x402 v2 conformance or the CoNET target profile.
+
+Production activation therefore requires the §4.7a wire/schema gates and §15 item 18, plus a measured cost epoch covering facilitator latency/failure, L1 settlement or redemption gas, channel collateral utilization, retry/idempotency behavior, metering disputes, and p95/p99 execution liability. An unavailable gateway, facilitator, oracle, or optional DLE receipt path MUST NOT consume a second payment, convert ambiguity into free irreversible delivery, take user principal, or block the independent normal/forced asset-exit safety paths.
+
 ---
 
 ## 14. Comparison Sketch
@@ -2987,6 +3131,7 @@ These items are left explicit so engineering can freeze parameters without rewri
 15. Wallet-layer **ERC-5564 CoNET profile** details (announcement contract / registry, default *n*, view-tag parameters, recover/scan UX) and how clients advertise the **stealth meta-address** (AddressPGP / off-tip QR)—must stay **off** tip/archive/validator-committee paths; do **not** leave BIP-47 / BIP-352 as alternate CoNET L1 runtimes (§4.5).
 16. Hierarchical **key vault** parameters (batch size for spend derivation, hardware/threshold policy, recovery-map encryption, per-shard derivation domain IDs, default per-device hourly merge/withdraw caps) and UX for **key-domain / recovery-domain** isolation—client product only; not tip/archive/validator consensus (§4.5, §12.9).
 17. **Verifiable DA + burn/mint exit** are product-frozen in form (§5.2.1, §4.6): byte-exact **`dle.rs.v1` \((n,k)=(7,4)\)** with frozen GF(2^8) matrix, padding, leaf tree, vectors, full-body re-encoding by every precommit signer, `BadEncodingProof`, assigned-share custody and **UnavailableChallenge**. AC fields include `bodyCommitment`, `payloadLength`, `codecSpecHash`, `daRoot`, `chunkAssignmentRoot`, `tipStateRoot`, parent AC, and L1 context. Treasury V3 burns exact canonical L1 units; normal exit remints through Treasury V3 only after an AC-backed debit and may use `ExitFeeQuoteV1`; force exit uses **`requestForceWithdraw → challengeForceWithdraw → finalizeForceWithdraw`**, monotonic `latestKnownAC`, deterministic contract-derived claim id/nullifier, pending-owner spend freeze, cumulative `totalBurnedIn` / `totalMintedOut` accounting, emergency-reserve funding, and \(T_{\mathrm{exit}}\). The old one-shot interface and escrow-vault model are forbidden. Open items: numeric DA/exit/archive timeouts, bonds/bounties, exact canonical `BlockBodyV1` container encoding, fraud-proof execution environment/gas benchmark, AC ancestry proof encoding, gateway + Treasury DLE-authority-interface ABI and canonical-token allowlist—**not** whether chunk membership alone proves correct encoding.
+18. **AI pay-per-use / x402 v2 is target-frozen at the boundary but not implementation-complete** (§4.7a): HTTP uses `PAYMENT-REQUIRED` / `PAYMENT-SIGNATURE` / `PAYMENT-RESPONSE`; CoNET is `eip155:224422`; `exact`, single-use `upto`, and capital-backed `batch-settlement` retain their scheme-specific semantics; DLE stores commitments, not prompt/output plaintext or arbitrary API code. Open release gates are: a frozen CoNET mechanism binding and canonical asset-transfer method for each advertised scheme; facilitator `/supported` discovery; `conet-dle` extension JSON Schema; byte-exact `AiUsageReceiptV1` and voucher/FSM encodings; idempotency/replay, zero-charge, partial-stream, timeout, facilitator-failure and L1-reorg vectors; an L1 escrow/channel implementation and measured gas/capacity for batch settlement; metering-policy challenge rules; and an explicit `AiUsageFeePolicyV1`. The existing `src/x402sdk` legacy exact path must not be advertised as v2 before those gates pass.
 
 ---
 
@@ -3015,6 +3160,8 @@ Security remains conditional. The ≤100 USDC-equivalent asset-tip cap limits di
 11. **BIP-352** — Silent Payments for Bitcoin UTXO/Taproot (design **reference** only; **not** an EVM drop-in; requires recipient block scan).
 12. **ERC-5564** / **ERC-6538** — **CoNET L1 / EVM canonical** stealth addresses and stealth meta-address registry (wallet-layer freeze in §4.5).
 13. Buchman, Kwon, Milosevic — **The latest gossip on BFT consensus** / Tendermint consensus; normative safety-state baseline for archive Proposal-reference → Prevote → Precommit (§5.2.1), adapted so archives certify but never produce application blocks.
+14. **x402 Foundation — x402 Specification v2**, HTTP transport v2, `exact`, `upto`, and `batch-settlement` scheme specifications: <https://github.com/x402-foundation/x402/tree/main/specs>.
+15. **CAIP-2 / EIP-155 namespace** — chain-agnostic blockchain identifiers; CoNET L1 is represented as `eip155:224422`: <https://standards.chainagnostic.org/CAIPs/caip-2>.
 
 ---
 
@@ -3068,6 +3215,8 @@ Security remains conditional. The ≤100 USDC-equivalent asset-tip cap limits di
 | **`dle.rs.v1` / \((n,k)=(7,4)\)** | Byte-exact systematic GF(2^8) codec with fixed matrix, padding, Merkle leaves, and vectors. Every precommit signer replays the full body and recomputes all seven chunks/root; any 4 reconstruct (§5.2.1). |
 | **BadEncodingProof** | Objective proof that AC-committed chunks do not match `bodyCommitment` or the deterministic `dle.rs.v1` codeword; valid proof freezes/slashes the bad height (§5.2.1). |
 | **L1 AssetBurnMintGateway + Treasury V3** | Only Treasury V3 canonical ERC-20 principal is admitted. Treasury V3 performs exact physical burns/remints and owns the globally single-use operation domain; the gateway records `BURNED_PENDING`, activates backing only against a valid genesis AC, refunds expired unactivated burns only to the burner, and consumes one common exit right before Treasury remint. It tracks `latestKnownAC`, per-tip/global credit and mint-outs, replacement reservations, cumulative owner mint-outs, and challenged exits (§4.6, §5.2.1). |
+| **x402 v2 API-gateway profile** | Target HTTP payment edge for AI/API resources: `402` + `PAYMENT-REQUIRED`, client `PAYMENT-SIGNATURE`, server `PAYMENT-RESPONSE`, facilitator `/verify` / `/settle` / `/supported`, and CoNET CAIP-2 network `eip155:224422`. DLE optionally commits privacy-preserving usage receipts and future capital-backed batch checkpoints; it neither executes AI code nor proves opaque provider metering (§4.7a). |
+| **AiUsageReceiptV1** | Versioned commitment to resource/pricing/metering policies, input/output hashes, bounded authorized and actual charges, replay-separated request/authorization/event identities, and an L1 settlement or batch-commitment reference. It contains no prompt/output plaintext (§4.7a). |
 | **ExitFeeQuoteV1** | Normal-exit, payer/sponsor-capped conet-USDC execution reserve for objective AC/proof/L1 finalize costs; it carries no percentage protocol fee and cannot reduce reminted principal (§4.6, §13.2). |
 | **Forced-exit claim** | L1 `request → challenge → finalize` state machine. Claim id/nullifier is contract-derived; a higher descendant AC can reduce/cancel a stale claim; only finalization remints cumulatively accounted burned supply. Its safety execution is prefunded by `emergencyReserveUsdc6` (§5.2.1). |
 | **Natural privacy** | Dual: DePIN **comms** privacy + **asset** privacy that **raises clustering cost** and breaks one-address portfolio equivalence—**not** strong anonymity (§4.5, §7.6). |
