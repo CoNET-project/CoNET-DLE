@@ -1,0 +1,310 @@
+{
+  "schema": "dle.archive.tendermint.vectors.v1",
+  "revision": "2026-08-13",
+  "encoding": {
+    "canonical": "SSZ",
+    "hashTreeRoot": "SSZ SHA-256 merkleization",
+    "signingRoot": "keccak256(utf8(signatureDomainTag) || hash_tree_root(object))",
+    "unsignedIntegers": "fixed-width little-endian",
+    "noneRound": 4294967295,
+    "nilValue": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "steps": {
+      "PREVOTE": 1,
+      "PRECOMMIT": 2
+    }
+  },
+  "containers": {
+    "ProposalSignBytesV1": [
+      "protocolVersion:Bytes32",
+      "l1ChainId:uint64",
+      "archiveGroupId:uint64",
+      "chainNftId:uint256",
+      "tipHeight:uint64",
+      "round:uint32",
+      "proposalValueHash:Bytes32",
+      "validRoundOrNone:uint32",
+      "validPrevoteQCRefOrZero:Bytes32",
+      "attemptNonce:uint64",
+      "membershipEpoch:uint64",
+      "membershipRoot:Bytes32",
+      "keyEpoch:uint64"
+    ],
+    "VoteSignBytesV1": [
+      "protocolVersion:Bytes32",
+      "l1ChainId:uint64",
+      "archiveGroupId:uint64",
+      "chainNftId:uint256",
+      "tipHeight:uint64",
+      "round:uint32",
+      "step:uint8",
+      "valueHashOrZero:Bytes32",
+      "attemptNonce:uint64",
+      "membershipEpoch:uint64",
+      "membershipRoot:Bytes32",
+      "keyEpoch:uint64",
+      "prevoteQCRefOrZero:Bytes32"
+    ]
+  },
+  "fixture": {
+    "protocolVersion": "0x06c8ad5ba4b5da846bda64f2f14ed297a12fd7d4bc9b2f7e0c28ca572dd8483f",
+    "l1ChainId": "224422",
+    "archiveGroupId": "7",
+    "chainNftId": "42",
+    "tipHeight": "9",
+    "round": 2,
+    "attemptNonce": "3",
+    "membershipEpoch": "11",
+    "membershipRoot": "0x1111111111111111111111111111111111111111111111111111111111111111",
+    "keyEpoch": "5",
+    "valueHash": "0xc22aa4e9f8a69f660a9ede9d91a069ae2fddc679a3ccd48f67654db6643f9493",
+    "prevoteQcRef": "0xabababababababababababababababababababababababababababababababab"
+  },
+  "sszVectors": [
+    {
+      "id": "SSZ-PROPOSAL-NO-VALID",
+      "type": "ProposalSignBytesV1",
+      "signatureDomainTag": "dle.archive.proposal.v1",
+      "input": {
+        "validRoundOrNone": 4294967295,
+        "validPrevoteQCRefOrZero": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "canonicalSsz": "0x06c8ad5ba4b5da846bda64f2f14ed297a12fd7d4bc9b2f7e0c28ca572dd8483fa66c03000000000007000000000000002a00000000000000000000000000000000000000000000000000000000000000090000000000000002000000c22aa4e9f8a69f660a9ede9d91a069ae2fddc679a3ccd48f67654db6643f9493ffffffff000000000000000000000000000000000000000000000000000000000000000003000000000000000b0000000000000011111111111111111111111111111111111111111111111111111111111111110500000000000000",
+      "hashTreeRoot": "0x0af7294ce69fe0c42cdb24a901bd2e9c535e4aa6221b26a32b17b7792c21c757",
+      "signingRoot": "0xe6e1d74dbddcd11cbae8bc5e25a6bbc0221096fb8e2b30255c1500cf6658ecef"
+    },
+    {
+      "id": "SSZ-PROPOSAL-VALID-ROUND-1",
+      "type": "ProposalSignBytesV1",
+      "signatureDomainTag": "dle.archive.proposal.v1",
+      "input": {
+        "validRoundOrNone": 1,
+        "validPrevoteQCRefOrZero": "0xabababababababababababababababababababababababababababababababab"
+      },
+      "canonicalSsz": "0x06c8ad5ba4b5da846bda64f2f14ed297a12fd7d4bc9b2f7e0c28ca572dd8483fa66c03000000000007000000000000002a00000000000000000000000000000000000000000000000000000000000000090000000000000002000000c22aa4e9f8a69f660a9ede9d91a069ae2fddc679a3ccd48f67654db6643f949301000000abababababababababababababababababababababababababababababababab03000000000000000b0000000000000011111111111111111111111111111111111111111111111111111111111111110500000000000000",
+      "hashTreeRoot": "0xc7a72bdbe8d08522a3cd3bd07eca81e5e811e028a4697b340ebb8c0072d5060b",
+      "signingRoot": "0x9e507ef7640d018599020e1f866dea664b76bcdeac902981498f0a4ab369c90b"
+    },
+    {
+      "id": "SSZ-PREVOTE-ACCEPT",
+      "type": "VoteSignBytesV1",
+      "signatureDomainTag": "dle.archive.vote.v1",
+      "input": {
+        "step": 1,
+        "valueHashOrZero": "0xc22aa4e9f8a69f660a9ede9d91a069ae2fddc679a3ccd48f67654db6643f9493",
+        "prevoteQCRefOrZero": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "canonicalSsz": "0x06c8ad5ba4b5da846bda64f2f14ed297a12fd7d4bc9b2f7e0c28ca572dd8483fa66c03000000000007000000000000002a0000000000000000000000000000000000000000000000000000000000000009000000000000000200000001c22aa4e9f8a69f660a9ede9d91a069ae2fddc679a3ccd48f67654db6643f949303000000000000000b00000000000000111111111111111111111111111111111111111111111111111111111111111105000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "hashTreeRoot": "0xda3dc38126779d884f807cef5797e4dbe97707d70a13970972b7d91b72cb0c15",
+      "signingRoot": "0x31ffeecd1ba1eddd2adc320eb3aacf82294e51e22b320d6a7b0255cc3474dcbf"
+    },
+    {
+      "id": "SSZ-PREVOTE-NIL",
+      "type": "VoteSignBytesV1",
+      "signatureDomainTag": "dle.archive.vote.v1",
+      "input": {
+        "step": 1,
+        "valueHashOrZero": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "prevoteQCRefOrZero": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "canonicalSsz": "0x06c8ad5ba4b5da846bda64f2f14ed297a12fd7d4bc9b2f7e0c28ca572dd8483fa66c03000000000007000000000000002a0000000000000000000000000000000000000000000000000000000000000009000000000000000200000001000000000000000000000000000000000000000000000000000000000000000003000000000000000b00000000000000111111111111111111111111111111111111111111111111111111111111111105000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "hashTreeRoot": "0xf6bab9337ccad5c674cc0840ec5ce9bb8ab40ce51f3839798a4b4a8fd6e0dcdf",
+      "signingRoot": "0xd9de909838ed155b0eb4fc46b6adfb7a55f7e07998f5cc377eeb0e13963d9e61"
+    },
+    {
+      "id": "SSZ-PRECOMMIT-ACCEPT",
+      "type": "VoteSignBytesV1",
+      "signatureDomainTag": "dle.archive.vote.v1",
+      "input": {
+        "step": 2,
+        "valueHashOrZero": "0xc22aa4e9f8a69f660a9ede9d91a069ae2fddc679a3ccd48f67654db6643f9493",
+        "prevoteQCRefOrZero": "0xabababababababababababababababababababababababababababababababab"
+      },
+      "canonicalSsz": "0x06c8ad5ba4b5da846bda64f2f14ed297a12fd7d4bc9b2f7e0c28ca572dd8483fa66c03000000000007000000000000002a0000000000000000000000000000000000000000000000000000000000000009000000000000000200000002c22aa4e9f8a69f660a9ede9d91a069ae2fddc679a3ccd48f67654db6643f949303000000000000000b0000000000000011111111111111111111111111111111111111111111111111111111111111110500000000000000abababababababababababababababababababababababababababababababab",
+      "hashTreeRoot": "0x64bbf7fc11f328bf51b6d9bbc7be33c8387ce6bb5c5f42bba7e8c500439250b8",
+      "signingRoot": "0x436a9fc8a93943eb8177c2da51b6f32ad11af38636d01c79e876afd9bcfb664b"
+    },
+    {
+      "id": "SSZ-PRECOMMIT-NIL",
+      "type": "VoteSignBytesV1",
+      "signatureDomainTag": "dle.archive.vote.v1",
+      "input": {
+        "step": 2,
+        "valueHashOrZero": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "prevoteQCRefOrZero": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "canonicalSsz": "0x06c8ad5ba4b5da846bda64f2f14ed297a12fd7d4bc9b2f7e0c28ca572dd8483fa66c03000000000007000000000000002a0000000000000000000000000000000000000000000000000000000000000009000000000000000200000002000000000000000000000000000000000000000000000000000000000000000003000000000000000b00000000000000111111111111111111111111111111111111111111111111111111111111111105000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "hashTreeRoot": "0xf8cbf2c7c17160b9f0bf0a085535b4ca1f531ba170f389b6aba93c799e208baf",
+      "signingRoot": "0x5545e721bb1683118ee64849876097a4ac0155019acbe4b93f942c235a3375c5"
+    }
+  ],
+  "stateMachineVectors": [
+    {
+      "id": "TM-NORMAL-COMMIT",
+      "initial": "height=9 round=0 unlocked; first valid coordinator proposal A",
+      "steps": [
+        "persist proposal A",
+        "prevote A",
+        "observe 4-of-5 PrevoteQC(A,0)",
+        "set valid=A@0 and lock=A@0",
+        "precommit A with exact prevoteQCRef",
+        "observe 4-of-5 PrecommitQC(A,0)"
+      ],
+      "expected": "persist exactly one ArchiveCertificate(A); initialize height 10"
+    },
+    {
+      "id": "TM-NIL-VOTES",
+      "initial": "no valid proposal; prior lock A@1 may exist",
+      "steps": [
+        "emit SSZ-PREVOTE-NIL",
+        "observe nil PrevoteQC or prevote timeout",
+        "emit SSZ-PRECOMMIT-NIL",
+        "observe nil PrecommitQC or valid precommit TC"
+      ],
+      "expected": "enter next round; preserve prior lockedRound, lockedValueHash, validRound and validValueHash"
+    },
+    {
+      "id": "TM-LOCK-CONFLICT",
+      "initial": "locked A@1; round-2 proposal B has no valid PrevoteQC above round 1",
+      "expected": "prevote nil; retain A@1",
+      "forbidden": "prevote B, unlock A, or prevote A without a proposal"
+    },
+    {
+      "id": "TM-SAME-VALUE-LOCK",
+      "initial": "locked A@1; round-2 proposal A is valid and available",
+      "expected": "prevote A; retain lockedValue=A and lockedRound=1 until a round-2 PrevoteQC(A,2) is observed",
+      "forbidden": "unlock, change lockedRound on proposal receipt, or prevote nil"
+    },
+    {
+      "id": "TM-PROPOSAL-DOES-NOT-LOCK",
+      "initial": "unlocked at round 3; proposal B carries valid PrevoteQC(B,2)",
+      "expected": "set proposal justification context and prevote B; remain unlocked until current-round PrevoteQC(B,3)",
+      "forbidden": "set lockedValue or lockedRound merely from the proposal or round-2 QC"
+    },
+    {
+      "id": "TM-HIGHER-VALID-ROUND",
+      "initial": "locked A@1; round-3 proposal B carries valid 4-of-5 PrevoteQC(B,2)",
+      "expected": "prevote B; only a round-3 PrevoteQC(B,3) may set lock B@3",
+      "forbidden": "change lock merely on proposal receipt"
+    },
+    {
+      "id": "TM-CURRENT-ROUND-QC-SETS-VALID-AND-LOCK",
+      "initial": "round 3; node prevoted B and observes 4-of-5 PrevoteQC(B,3)",
+      "expected": "atomically persist validValue=B, validRound=3, lockedValue=B, lockedRound=3 and then precommit B with the exact QC reference",
+      "forbidden": "precommit before durable lock/valid state or bind a different prevoteQCRef"
+    },
+    {
+      "id": "TM-TIMEOUT-PRESERVES-LOCK-AND-VALID",
+      "initial": "locked A@1 and valid A@1; round 2 ends with nil precommit QC or valid timeout certificate",
+      "expected": "enter round 3 with locked A@1 and valid A@1 unchanged",
+      "forbidden": "clear or lower lockedRound/validRound"
+    },
+    {
+      "id": "TM-WAL-CRASH-BEFORE-FSYNC",
+      "initial": "node selected Prevote(A,round=4) but crashes before the vote and resulting lock/valid transition are durably committed",
+      "expected": "restart treats the vote as not emitted and re-evaluates round 4 from the last durable state",
+      "forbidden": "recover a guessed signature or allow any signature to leave the process before WAL durability"
+    },
+    {
+      "id": "TM-WAL-CRASH-BEFORE-SEND",
+      "initial": "WAL fsync contains exact Prevote(A,round=4); process crashes before network send",
+      "expected": "restart replays and retransmits byte-identical Prevote(A,4)",
+      "reject": {
+        "input": "proposal B at round 4",
+        "code": "ERR_WAL_DOUBLE_SIGN"
+      }
+    },
+    {
+      "id": "TM-WAL-CRASH-AFTER-SEND",
+      "initial": "peer received Precommit(A,round=4); local process crashes after send",
+      "expected": "WAL replay recovers the identical precommit and prevoteQCRef; retransmission is idempotent",
+      "forbidden": "sign nil or B for the same round/step"
+    },
+    {
+      "id": "TM-WAL-CRASH-AFTER-QC-BEFORE-PRECOMMIT-SEND",
+      "initial": "node observed PrevoteQC(A,4), durably stored valid/lock A@4 and exact QC reference, then crashed before precommit send",
+      "expected": "restart preserves valid/lock A@4 and emits or retransmits only Precommit(A,4) bound to the durable QC reference",
+      "forbidden": "forget the lock, precommit nil, or bind a different QC"
+    },
+    {
+      "id": "TM-WAL-PARTIAL-OR-CORRUPT-RECORD",
+      "initial": "restart finds a truncated record or checksum/signing-root mismatch at the latest vote boundary",
+      "expected": "enter non-voting recovery; reconcile current AC, membership/key epoch, lock/valid state and QCs from at least 4 current members",
+      "forbidden": "guess the missing vote, truncate and continue signing, or reset lock state",
+      "code": "ERR_WAL_RECOVERY_REQUIRED"
+    },
+    {
+      "id": "TM-WAL-AC-DURABLE-BEFORE-HEIGHT-ADVANCE",
+      "initial": "AC(A,H=9) is durable but local committed-height marker was not advanced before crash",
+      "expected": "restart replays the same AC, atomically advances to H=10 once, and never signs another H=9 value",
+      "forbidden": "serve H=10 before the AC is durable or produce a second H=9 AC"
+    },
+    {
+      "id": "TM-MEMBERSHIP-H",
+      "initial": "M0/keyEpoch5 is active at H=9; finalized update schedules M1/keyEpoch6 for H+1",
+      "accept": "votes and AC under M0/keyEpoch5 at H=9",
+      "reject": [
+        {
+          "input": "M1 vote at H=9",
+          "code": "ERR_MEMBERSHIP_NOT_ACTIVE"
+        },
+        {
+          "input": "QC mixing M0 and M1",
+          "code": "ERR_MIXED_MEMBERSHIP_ROOT"
+        }
+      ]
+    },
+    {
+      "id": "TM-MEMBERSHIP-H-PLUS-1",
+      "initial": "L1 switch to M1/keyEpoch6 is final before signing H=10",
+      "accept": "votes and AC under M1/keyEpoch6 at H=10",
+      "reject": [
+        {
+          "input": "M0 vote or QC at H=10",
+          "code": "ERR_MEMBERSHIP_NOT_ACTIVE"
+        },
+        {
+          "input": "proposal names M1 but vote names M0",
+          "code": "ERR_MEMBERSHIP_ROOT_MISMATCH"
+        }
+      ]
+    },
+    {
+      "id": "TM-DUAL-ROOT-SAME-HEIGHT",
+      "initial": "two locally observed checkpoint claims designate different active roots for H=10",
+      "expected": "do not sign; enter non-voting recovery and resolve the unique finalized L1 checkpoint",
+      "code": "ERR_AMBIGUOUS_L1_MEMBERSHIP_CHECKPOINT"
+    },
+    {
+      "id": "TM-OLD-ROOT-NEW-KEY-EPOCH",
+      "initial": "H=10 activates M1/keyEpoch6 but a vote binds M0/keyEpoch6 or M1/keyEpoch5",
+      "expected": "reject before signature aggregation",
+      "code": "ERR_KEY_EPOCH_MISMATCH"
+    },
+    {
+      "id": "TM-REJECT-BEFORE-ACCEPT-QC",
+      "initial": "a valid CandidateRejectCertificate is durable before any non-nil accept QC for the same conflict domain",
+      "expected": "freeze the height, refuse further non-nil votes for that candidate and submit reject evidence to L1",
+      "forbidden": "continue aggregating accept votes because a QC has not yet formed",
+      "code": "ERR_REJECT_ACCEPT_CONFLICT"
+    },
+    {
+      "id": "TM-REJECT-VS-PREVOTE-QC",
+      "initial": "same candidateId, attemptNonce, membershipEpoch obtains both CandidateRejectCertificate and non-nil PrevoteQC",
+      "expected": "freeze height and submit conflict evidence to L1; arrival order and higher round select neither",
+      "code": "ERR_REJECT_ACCEPT_CONFLICT"
+    },
+    {
+      "id": "TM-REJECT-VS-PRECOMMIT-QC-BEFORE-AC",
+      "initial": "CandidateRejectCertificate and non-nil PrecommitQC exist for the same conflict domain, but AC durability/height advance is incomplete",
+      "expected": "freeze without serving finality; persist both objects and enter L1 dispute",
+      "forbidden": "construct or serve an AC, discard the reject certificate, or choose by arrival order",
+      "code": "ERR_REJECT_ACCEPT_CONFLICT"
+    },
+    {
+      "id": "TM-REJECT-AFTER-AC",
+      "initial": "valid AC already persisted; CandidateRejectCertificate for same candidate arrives later",
+      "expected": "never roll back locally; emit BadFinalityEvidence and freeze L1 spendability pending dispute",
+      "code": "ERR_REJECT_AFTER_FINALITY"
+    }
+  ]
+}

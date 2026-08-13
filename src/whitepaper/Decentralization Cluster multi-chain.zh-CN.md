@@ -4,10 +4,18 @@
 
 **作者：** Peter Xie  
 **初稿：** 2023  
-**修订：** 2026-08-13（每组 5 名活跃归档 + 2 名专属有序备选、严格 4/5 quorum、五槽 AdaptiveRotationV1、OperatorDomainRegistryV1、L1QueueAccumulatorV1、线级 Tendermint/SSZ/WAL 规则、确定性 `dle.rs.v1` 正确编码证明、带挑战期强制退出、L1 burn/mint 资产网关、**10–100 USDC 等值资产流入区间**、L1 锚定卖方订单、协议费/执行准备金/可用性预算三账本、所有资产统一 L1 pool/TWAP 准入；归档无出块权）
+**修订：** 2026-08-13（每组 5 名活跃归档 + 2 名专属有序备选、严格 4/5 quorum、五槽 AdaptiveRotationV1、OperatorDomainRegistryV1、L1QueueAccumulatorV1、线级 Tendermint/SSZ/WAL 规则、确定性 `dle.rs.v1` 正确编码证明、带挑战期强制退出、Treasury V3 规范 ERC-20 burn/remint 网关、**P1 实测证据边界：100-USDC 安全封顶已冻结，10-USDC 下限与 1.2× coverage 仍属临时参数**、L1 锚定卖方订单、协议费/执行准备金/可用性预算三账本、Treasury 规范资产 L1 pool/TWAP 准入；归档无出块权）
 
 **成对译本（必须同步更新）：** [`Decentralization Cluster multi-chain.md`](./Decentralization%20Cluster%20multi-chain.md)
 **同步守则：** `.cursor/rules/conet-layer2-whitepaper-bilingual-sync.mdc`
+
+**规范性实现规范：**
+
+- [`AssetBurnMintGateway 不变量规范`](./DLE-AssetBurnMintGateway-Invariant-Spec.zh-CN.md) + 有界 [`TLA+ 模型`](./DLEAssetBurnMintGateway.tla)
+- [`Archive Tendermint 一致性规范`](./DLE-Archive-Tendermint-Conformance-Spec.zh-CN.md) + canonical [`SSZ/状态机向量`](./DLE-Archive-Tendermint-Vectors-v1.json)
+- [`OperatorDomainRegistryV1 规范`](./DLE-OperatorDomainRegistryV1-Spec.zh-CN.md)
+
+**开发评估快照：** [`DLE P0/P1 形式化补正评估`](../../../canvas/dle-p0-p1-formalization-review.md) 记录本轮批评到控制项的映射及尚未完成的工程发布门；该快照不具规范性。
 
 ---
 
@@ -19,8 +27,8 @@
 - **原子（按链）：** tip 前进须获 **Q_V=5/7** 验证人证明，再获托管分片的 **归档证书**（§6.5、§5.2.1）。
 - **仅事件出块：** **无事件 ⇒ 不出块**；禁止空 slot、归档控制块与 anchor 块。
 - **L1 出生证明：** 创建新链必须在 CoNET L1 铸造唯一 NFT；任意归档均可接收请求，全体归档镜像 `QUEUED / NewChainQueue`。规范顺序由 CoNET L1 **`L1QueueAccumulatorV1`** 单调累加并冻结区间，再经**可公开复算的 v1 均匀 roulette** 与 L1 reservation；创世 AC 的 \(Q_A=4/5\) PlacementCertificate 可由 **任意 relayer** 提交。不采用跨组 \(Q_G\) 检查点、5/5 或“最后签字者执行”。
-- **资产价值区间：** 每笔外部 burn 流入和每个新分配的 spillover tip 激活时必须为 **10–100 USDC 等值**；后续每个资产事件都重估 tip，若余额 **> 100 USDC**，转出 / 超额 **须建新链**。市场价格下跌导致低于 10 时不得没收资产，也不得阻断安全退出（§4.6、§13.3）。
-- **资产流入/退出守恒：** 资产进入 L2 时由 L1 `AssetBurnMintGateway` 精确 **burn**；仅在普通或强制退出终局后精确 **mint** 归还同一资产。没有可验证 `burnFrom + mint` 适配器的资产不得进入资产类 L2（§4.6）。
+- **资产价值区间：** 每笔外部 burn 流入和每个新分配的 spillover tip 激活时必须位于**证据批准的 `minIngressUsdc6`** 与已冻结 **100-USDC 等值封顶**之间；当前 10-USDC 下限只是预生产校准种子。后续每个资产事件都重估 tip，若余额 **> 100 USDC**，转出 / 超额 **须建新链**。市场价格下跌导致低于 active floor 时不得没收资产，也不得阻断安全退出（§4.6、§13.3）。
+- **资产流入/退出守恒：** DLE v1 只接受 **CoNET L1 Treasury V3 规范 ERC-20**——即经 `TreasuryBridgeV3` 规范资产路径发行/登记、地址稳定的 `TreasuryCanonicalERC20V3` 代理。资产进入 L2 时，由 `AssetBurnMintGateway` 协调 Treasury V3 权限轨精确 burn；仅在失败创世退款终局或普通/强制退出终局后，由 Treasury V3 精确 remint 同一规范 token。任意外部 ERC-20 与调用方私自提供的 burn/mint adapter 均不得准入（§4.6）。
 - **交易类（原子 NFT 式出售）：** 用户开设 **交易** tip 作为 **L2 订单 / 状态协调器**，挂牌既有 **资产** 或 **存储** 链。挂单报价由卖方设定（`quoteAsset` + `quoteAmount`），**无 ≤100 USDC oracle 封顶**——去中心化系统 **无法** 对 NFT 做可靠 oracle 估值（§4.7）。Tip 开启前，卖方 EIP-712 订单摘要与标的 NFT 必须在 CoNET **L1 Settlement Contract** 内原子锚定。Tip 按冻结的 **Trade FSM** 前进（`Open→Locked→SettleReady→…`，§10.2）。**最终原子交割**（支付卖方 **且** 转移标的 L1 NFT 所有权）在一笔 Settlement 调用中完成；交易 tip 随后 **关闭**。AC 只能证明已就绪，不能发明或改写卖方条款。
 - **存储类创作者经济 / 私密版权交付：** 与 Beamio `CopyrightContentModule` 同一论题：所有者碎片化并以授权 DePIN miner 封存私密组装 index；tip/L1 仅存 hash；买方付 **conet-GB**、绑定买方 PGP；**最先完成者** miner 交付买方绑定密文；短期访问 URL + 周期存储费；明文永不上链（§4.8）。
 - **版权 ZERO / 版本树：** 存储 tip 形成 **谱系树**（原创 + 修改者）；每个分支点是可经交易类挂牌的 **独立 L1 NFT**；tip 记录 **社交历史**（点赞、评论、引用）作为拍卖估值的 **Web of Trust** 信号（§4.9）。
@@ -54,7 +62,7 @@ CoNET-DLE 走另一条路：按 **账本分片**，而不只是在一条账本�
 2. **可验证随机选取**（归档节点熵上的 roulette）进入 **小规模** 维护组。
 3. 新区块提案的 **Q_V=5/7** 验证人法定人数（否则按 §6.5 解散 / 提升候补 / 重选）。
 4. **归档节点集群** 存储全量状态并做质量检查 / 回滚。
-5. **强制 CoNET L1 NFT**：每条新链唯一 token id、**恰好一类**（**资产 / 存储 / 交易**）、所有权，以及（资产类）通过批准 L1 burn/mint adapter 执行、经 oracle 评估的 **10–100 USDC 等值激活流入区间**；不能在流入时 burn、退出终局后 mint 的资产不得进入 L2。10 USDC 是经济粉尘下限，100 USDC 是 **单 tip 直接损失上限**，**不是** 串谋动机 → 0 的断言（§12.2、§13.3）。**交易类** 挂单出售既有资产或存储链；卖方条款须经 EIP-712 / EIP-1271 直接授权并在 L1 托管锚定，**跨层原子成交** 由 CoNET **L1 Settlement Contract** 执行，而非 tip 本地回滚（§4.7）。
+5. **强制 CoNET L1 NFT**：每条新链唯一 token id、**恰好一类**（**资产 / 存储 / 交易**）、所有权，以及（资产类）基于 Treasury V3 规范 ERC-20、由**实测 active floor 至已冻结 100-USDC 等值封顶**的 oracle 激活流入区间。外部资产必须先通过独立的 Treasury V3 去中心化跨链路由成为 CoNET L1 规范表示；DLE 不直接 burn 外链 token。10 USDC 只是当前经济粉尘下限校准候选；100 USDC 是 **单 tip 直接损失上限**，**不是** 串谋动机 → 0 的断言（§12.2、§13.3）。**交易类** 挂单出售既有资产或存储链；卖方条款须经 EIP-712 / EIP-1271 直接授权并在 L1 托管锚定，**跨层原子成交** 由 CoNET **L1 Settlement Contract** 执行，而非 tip 本地回滚（§4.7）。
 
 质押矿工按自身算力与网络能力决定同时承销多少条链。轻量验证者不必存全历史，可按需参与——减轻资本型 PoS 与 ASIC PoW 垄断带来的中心化压力。
 
@@ -85,7 +93,7 @@ CoNET-DLE 走另一条路：按 **账本分片**，而不只是在一条账本�
 
 - **并行（设计目标）：** 网络承载 **大量** 独立原子链；容量随质押 / 归档平面宽度扩展，而非共享全局 tip——**不是**「无限免费 TPS」的营销断言。
 - **原子（按链）：** 新 tip 前进须获验证人委员会的 \(Q_V=5/7\) 区块证明，再获托管归档分片的 **归档证书（= PrecommitQC）**；归档不生产第二个块。
-- **爆炸半径有界且无粉尘链：** 一条链的危机不阻断无关链；**资产** tip 仅在 **10–100 USDC 等值**区间内流入或新拆分，上限约束直接现金爆炸，下限避免固定成本粉尘 tip。
+- **爆炸半径有界且无粉尘链：** 一条链的危机不阻断无关链；**资产** tip 仅在证据批准下限与已冻结 **100-USDC 等值封顶**之间流入或新拆分，上限约束直接现金爆炸，实测下限避免固定成本粉尘 tip。
 - **随 miner 扩容：** 每增加诚实 miner，网络可 **同时** 承销的链更多；更大 roulette 池可 **降低** 攻击者份额 \(p\)——俘获风险仍须 \(P_{\mathrm{prop}}\) / \(P_{\mathrm{year}}\)（§12.3.1）。
 
 ### 3.2 事件驱动出块
@@ -175,18 +183,18 @@ CoNET-DLE 走另一条路：按 **账本分片**，而不只是在一条账本�
 | **唯一性**        | 一个 NFT id ↔ 一条 DLE 链；无 L1 mint 则无匿名创世。                                                                                           |
 | **类别（三选一）**    | mint / 配置时固定为 **恰好一种**：**资产类**、**存储类** 或 **交易类**。                                                                                |
 | **所有权 / 归档归属** | 所有者与付费方钩子绑定 NFT id。**新链托管** 为 NewChainQueue + **UniformPlacementV1** 进入具备完整 **5 活跃 + 2 ready 备选** 的归档组，再写 L1 **`archiveGroupId[tokenId]`**（§5.2）——**不是** `tokenId mod S`，也 **不是** 哈希残类。后续事件跟随 L1 指针。任一 DLE 链的 **权威所有者** 为 CoNET L1 **`ownerOf(nftId)`**。 |
-| **资产 burn 流入（仅资产类）** | 资产须在 L1 `AssetAdmissionRegistry` 为 `ACTIVE`；**包括 conet-USDC 在内的每种资产** 均须有经批准的 CoNET L1 去中心化池 / 路由 + TWAP adapter + 最低流动性，以及由 L1 `AssetBurnMintGateway` 控制的精确 `burnFrom` / `mint` adapter。每笔激活流入必须由 gateway 自身的新鲜 L1 TWAP 报价——而非客户端报价——证明处于该 policy 的 **`minIngressUsdc6`（v1 默认 10 USDC）至 100 USDC 等值**之间；不能在流入时 burn、退出终局后 mint 的资产不得进入资产类 L2（§4.6、§13.3）。 |
+| **资产 burn 流入（仅资产类）** | 资产须在 L1 `AssetAdmissionRegistry` 为 `ACTIVE`，且必须是被规范 `TreasuryBridgeV3` 代理识别的 CoNET L1 `TreasuryCanonicalERC20V3` 代理。**包括 conet-USDC 在内的每种规范资产** 仍须有经批准的 CoNET L1 去中心化池 / 路由 + TWAP adapter + 最低流动性。每笔激活流入必须由 gateway 自身的新鲜 L1 TWAP 报价——而非客户端报价——证明处于该 policy 的**证据批准 `minIngressUsdc6` 至 100 USDC 等值**之间；10 USDC 只是当前预生产种子。Treasury V3 执行物理 burn/remint；`AssetBurnMintGateway` 证明并记账 DLE 状态转换。未先成为 Treasury V3 规范资产的外部或任意 ERC-20 不得进入资产类 L2（§4.6、§13.3）。 |
 | **交易标的（仅交易类）** | 创世绑定已生效的 L1 `escrowOrderHash`；该摘要覆盖 **标的** collection + 资产/存储 NFT id 及卖方条款；由 **L1 Settlement Contract** 原子支付卖方并转移 **该标的** 的 L1 所有权（§4.7）。 |
 
 
-**有界碎片化作为损失与成本规则（非防串谋定理）：** v1 外部流入与新 tip 区间为 **10–100 USDC 等值**。上限约束 **每次成功资产 tip 俘获的直接经济损失**；下限避免为任意小的“粉尘 tip”承担固定 L1 burn/activation、oracle、DA、归档与后续退出成本。该下限是准入规则，不是手续费，也不是没收：后续价格下跌导致低于 10 时，不得抹除或强制关闭既有 tip。该区间 **并不** 意味着串谋动机「趋于零」，也 **不能替代** 委员会安全、归档 BFT、俘获概率 P_{\mathrm{prop}} / P_{\mathrm{year}}（§12.3.1），或 **每 epoch 委员会累计暴露** E_C\le E_{\max}（§12.3.2）。同一碎片化亦是 **资产隐私** 的基底；**保管安全** 还须 **密钥域 + 恢复域隔离**（§4.5、§12.9）。运行期 **重估 + 溢出新链分配**（§4.6）在价格变动后仍守住 oracle 账面封顶。
+**有界碎片化作为损失与成本规则（非防串谋定理）：** v1 外部流入与新 tip 区间从**证据批准下限**至已冻结 **100-USDC 等值封顶**。上限约束 **每次成功资产 tip 俘获的直接经济损失**；下限避免为任意小的“粉尘 tip”承担固定 L1 burn/activation、oracle、DA、归档与后续退出成本。当前 10-USDC 候选尚未得到经济证明。Active floor 是准入规则，不是手续费，也不是没收：后续价格下跌导致低于它时，不得抹除或强制关闭既有 tip。该区间 **并不** 意味着串谋动机「趋于零」，也 **不能替代** 委员会安全、归档 BFT、俘获概率 P_{\mathrm{prop}} / P_{\mathrm{year}}（§12.3.1），或 **每 epoch 委员会累计暴露** E_C\le E_{\max}（§12.3.2）。同一碎片化亦是 **资产隐私** 的基底；**保管安全** 还须 **密钥域 + 恢复域隔离**（§4.5、§12.9）。运行期 **重估 + 溢出新链分配**（§4.6）在价格变动后仍守住 oracle 账面封顶。
 
 ### 4.2 三类链
 
 
 | 类别       | 用途                                                       | 流入 / 收费规则                                                                                                                                                                                                     |
 | -------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **资产类链** | 绑定 L1 NFT 的可转让价值账本                                       | 资产须通过 L1 准入，**即使资产本身是 conet-USDC** 也须有经批准的 CoNET L1 去中心化池/TWAP，以及精确批准的 L1 burn/mint adapter。流入 burn L1 单位；只有退出终局后才 mint 同量单位归还。每笔外部流入和每个新建 spillover tip 在有效 policy 下经 oracle 估值为 **10–100 USDC 等值**；每事件重估（§4.6、§13.3）。每次转账由发起方预锁定 USDC-6 名义金额的 **1 bp 规范 conet-USDC**；无有效手续费锁即拒绝（§13）。 |
+| **资产类链** | 绑定 L1 NFT 的可转让价值账本                                       | Principal 仅限 CoNET L1 上的 Treasury V3 规范 ERC-20，且 **即使资产本身是 conet-USDC** 也须通过 L1 池/TWAP 准入。Treasury V3 burn L1 单位；只有 DLE 退款/退出终局指令才能 remint 同量规范单位。每笔外部流入和每个新建 spillover tip 在有效 policy 下经 oracle 估值位于**证据批准 active floor** 与已冻结 **100-USDC 等值封顶**之间；每事件重估（§4.6、§13.3）。每次转账由发起方预锁定 USDC-6 名义金额的 **1 bp 规范 conet-USDC**；无有效手续费锁即拒绝（§13）。 |
 | **存储类链** | 数据 / 日志 / **创作者内容**（付费访问）；**版权 ZERO** 版本节点；**销售账本**      | 所有者可嵌入 **碎片化加密内容** + 访问策略（§4.8）。Tip 可分叉成 **版本树**（§4.9）。Tip 记录 **社交事件** 与仅追加的 **销售收入账本**，并关联并行 **资产类** tx（§4.10）。**按内容的费用与访问** 以 **conet-GB** 结算（非 USDC 0.01% 轨）；欠费则 **停止新块**。购买 **访问权** ≠ 购买 NFT；出售某分支走交易类（§4.7）。                       |
 | **交易类链** | 出售既有 **资产** 或 **存储** 链的短命 **L2 挂单 / 撮合协调器**（整账本 NFT 式交易） | 仅在 L1 `escrowSubject` 后开设；创世绑定 **sellerOrderHash + 标的 collection / ID**。报价由卖方直接授权，**无 NFT oracle**、无 ≤100 USDC 报价封顶（§4.7）。只在 L1 成交成功时，买方以同一 `quoteAsset` 向卖方支付 `quoteAmount` 并另付 **1 bp**；费用 50/50 分给归档/验证人，挂牌不再重复收百分比费（§13）。 |
 
@@ -195,18 +203,33 @@ CoNET-DLE 走另一条路：按 **账本分片**，而不只是在一条账本�
 
 ### 4.6 资产类事件重估与溢出建新链
 
-**资产类** tip 的产品冻结（使 **10–100 USDC 等值创链区间**与 ≤ **100 USDC** 运行期封顶均可执行）：
+**Treasury V3 规范 principal 边界（规范性）。** DLE v1 不维护一套独立的任意 token adapter 宇宙。唯一可准入的 principal，是经 `TreasuryBridgeV3`、`TreasuryCanonicalERC20V3`，以及开发者 FX 场景下的 `DeveloperFxIssuer` 所构成规范资产路径发行或登记的 CoNET L1 ERC-20。「由 Treasury V3 发行」是协议资格，不表示当前 `TreasuryBridgeV3` bytecode 自身直接部署 token proxy：token 可单独部署，但在 Treasury V3 识别它、所需 role/policy 获得证明、且 `AssetAdmissionRegistry` 激活精确代理/版本之前，它不具有 DLE 规范性。
 
-1. 创建时，底层资产 **必须** 在 L1 `AssetAdmissionRegistry` 为 `ACTIVE`，并具有经批准的 CoNET L1 去中心化池/路由、冻结 TWAP adapter、最低流动性与新鲜观察值，以及暴露给 L1 `AssetBurnMintGateway` 的精确批准 burn/mint adapter（§13.3）。这 **也适用于规范 conet-USDC**；其准入路由须能观测脱锚风险，而不能永久硬编码为 USD 1.00。缺少批准池/oracle adapter，**或**不存在可强制执行的 `burnFrom` + gateway 授权 `mint` 路径，即 **不得创建资产类链**。当前准入版本须公布 `minIngressUsdc6` 与 `maxTipUsdc6`；v1 默认分别为 **10,000,000** 与 **100,000,000**。
+| 层 | 冻结职责 |
+| --- | --- |
+| **外链 → CoNET L1** | 独立的 CoNET 去中心化国库基础设施先完成跨链 leg。依实际部署路由，该操作可走 `TreasuryBridgeV3` 的 `BurnMint` / `LockMint` / `BurnRelease`，或独立部署的 CREATE2 `ConetTreasury` / `ConetTreasuryPeer` 轨；两者是并行状态机，不是可互换入口。所得 CoNET ERC-20 只有在 Treasury V3 将其识别为 canonical，且精确 proxy/version 完成准入后，才可进入 DLE。该链路位于 DLE 流入 receipt 之外，不能与 DLE finality 合并。 |
+| **Treasury V3 规范资产轨** | 持有 token 级 mint/burn authority、路由/policy 版本、全局单次消费的 treasury operation id、role proof 与 replacement-capacity reservation。开发者 FX 的普通流入还必须满足实时 `DeveloperFxIssuer.isForwardAllowed(token)` 资格。 |
+| **`AssetBurnMintGateway`** | 持有 DLE 专属 oracle 准入、`BURNED_PENDING → ACTIVATED \| REFUNDED`、AC 验证、exit-right/nullifier、per-tip/global 守恒会计与带挑战期强制退出。它必须调用 Treasury V3 改变物理 token supply，且不得成为平行、自由浮动的 ERC-20 minter。 |
+| **DLE tip** | 只持有对 **已激活 Treasury V3 burn** 的索取权；不托管或包装 L1 principal。 |
+
+因此，非 CoNET 资产须先通过独立的 CoNET 去中心化国库路由成为 Treasury V3 认可的 CoNET 规范表示；只有该表示才能进入 DLE。DLE 退出 remint 的是 CoNET 规范 token。之后若要转往 Base 或其它链，须在已配置国库路由上发起新操作——可为 `TreasuryBridgeV3`，也可为独立的 `ConetTreasury` / `ConetTreasuryPeer` 轨——并使用不同的 operation id、policy、费用与 finality 边界；DLE 不承诺直接兑回原外链 token。
+
+**资产类** tip 的产品冻结（使**证据批准下限至 100-USDC 等值创链区间**与 ≤ **100 USDC** 运行期封顶均可执行）：
+
+1. 创建时，底层资产 **必须** 在 L1 `AssetAdmissionRegistry` 为 `ACTIVE`、属于 Treasury V3 规范 ERC-20，并具有经批准的 CoNET L1 去中心化池/路由、冻结 TWAP adapter、最低流动性与新鲜观察值，同时通过 Treasury V3 的 DLE role、route、replay 与 capacity 检查（§13.3）。这 **也适用于规范 conet-USDC**；其准入路由须能观测脱锚风险，而不能永久硬编码为 USD 1.00。缺少批准池/oracle adapter、Treasury V3 规范登记，**或**不存在由 Treasury 控制且可强制执行的精确 burn/remint 路径，即 **不得创建资产类链**。当前准入版本须公布 `minIngressUsdc6` 与 `maxTipUsdc6`；**10,000,000 只是 v1 预生产校准种子**，**100,000,000** 则为已冻结安全封顶。
 2. 每个 **新事件**（尤其是转账）须用同一规范 L1 oracle 报告重估链余额和拟议转账。事件发起方须预锁定转账 USDC-6 名义金额 **1 bp 的规范 conet-USDC** 并绑定已终局 `feeLockId`；锁缺失 / 不足 / 已消费或 oracle 过期即拒绝（§13.2–§13.3）。
-3. 若重估后 **链余额 ≤ 100 USDC 等值**，转账可按 §6.3 正常进行；形成 AC 后，L1 FeeVault 将 conet-USDC 锁按 **50% 归档 / 50% 验证人** 分配（§13.4）。既有 active tip 后续因市场价格下跌低于 10 USDC 时，不追溯适用下限。
+3. 若重估后 **链余额 ≤ 100 USDC 等值**，转账可按 §6.3 正常进行；形成 AC 后，L1 FeeVault 将 conet-USDC 锁按 **50% 归档 / 50% 验证人** 分配（§13.4）。既有 active tip 后续因市场价格下跌低于 active measured floor 时，不追溯适用该下限。
 4. 若重估后 **链余额 > 100 USDC 等值**，拟离开本 tip 的 **转出部分**（或超过封顶的超额）**不得** 作为单笔超顶转账留在本链：所有者 / 客户端 **必须新建一条或多条资产类链**（新 L1 NFT），并把该转出 / 超额价值迁到新 tip 上。每个新分配的 live tip 都必须独立满足当前 **`minIngressUsdc6 … maxTipUsdc6`** 区间。L2 内部分拆只重新分配已经 burn 的 backing，不再次 burn 或 mint L1 供应量。
 5. Spillover 分配必须确定性且均衡，不得“先填满一个 100-USDC tip，再留下粉尘余数”。对总名义价值 \(V\)，取满足 \(V/n\ge\mathrm{minIngressUsdc6}\) 的最小 \(n=\lceil V/\mathrm{maxTipUsdc6}\rceil\)，按整数精度尽可能均分底层资产单位，余数按新 NFT id 升序分配，再用同一 oracle round 验证每个结果 tip。不存在合法 partition 时，必须在投票前拒绝。
 6. 共识与归档 **拒绝** 会使 tip 以重估余额 **> 100 USDC** 终局、缺少 ACTIVE 资产准入记录 / 手续费锁、新建非零 tip 低于 `minIngressUsdc6`，或试图在无匹配 **新链** 出生证明时送出超顶切片的资产转账事件。普通部分转账或普通退出也不得故意留下低于当前下限的非零余数：必须清零、保留至少下限，或采用确定性 rebalance/top-up 路径。
 
 典型触发是流入后的 oracle 升值：创世时 L1 burn / 初始 L2 credit ≤100，但后续事件重估可能把经济余额推过封顶——故需 **事件时重估 + 溢出建链**，而非一次性检查。
 
-**L1 AssetBurnMintGateway（产品冻结 — 流入 burn、退出 mint）。** 资产类流入 **不**在 vault 中托管可转让 principal。Gateway 而非客户端从规范 L1 TWAP 取得新鲜报价，并要求同一 active `admissionPolicyVersion` 下满足 `minIngressUsdc6 ≤ burnNotionalUsdc6 ≤ maxTipUsdc6`；只有随后才可调用已批准 adapter，从 burn 方精确 burn L1 单位，并记录状态为 `BURNED_PENDING` 的已终局 `BurnReceiptV1`。Pending burn **不是**可花费 L2 backing。被分配的验证人和归档组形成绑定精确 `burnId`、DA 可重建的 genesis ingress AC 后，任意 relayer 调用 `activateBurnIngress`。激活时须在 receipt 仍有效的 policy 下取得另一份新鲜规范报价，并要求激活名义价值仍处于同一区间；只有该 L1 转换才把 receipt 置为 `ACTIVATED`、增加已激活 burn 账本，并允许同量金额在绑定 `assetNftId` 下变为可花费。若超过 `burnActivationDeadline` 仍未激活——包括新鲜报价落到区间外——任何人可调用 `refundBurnIngress`；Gateway 先把 receipt 标为 `REFUNDED` 并记入退款账本，再只向原 burn 方精确 mint 同量资产。`ACTIVATED` 永远不能退款，`REFUNDED` 永远不能激活。普通 L2 转账只移动对已激活 burn 供应量的索取权。普通或强制退出仅在对应退出状态终局后，才重新 mint 同一 L1 资产。没有精确、可强制执行的流入 burn 与 gateway 授权退出 mint 路径的资产不具备准入资格。本规则仅适用于资产类 principal；§4.7 交易类 Settlement escrow 是对标的 NFT 的独立 L1 托管模型。
+**L1 AssetBurnMintGateway + TreasuryBridgeV3（产品冻结 — Treasury burn 流入、Treasury mint 退出）。** 资产类流入 **不**在 vault 中托管可转让 principal。Gateway 而非客户端从规范 L1 TWAP 取得新鲜报价，并要求同一 active `admissionPolicyVersion` 下满足 `minIngressUsdc6 ≤ burnNotionalUsdc6 ≤ maxTipUsdc6`；只有随后才可请求规范 Treasury V3 proxy 精确 burn 合格 CoNET L1 token 单位，并返回全局单次消费的 `treasuryOperationId`。Gateway 把该 id、Treasury proxy、token proxy、Treasury policy/version 与精确数量绑定到状态为 `BURNED_PENDING` 的已终局 `BurnReceiptV1`。Pending burn **不是**可花费 L2 backing。被分配的验证人和归档组形成绑定精确 `burnId`、DA 可重建的 genesis ingress AC 后，任意 relayer 调用 `activateBurnIngress`。激活时须在 receipt 仍有效的 policy 下取得另一份新鲜规范报价，并要求激活名义价值仍处于同一区间；只有该 L1 转换才把 receipt 置为 `ACTIVATED`、增加已激活 burn 账本，并允许同量金额在绑定 `assetNftId` 下变为可花费。若超过 `burnActivationDeadline` 仍未激活——包括新鲜报价落到区间外——任何人可调用 `refundBurnIngress`；Gateway 先把 receipt 标为 `REFUNDED` 并记入退款账本，再消费另一份 Treasury V3 replacement operation，只向原 burn 方精确 mint 同量规范资产。`ACTIVATED` 永远不能退款，`REFUNDED` 永远不能激活。普通 L2 转账只移动对已激活 Treasury burn 供应量的索取权。普通或强制退出同样只能在终局后消费一份 DLE exit right 与一份 Treasury V3 mint operation。本规则仅适用于资产类 principal；§4.7 交易类 Settlement escrow 是对标的 NFT 的独立 L1 托管模型。
+
+已部署 Treasury V3 合约已经提供 UUPS 地址稳定的规范 token、Treasury-only mint 路径、可 burn 的 managed asset、miner 治理 bridge policy/operation、排序 quorum attestation 与 `operationExecuted` replay protection。`AssetBurnMintGateway` 与 DLE authority interface 是目标 DLE 协议组件，并非已部署 `TreasuryBridgeV3` 合约的别名；现有能力 **不会仅凭文档** 自动满足 DLE 的 pending/refund/exit-right reservation 协议。生产前，规范 Treasury V3 proxy 必须升级，或配套经验证的 DLE 专属 authority interface，原子保证：（a）只接受已配置 `AssetBurnMintGateway` 调用；（b）派生并消费跨域 treasury operation id；（c）burn 时预留 replacement capacity；（d）在普通 pause/oracle 故障下仍保持 refund 与 safety-exit mint 可用；（e）暴露累计 burn/mint 事实供差分对账。仅把 `BRIDGE_ROLE` 直接授予不受这些约束的 gateway 不合规。
+
+形式化记账变量、\(L2Credit+RefundedPending+MintedExit\le BurnedIn\) 不变量、更强守恒等式、receipt/exit-right 竞态、adapter-epoch 隔离、capacity reservation、stale-AC 检查、pause/oracle 行为、replay domain 与强制 prover/fuzzer 发布门以 [`AssetBurnMintGateway 不变量规范`](./DLE-AssetBurnMintGateway-Invariant-Spec.zh-CN.md) 及其 [`TLA+ 参考模型`](./DLEAssetBurnMintGateway.tla) 为规范。本白皮书摘要不能豁免这些要求。
 
 流入状态机为 `NONE → BURNED_PENDING → ACTIVATED | REFUNDED`。激活前 genesis 状态把该 burn 承诺为不可花费；普通转账前，包含 activation oracle round 与精确 USDC-6 名义价值的 L1 `BurnIngressActivated` receipt 必须成为资产 FSM 的强制输入。希望流入低于 `minIngressUsdc6` 的客户端只能本地保存可撤销 intent 并继续聚合；达到下限前 **不得** burn、不得创建链上 pending receipt，也不得把 principal 交给中心化 batch custodian。若激活成功后该 receipt 又被 tip 审查，已激活 backing 仍受带挑战期强制退出保护。该两阶段规则同时防止「未 burn 却 credit」、「永久 burn、既无 L2 backing 也无 L1 refund」以及把固定成本外部化的低于下限 burn。
 
@@ -219,6 +242,8 @@ burnId = H(
 
 BurnReceiptV1 = {
   version, burnId, assetNftId, asset, from, amount, burnNonce,
+  treasuryProxy, treasuryOperationId, treasuryPolicyVersion,
+  canonicalTokenProxy, canonicalTokenImplementationVersion,
   assetSupplyBefore, assetSupplyAfter,
   status=BURNED_PENDING, burnActivationDeadline,
   burnOracleRoundId, burnNotionalUsdc6,
@@ -237,28 +262,27 @@ outstandingAssetSupply(asset) =
   - AssetBurnMintGateway.totalMintedOut(asset)
 
 outstandingTipSupply(assetNftId) =
-  AssetBurnMintGateway.burnedInByAssetNftId(assetNftId)
-  - AssetBurnMintGateway.mintedOutByAssetNftId(assetNftId)
+  sum(
+    AssetBurnMintGateway.l2CreditByTip[assetNftId][adapterEpoch]
+    for each live adapterEpoch
+  )
 ```
 
-`burnNonce` 按 `(asset,from)` 单调递增，`burnId` 由合约派生且只能消费一次；每份 receipt 只能进入一个终局分支：激活或退款。Adapter 必须证明 `userDebit = assetSupplyBefore - assetSupplyAfter = amount`；fee-on-transfer、rebasing、callback-capable、特权绕过或非精确 burn 语义一律拒绝。Pending burn 单独记账，只有 `activateBurnIngress` 才计入 `burnedInByAssetNftId / totalBurnedIn`；流入退款增加 `ingressRefundMinted`，但绝不成为 L2 backing 或 `totalMintedOut`。Gateway 是本协议唯一暴露的 bridge mint authority；`AssetAdmissionRegistry` 冻结每个资产的 adapter code hash、mint-role proof、timelock cap、pause 与累计会计。L1 账本分开维护 `normalMintedByAssetOwner` 与 `forceMintedByAssetOwner`，而 `mintedByAssetOwner`、`mintedOutByAssetNftId` 与 `totalMintedOut` 分别保持 owner、tip 与资产范围的聚合；每次成功退出 mint 还分配严格递增的 per-tip `mintSequence`。Bridge 不变量为：
+`burnNonce` 按 `(asset,from)` 单调递增，`burnId` 与 `treasuryOperationId` 均由合约派生且只能消费一次；每份 receipt 只能进入一个终局分支：激活或退款。Treasury V3 必须证明 `userDebit = assetSupplyBefore - assetSupplyAfter = amount`；fee-on-transfer、rebasing、callback-capable、特权绕过或非精确 burn 语义一律拒绝。Pending burn 单独记账，只有 `activateBurnIngress` 才计入 `l2CreditByTip / totalBurnedIn`；流入退款增加 `ingressRefundMinted`，但绝不成为 L2 backing 或 `totalMintedOut`。Treasury V3 是 DLE 唯一暴露的 token 级 mint/burn authority；`AssetBurnMintGateway` 是其 proof/accounting coordinator。`AssetAdmissionRegistry` 冻结规范 Treasury/token proxy、role proof、policy/version、DLE interface code hash、timelock cap/reservation、pause 语义与累计会计。L1 账本分开维护 `normalMintedByAssetOwner` 与 `forceMintedByAssetOwner`，而 `mintedByAssetOwner`、`mintedOutByAssetNftId` 与 `totalMintedOut` 分别保持 owner、退出 tip 与资产范围的累计报告；当前退出授权以已分配 `l2CreditByTip` 为上限，而不以历史物理 burn 来源为上限。每次成功退出 mint 还分配严格递增的 per-tip `mintSequence`。Bridge 不变量为：
 
 \[
 \begin{aligned}
-0 &\le \mathrm{mintedOutByAssetNftId}(t)
-   \le \mathrm{burnedInByAssetNftId}(t),\\
+0 &\le \mathrm{outstandingTipSupply}(t),\\
 0 &\le \mathrm{totalMintedOut}(a)
    \le \mathrm{totalBurnedIn}(a),\\
-\sum_{t:\,\mathrm{asset}(t)=a}\mathrm{burnedInByAssetNftId}(t)
-  &= \mathrm{totalBurnedIn}(a),\\
-\sum_{t:\,\mathrm{asset}(t)=a}\mathrm{mintedOutByAssetNftId}(t)
-  &= \mathrm{totalMintedOut}(a),\\
+\sum_{t:\,\mathrm{asset}(t)=a}\mathrm{outstandingTipSupply}(t)
+  &= \mathrm{totalBurnedIn}(a)-\mathrm{totalMintedOut}(a),\\
 \mathrm{outstandingAssetSupply}(a)
   &= \mathrm{totalBurnedIn}(a)-\mathrm{totalMintedOut}(a).
 \end{aligned}
 \]
 
-同一守恒规则还必须分别约束每个 tip：`0 ≤ mintedOutByAssetNftId[assetNftId] ≤ burnedInByAssetNftId[assetNftId]`；同一资产的各 tip burn 账本与 mint 账本之和必须分别等于 `totalBurnedIn(asset)` 与 `totalMintedOut(asset)`。退出必须同时满足 tip-local 与 asset-global 剩余供应量上限，任何 tip 都不得占用另一 tip 已 burn 的 backing。对原始 token supply，还有 `totalPhysicalBurned - ingressRefundMinted - totalMintedOut = pendingBurned + outstandingAssetSupply`；因此 pending 流入退款与已终局退出 mint 是互斥会计路径。
+同一守恒规则还必须通过当前已分配 credit 分别约束每个 tip。同一资产全部 tip/epoch 的 `l2CreditByTip` 总和必须等于 `outstandingAssetSupply`；内部 spillover 只改变分配而不改变总和。`mintedOutByAssetNftId` 仍是累计退出归因账本，不再作为历史 burn 来源上限。退出必须同时满足当前 tip-local 已分配 credit 与 asset-global 剩余供应量上限，任何 tip 都不得占用另一 tip 的 backing。对原始 token supply，还有 `totalPhysicalBurned - ingressRefundMinted - totalMintedOut = pendingBurned + outstandingAssetSupply`；因此 pending 流入退款与已终局退出 mint 是互斥会计路径。
 
 调用者自行选择的旧 AC 绝不能即时 mint。对应规则（规范）：
 
@@ -279,16 +303,14 @@ normalExitMintAmount =
   proof.pendingNormalExit[exitNonce].amount
 
 normalExitMintAmount ≤
-  AssetBurnMintGateway.burnedInByAssetNftId(assetNftId)
-    - AssetBurnMintGateway.mintedOutByAssetNftId(assetNftId)
+  outstandingTipSupply(assetNftId)
 
 normalExitMintAmount ≤
   AssetBurnMintGateway.totalBurnedIn(asset)
     - AssetBurnMintGateway.totalMintedOut(asset)
 
 forceExitMintAmount ≤ min(
-  AssetBurnMintGateway.burnedInByAssetNftId(assetNftId)
-    - AssetBurnMintGateway.mintedOutByAssetNftId(assetNftId),
+  outstandingTipSupply(assetNftId),
   AssetBurnMintGateway.totalBurnedIn(asset)
     - AssetBurnMintGateway.totalMintedOut(asset),
   requestedAmount,
@@ -298,13 +320,13 @@ forceExitMintAmount ≤ min(
 
 Owner 状态叶须证明 `netTipBalance`、`pendingNormalExitRoot`、累计 `appliedL1ForceMintedOut` 与 `appliedGatewayMintSeq`。`ExitRequested` 已从可花费 `netTipBalance` 中移除普通退出金额；因此后续观察 L1 `ExitFinalized` receipt 时只消费匹配 pending 记录并推进 applied sequence，**不得再次扣减价值**。强制退出此前没有 L2 debit，因此只扣尚未应用的 `forceMintedByAssetOwner` 差额。每个 gateway mint 事件承诺 `{mintSequence,exitKind,exitNonceOrClaimId,amount,cumulativeMintedByOwnerAfter}`；replay 或 re-home 必须从 `appliedGatewayMintSeq + 1` 无缺口应用该事件流。`mintedByAssetOwner` 与资产全局 `totalMintedOut` 是 L1 累计账本，必须在外部 mint 调用前更新；更换 claim id 或重新开启退出 epoch 不能复活已经 remint 的供应量。
 
-**普通退出。** Owner 先创建 L2 `ExitRequested` 事件，原子扣减可花费 `netTipBalance`，并创建 `pendingNormalExit[exitNonce] = {owner,asset,amount}`。部分普通退出只有在当前规范报价证明 request 后可花费余数为零或至少为 `minIngressUsdc6` 时才可准入；这用于防止故意制造粉尘余数，但不得追溯惩罚因市场价格变化已经低于下限的 tip。验证人负责出块，归档组以 AC 终局。其后每个后继 AC 都必须保留该 pending debit，直至 L1 已终局 `ExitFinalized` 或 mint 前显式取消 AC；验证人和归档必须拒绝复用 pending 金额的出账。任意 relayer 可把该聚合证书提交到 L1——归档在链下签名，不是五笔独立 L1 投票交易。`finalizeExit` 验证当前 membership checkpoint、原始 request 包含证明、退出 nonce、tip-local 与 asset-global 两级 burn/mint 不变量，并满足以下之一：（a）提交 AC 不低于 gateway 单调 `latestKnownAC[assetNftId]`；或（b）证明 request AC 到当前 latest-known AC 的 ancestry，且当前 owner proof 证明同一 pending debit 未变。已被取代的分支，或低于 `latestKnownAC` 且没有该后继证明的 AC，必须 revert。Gateway 在调用已批准 adapter 向 owner 精确 mint 前，先记录 `normalMintedByAssetOwner`、`mintedOutByAssetNftId`、资产全局累计 effects 与 `mintSequence`。其 `ExitFinalized` receipt 在 tip FSM 中消费 pending 记录并推进 `appliedGatewayMintSeq`，不得再次扣减 `netTipBalance`。
+**普通退出。** Owner 先创建 L2 `ExitRequested` 事件，原子扣减可花费 `netTipBalance`，并创建 `pendingNormalExit[exitNonce] = {owner,asset,amount}`。部分普通退出只有在当前规范报价证明 request 后可花费余数为零或至少为 `minIngressUsdc6` 时才可准入；这用于防止故意制造粉尘余数，但不得追溯惩罚因市场价格变化已经低于下限的 tip。验证人负责出块，归档组以 AC 终局。其后每个后继 AC 都必须保留该 pending debit，直至 L1 已终局 `ExitFinalized` 或 mint 前显式取消 AC；验证人和归档必须拒绝复用 pending 金额的出账。任意 relayer 可把该聚合证书提交到 L1——归档在链下签名，不是五笔独立 L1 投票交易。`finalizeExit` 验证当前 membership checkpoint、原始 request 包含证明、退出 nonce、当前 tip 已分配 credit、asset-global 守恒，并满足以下之一：（a）提交 AC 不低于 gateway 单调 `latestKnownAC[assetNftId]`；或（b）证明 request AC 到当前 latest-known AC 的 ancestry，且当前 owner proof 证明同一 pending debit 未变。已被取代的分支，或低于 `latestKnownAC` 且没有该后继证明的 AC，必须 revert。Gateway 先记录 `normalMintedByAssetOwner`、`mintedOutByAssetNftId`、资产全局累计 effects 与 `mintSequence`，再消费一笔 receipt-bound Treasury V3 operation，向 owner 精确 remint 规范数量。其 `ExitFinalized` receipt 在 tip FSM 中消费 pending 记录并推进 `appliedGatewayMintSeq`，不得再次扣减 `netTipBalance`。
 
 普通退出使用 §13.2a 下单独签名、以规范 conet-USDC 计价的 `ExitFeeQuoteV1` / 执行准备金，覆盖有界证书验证、proof class、L1 submission 与 finalize gas。它是按客观资源计价的执行费，**不是**按比例的退出税，也**不得**从 remint 的资产 principal 中扣除。未使用准备金退款；可由 sponsor 支付。没有普通准备金的用户仍可使用下述安全强制退出路径。
 
 **强制退出。** 精确的 request → challenge → finalize 协议、确定性 claim id/nullifier、AC 新鲜度注册表与 tip 冻结规则见 §5.2.1。`minIngressUsdc6` 与普通 no-dust 余数规则均不得阻止或减少强制退出。若部分强制退出留下低于下限的余额，剩余 tip 进入 `DRAIN_ONLY`：禁止普通转账和新 split，但仍可 top-up 到合法区间、完整普通退出或再次强制退出。强制退出不得因用户缺少 conet-USDC 而受阻；其 request/challenge/finalize gas 与 proof schedule 由单独预注资的 `emergencyReserveUsdc6` 垫付。成功 mint 后，协议只能从显式 sponsor/bond 路径追回客观结算且经治理封顶的执行费；不得减少 remint 的资产 principal，也不得以欠费为由扣住安全退出。
 
-溢出建链创建 **新** L1 NFT，并将既有 L2 backing 确定性均衡到每个都满足当前 **10–100 USDC 等值**创链区间的 tip；不得静默突破既有 tip 封顶、产生粉尘余数，也不再次 mint/burn L1 供应量。
+溢出建链创建 **新** L1 NFT，并将既有 L2 backing 确定性均衡到每个都满足当前**证据批准下限至 100-USDC 等值封顶**创链区间的 tip；不得静默突破既有 tip 封顶、产生粉尘余数，也不再次 mint/burn L1 供应量。
 
 ### 4.7 交易类：L2 协调器 + L1 Settlement Contract 原子性
 
@@ -649,7 +671,7 @@ flowchart TB
 
 > **主张（冻结）：** 多地址碎片化 **提高链上聚类成本**，并 **打断**「单地址 = 所有者完整投资组合」的直接对应。它 **不** 主张强匿名性、全局身份不可链接，或「观察者必然失败」。
 
-1. **流入即碎片化：** 所有者将价值移入 L2（L1 burn / L2 credit）时，经济单元 **已经碎片化**——大量在激活时为 **10–100 USDC 等值**的原子链和/或分布在 **大量不同钱包地址** 上的余额。
+1. **流入即碎片化：** 所有者将价值移入 L2（L1 burn / L2 credit）时，经济单元 **已经碎片化**——大量在**证据批准下限与已冻结 100-USDC 等值封顶**之间激活的原子链，和/或分布在 **大量不同钱包地址** 上的余额。
 2. **仅客户端可见完整持仓：** 只有 **所有者客户端** 持有将这些碎片 **重组** 为单一逻辑资产的映射。公开 tip 扫描者不再能轻易拿到 **单地址投资组合倾倒**；他们面对的是 **更难的聚类问题**。
 3. **残留聚类通道（诚实残留风险）：** 观察者仍可能通过下列信息（等）聚类碎片：
    - **同一 L1 burn 交易 / gateway 来源**；
@@ -781,15 +803,7 @@ A_g\cap S_g=\varnothing,\qquad
 
 任一归档 NFT 在 **活跃或备选角色合计** 最多归属一个组，即 `maxGroupsPerArchive = 1`，任意两组名册最大重叠为零。该约束同时作用于身份和运营控制层：同一运营者拆分多个归档 NFT，不能据此占据多个活跃组。成员叶绑定来自 `OperatorDomainRegistryV1` 的可挑战 `canonicalOperatorId` 与基础设施域承诺；被证明重复控制时，阻止成组或触发身份合并、替换、未分配收益追回与罚没。旧 **3 名旧成员 + 2 名新成员** 方案明确废弃。公开历史副本不构成成员资格。新 `groupId` 必须大于全部历史组号、不得复用，并经 L1 `nextGroupId` 注册。
 
-**OperatorDomainRegistryV1（产品冻结）。** 地址唯一不等于独立控制。密码学无法证明两个匿名身份必然属于不同自然人或公司，因此协议明确保留该信任边界，并组合质押、独立证明、公开声明、挑战与保守相关性会计：
-
-| 层 | 注册承诺 / 证据 | 规范用途 |
-| --- | --- | --- |
-| **身份 / 控制域** | `canonicalOperatorId`、运营者 credential/nullifier、质押控制者与受益控制承诺 | 一个规范运营者在全部活跃组中最多占一个 active 或 standby 归档席位；别名须合并 |
-| **基础设施域** | `infraEvidenceVersion` 下的云 tenant/account 或裸机证明根、ASN/provider、region/metro、机房/电力域 | 同一 5+2 组内禁止精确 tenant/证明根复用；同一声明 ASN/provider、region/metro 或电力域最多占七席中的两席 |
-| **角色域** | 按 `canonicalOperatorId` 索引归档 NFT 与验证人身份 | 托管组归档运营者不得进入该 tip 的验证人委员会；同一验证人委员会每个规范运营者最多一席 |
-
-形成新组与轮换候选在必要域证据缺失、过期或内部冲突时必须 fail closed；“未知”不得当作“独立”。声明只在版本化独立证明者阈值下接受。带保证金挑战者可提交客观关联证据，如共享 credential nullifier、证明密钥/tenant root、质押控制者或策略允许的其它证明；被挑战者有答辩期，非密码学外部证据由版本化裁决 quorum 处理。挑战成立时，L1 原子把别名映射至一个 `canonicalOperatorId`，合并跨角色质押与风险敞口，冻结新分配，轮换冲突席位，追回未发收益并罚没隐瞒保证金。无意的过期元数据可适用纠正/冷静期处罚；故意虚报独立性的行为可跨全部合并身份罚没。该机制降低但不能数学消除共享云、供应链、贿赂或法律强制的相关风险。
+**OperatorDomainRegistryV1（产品冻结）。** 地址/NFT 唯一不等于控制独立。白皮书只冻结产品边界：运营者、基础设施与 archive↔validator 角色域彼此独立；mandatory evidence 缺失、过期或有争议时 fail closed；一个 canonical operator 在全部 live group 的 archive active-or-standby multiplicity 合计为一；后续 identity decision 永不改写 finalized AC。精确 record、evidence class、确定性 `ELIGIBLE | INELIGIBLE | UNKNOWN` 裁决顺序、attestor conflict、challenge/appeal 状态机、merge effect、policy activation、拒绝向量与禁止 governance 自由裁量均由规范性 [`OperatorDomainRegistryV1 规范`](./DLE-OperatorDomainRegistryV1-Spec.zh-CN.md) 唯一定义。实现者不得从本摘要另造身份独立性裁决路径。
 
 **无缝裂变历史规则（产品冻结）：** 在裂变检查点，所有现有组都保留裂变前历史的只读、可验证副本，但每条链的写入 / 终局权仍归该链记录的历史维护组。新产生的组 **无权维护裂变前历史**，只能提供副本、DA 恢复和审计证明；不得签发竞争性 AC、修改旧状态，或自行迁移旧历史。
 
@@ -986,6 +1000,8 @@ RESERVED | GENESIS_AC --deadline--> EXPIRED
 **Tip AC vs 归属投票（勿混淆）：** tip 终局与 Placement 均使用固定 \(Q_A=4/5\)，但签名域和状态机不同：AC 证明候选终局；PlacementCertificate 只授权 L1 `RESERVED→BOUND`。两者都不要求 5/5。
 
 ### 5.2.1 归档分片 BFT 与归档证书（产品冻结）
+
+当前字节级 Proposal/Vote SSZ 语料、nil/lock 转换、WAL crash/restart 结果、确定性 membership-switch 拒签案例及 `CandidateRejectCertificate` 冲突处理冻结于 [`Archive Tendermint 一致性规范`](./DLE-Archive-Tendermint-Conformance-Spec.zh-CN.md) 与 [`DLE-Archive-Tendermint-Vectors-v1.json`](./DLE-Archive-Tendermint-Vectors-v1.json)。一致性规范中的 P0 闭环章节具有控制效力：在 SSZ→EIP-712 签名映射、QC/TC/AC/Reject container、`H(QC)`、coordinator 公式、WAL frame、可执行语义向量及 reject-reason enum 同样冻结前，生产发布仍被阻塞。不得用本节文字填补这些缺口或接受不同 encoding/状态转换。
 
 等待池、roulette 抽选、质检、接受/拒绝、回滚与存档 **运行在托管归档分片上**——但 **安全根不是单一归档运营者**。每个分片是经典部分同步 BFT 委员会。**仅有法定人数规模并不构成协议：** 缺少下文锁定 / justify 状态机时，「凑齐 \(Q_A\) 签名」**不等于** 完整 BFT。
 
@@ -1490,11 +1506,11 @@ CandidateRejectCertificate = {
 
 | 参数 | v1 冻结 |
 | --- | --- |
-| **规范正文** | `bodyBytes = canonicalEncode(BlockBodyV1)`，采用下述固定 envelope。`payloadLength=len(bodyBytes)` 为无符号 64 位；禁止空事件正文。`bodyCommitment=keccak256("dle.body.v1" || uint64be(payloadLength) || bodyBytes)` |
+| **规范正文** | `bodyBytes = canonicalEncode(BlockBodyV1)`，采用下述固定 envelope。`payloadLength=len(bodyBytes)` 为无符号 64 位；禁止空事件正文。`bodyCommitment=keccak256("dle.body.v1" \|\| uint64be(payloadLength) \|\| bodyBytes)` |
 | **编码** | 仅 `erasureCodingVersion="dle.rs.v1"`：在 \(GF(2^8)\) 上的系统 Reed–Solomon，primitive polynomial=`0x11d`，字节值作为域元素，使用下述固定 \(7\times4\) 生成矩阵。“等价 MDS”与 v1 不兼容。`codecSpecHash` 承诺本规范及规范测试向量 |
 | **\((n,k)\)** | **\((7,4)\)**：正文编码为 7 份，任意 4 份可重建；`chunkCount=7`、`recoveryThreshold=4`，且 \(k=4\le N_A-f=4\)。七份编码 chunk 独立于五人投票名册；确定性映射允许部分成员持有多份 chunk，而每名 precommit signer 均保留完整正文/可重建集合。 |
 | **切分 / padding** | `chunkSize=ceil(payloadLength/4)`；尾部补零到恰好 `4*chunkSize`，按原字节顺序连续切成 \(D_0,D_1,D_2,D_3\)。`payloadLength` 消除尾零歧义 |
-| **`daRoot`** | 对 \(i=0..6\)：`leaf_i=keccak256("dle.rs.v1.chunk" || uint64be(payloadLength) || uint8(i) || chunk_i)`；以 `leaf_0..leaf_6` 加 `leaf_7=keccak256("dle.rs.v1.padleaf")` 构造固定八叶二叉 Keccak 树，内部节点为 `keccak256("dle.rs.v1.node" || left || right)` |
+| **`daRoot`** | 对 \(i=0..6\)：`leaf_i=keccak256("dle.rs.v1.chunk" \|\| uint64be(payloadLength) \|\| uint8(i) \|\| chunk_i)`；以 `leaf_0..leaf_6` 加 `leaf_7=keccak256("dle.rs.v1.padleaf")` 构造固定八叶二叉 Keccak 树，内部节点为 `keccak256("dle.rs.v1.node" \|\| left \|\| right)` |
 | **`chunkAssignmentRoot`** | 本高度确定性映射 `archiveMember → chunkIndices[]` 的承诺（可由 `membershipRoot` + height + `daRoot` 公开复算） |
 | **见证人** | 对其服务的链保留 **全量** tip 正文（不仅是份额） |
 | **签前正确编码证明** | 每个 signer 在 precommit 前必须取得完整规范 `bodyBytes`、验证 `bodyCommitment`、重放正文、切分/pad、重编码全部七份并重算精确 `daRoot`；同时保留指派 chunk 与至少 \(k\) 份可重建本地集合。只检查 Merkle 成员或下载任意四份已承诺 chunk 不合规 |
@@ -1608,7 +1624,7 @@ ABI 名称仅为示意；以下语义已冻结：
 3. **Pending 冻结。** L1 请求终局后记录 `requestL1Block`、`requestL1Timestamp`、申请人保证金、请求金额、当前最佳 AC，并计算 `challengeDeadline = requestL1Timestamp + T_exit`。该 L1 事件可观察后，验证人与归档必须拒绝 pending owner 索取权的新出账。请求前 / 在途事件仍合法，并可形成更新 AC 推翻过期请求。首个引用已终局请求的 AC 成为常规 `exitSnapshotAC`；已证明 `NO_PROGRESS` / `UNAVAILABLE` 时，则由 L1 争议结果指定唯一 `frozenExitReferenceAC`。
 4. **无许可挑战。** 截止前任何人均可提交严格更高、合法后继、DA 可重建的 AC，以及同一 owner 的 Merkle 包含 / 不包含证明。挑战推进 `latestKnownAC`、替换 claim 的最佳状态证明，并按 §4.6 的 `netTipBalance` / `appliedL1ForceMintedOut` 公式重算上限；可降低或取消 claim，但不得超过原请求金额。接受更新 AC 后须重新开启完整响应窗口，禁止最后一块挑战后立即 finalize。成功揭示过期 / 双花请求者从申请人保证金获得协议比例奖励；无效挑战罚没挑战保证金。
 5. **终局。** `finalizeForceWithdraw` 仅可在窗口结束、无未决挑战，且 claim 的 `(bestAcHeight,bestAcHash)` 等于 `AssetBurnMintGateway` 当前 `latestKnownAC` 时成功；该 AC 还必须是：（a）其 `l1ContextBlockNumber/hash` 证明已观察本次终局请求的 `exitSnapshotAC`，或（b）L1 `NO_PROGRESS` / `UNAVAILABLE` 争议确立的精确 `frozenExitReferenceAC`。请求前 AC 不得在常规路径终局。若 L1 已知更高 AC 但尚无对应 owner 证明，claim 进入 `PROOF_REQUIRED`，不得终局。
-6. **先记账，再 mint。** 外部 adapter 调用前，L1 必须先消费确定性 nullifier；增加 `forceMintedByAssetOwner[assetNftId][owner]`、聚合 `mintedByAssetOwner`、tip-local `mintedOutByAssetNftId` 与资产全局 `totalMintedOut`；分配下一个 `mintSequence`；同时减少 tip-local 与 asset-global outstanding supply；只在允许时记入紧急准备金回收账本；并把 claim 标为 `FINALIZED`。Mint 数量受 §4.6 两级守恒上限约束，且必须等于 owner 实际收到的数量。余额完全耗尽时可把该 tip backing 标记 `EXITED`；部分退出保留累计账本。Mint 调用失败则整笔原子回滚；更换 `exitEpoch` 不能再次 remint 同一可证明余额。
+6. **先记账，再 Treasury mint。** 调用 Treasury V3 前，L1 必须先消费确定性 nullifier 与 `treasuryOperationId`；增加 `forceMintedByAssetOwner[assetNftId][owner]`、聚合 `mintedByAssetOwner`、tip-local `mintedOutByAssetNftId` 与资产全局 `totalMintedOut`；分配下一个 `mintSequence`；同时减少 tip-local 已分配 credit 与 asset-global outstanding supply；只在允许时记入紧急准备金回收账本；并把 claim 标为 `FINALIZED`。Mint 数量受 §4.6 两级守恒上限约束，且必须等于 owner 实际收到的规范数量。余额完全耗尽时可把该 tip backing 标记 `EXITED`；部分退出保留累计账本。Treasury mint 调用失败则整笔原子回滚；更换 `exitEpoch` 不能再次 remint 同一可证明余额。
 7. **Tip / re-home 回写。** `ExitFinalized` 与 `ForceWithdrawFinalized` 都是资产 FSM 必须按无缺口顺序观察的 L1 receipt。应用 `ExitFinalized` 时，消费已完成 debit 的 `pendingNormalExit` 并推进 `appliedGatewayMintSeq`，不得再次扣减价值。应用 `ForceWithdrawFinalized` 时，从 `netTipBalance` 扣除其精确数量，推进 `appliedL1ForceMintedOut`，并推进同一 sequence。恢复或 re-home 后的 tip 必须重放 `appliedGatewayMintSeq` 之后的每个 gateway mint 事件；后续 AC 不得花费已 remint 的供应量。Request/challenge 事件不扣减价值；取消只在 L1 取消事件终局后解除冻结。
 
 | 规则 | 规范要求 |
@@ -1701,7 +1717,7 @@ MC = {
 ### 6.2 创世块流程
 
 1. 用户 **铸造 / 配置唯一 CoNET L1 NFT**，并选择 **恰好一种** 类别：**资产**、**存储** 或 **交易**。
-2. **仅资产类：** 要求 `AssetAdmissionRegistry.status(asset)==ACTIVE`，且 **包括 conet-USDC 在内的每种资产** 均须有经批准的 CoNET L1 去中心化 pool/route + TWAP adapter + 最低流动性，以及精确批准的 burn/mint adapter、gateway mint authority/cap 与安全 token 语义。`AssetBurnMintGateway` 必须自行取得规范报价，要求 **`minIngressUsdc6 ≤ burnNotionalUsdc6 ≤ maxTipUsdc6`**（v1 为 **10–100 USDC 等值**），再完成精确 L1 burn 并生成状态为 `BURNED_PENDING` 的终局 `BurnReceiptV1`；客户端自报估值、观察过期/不可用、burn 不精确或价值超出区间均拒绝。该 receipt 在 L1 激活前只能进入不可花费 genesis 状态。
+2. **仅资产类：** 要求 `AssetAdmissionRegistry.status(asset)==ACTIVE`，且 **包括 conet-USDC 在内的每种资产** 均须有经批准的 CoNET L1 去中心化 pool/route + TWAP adapter + 最低流动性，以及精确准入的 Treasury V3 tuple：`treasuryProxy`、规范 token proxy/version、DLE authority-interface code hash、Treasury policy version、排他 replacement reservation、mint cap 与安全 token 语义。`AssetBurnMintGateway` 必须自行取得规范报价，要求 **`minIngressUsdc6 ≤ burnNotionalUsdc6 ≤ maxTipUsdc6`**（active measured floor 至已冻结 100-USDC 封顶），再请求 Treasury V3 burn 精确 L1 规范单位并生成状态为 `BURNED_PENDING` 的终局 `BurnReceiptV1`；客户端自报估值、观察过期/不可用、任意 adapter、burn 不精确或价值超出区间均拒绝。该 receipt 在 L1 激活前只能进入不可花费 genesis 状态。
 3. **仅交易类：** 要求有效 L1 Settlement 托管，且其 `escrowOrderHash[tradeId]` 精确等于创世 `sellerOrderHash`；绑定该订单的标的 collection + NFT ID、卖方、报价、买方约束、fee policy、seller nonce 与 deadline。拒绝不存在 / 不匹配的托管、零金额 / 不支持付款资产或重放 nonce；**不对报价做 oracle 封顶**（§4.7）。
 4. **存储类创作者内容（可选）：** 所有者可附带 `contentIndexHash`、授权 miner PGP key hash，以及以 **conet-GB** 计价的 **访问价格**（§4.8）。
 5. **存储类分叉（可选）：** 若铸造分支，绑定 `parentNftId` / `rootNftId` / `lineageHash`，用于版权 ZERO 版本树（§4.9）。
@@ -1712,7 +1728,7 @@ MC = {
 10. 委员会投票；凑齐 **≥ Q_V=5** 个接受签名后提交创世证明。
 11. 归档组独立重放；合格则形成 **PrevoteQC → PrecommitQC（= AC）** 并存档。
 12. 达到 \(Q_A=4/5\) PlacementCertificate 后，由任意 relayer 提交 L1 `setArchiveGroup`。
-13. **仅资产类：** 任意 relayer 把 DA 可重建 genesis AC 提交给 `activateBurnIngress(burnId, assetNftId, genesisAC)`。Gateway 用新鲜规范 oracle round 重新报价，并再次要求满足 receipt policy 的 **10–100 USDC 等值**区间。只有已终局 L1 `BurnIngressActivated` receipt 才允许后续资产 FSM 事件 credit 可花费 backing。若 pending burn 在 deadline 后已退款，该 genesis 必须中止，且永远不得变为可花费。
+13. **仅资产类：** 任意 relayer 把 DA 可重建 genesis AC 提交给 `activateBurnIngress(burnId, assetNftId, genesisAC)`。Gateway 用新鲜规范 oracle round 重新报价，并再次要求满足 receipt policy 的**证据批准下限至 100-USDC 等值封顶**。只有已终局 L1 `BurnIngressActivated` receipt 才允许后续资产 FSM 事件 credit 可花费 backing。若 pending burn 在 deadline 后已退款，该 genesis 必须中止，且永远不得变为可花费。
 
 ### 6.3 新块流程（规范）
 
@@ -1919,7 +1935,7 @@ Gossip 寻址: encrypt(to = 用户 PGP | 路由 PGP)
 
 | 属性                    | 机制                                                   |
 | --------------------- | ---------------------------------------------------- |
-| 入金已碎片化                | L1 burn / L2 credit 后，价值拆到 **大量钱包地址** / 在 **10–100 USDC 等值**区间内激活的原子链 |
+| 入金已碎片化                | L1 burn / L2 credit 后，价值拆到 **大量钱包地址** / 在**证据批准下限与已冻结 100-USDC 等值封顶**之间激活的原子链 |
 | 仅客户端持有投资组合映射           | 只有 **客户端** 将碎片重组为单一逻辑持仓                              |
 | 转账双隐私                 | 同一转账走加密 DePIN 路径，并以 **多地址** 发送                       |
 | 收款非单一地址               | 收款方亦跨 **多个** 钱包接收；仅收款方客户端重组                          |
@@ -2321,7 +2337,7 @@ L2Envelope {
 
 ### 12.2 每条资产链价值有限（≤ 100 USDC）— 封顶能做什么、不能做什么
 
-每条资产类链的外部 burn 流入或新 spillover 分配均在 **10–100 USDC 等值**区间内激活，并由 **L1 oracle** 在 **每个新事件** 上继续硬顶 **≤ 100 USDC 等值**（§4.6）。若重估显示余额 **> 100 USDC**，转出 / 超额 **必须** 经 **新链** 迁出——不得把单一 tip 胀过封顶。
+每条资产类链的外部 burn 流入或新 spillover 分配均在**证据批准下限与已冻结 100-USDC 等值封顶**之间激活，并由 **L1 oracle** 在 **每个新事件** 上继续硬顶 **≤ 100 USDC 等值**（§4.6）。若重估显示余额 **> 100 USDC**，转出 / 超额 **必须** 经 **新链** 迁出——不得把单一 tip 胀过封顶。
 
 **准确产品结论（冻结）：**
 
@@ -2758,22 +2774,24 @@ sellerProceeds = quoteAmount
 
 ### 13.3 资产准入、oracle 与手续费锁定规则
 
-每条新建 **资产类** tip 的底层资产必须在 CoNET L1 `AssetAdmissionRegistry` 中处于 `ACTIVE`。**包括规范 conet-USDC 在内的每种资产** 均须满足下表。Conet-USDC 仍是手续费资产与 USDC-6 记账参考，但其资产链准入仍须使用可感知脱锚的去中心化池/路由，不能硬编码 USD 1.00：
+每条新建 **资产类** tip 的底层资产必须是 CoNET L1 上的 Treasury V3 规范 ERC-20，并在 CoNET L1 `AssetAdmissionRegistry` 中处于 `ACTIVE`。**包括 conet-USDC 在内的每种规范资产** 均须满足下表。Conet-USDC 仍是手续费资产与 USDC-6 记账参考，但其资产链准入仍须使用可感知脱锚的去中心化池/路由，不能硬编码 USD 1.00。任意外部 ERC-20 绝不直接准入；必须先完成独立 Treasury V3 跨链链路：
 
 | Registry 字段 | 要求 |
 | --- | --- |
 | `pool` | 经批准、位于 **CoNET L1 的去中心化交易池 / 路由**，可导出 USDC-6 参考价；conet-USDC 自身须采用可感知脱锚且经治理批准的路由，且不得把 conet-USDC 自身作为唯一循环参考 |
 | `oracleAdapter` | 从该池确定性导出 USDC-6 名义价值；禁止中心化 API |
-| `burnMintAdapter / adapterCodeHash` | `AssetBurnMintGateway` 使用的精确 adapter 与不可变 code hash；流入时 burn 用户 L1 单位，退出终局后 mint 同一规范资产 |
-| `mintAuthorityProof / bridgeMintCap` | 可验证 gateway adapter 是 bridge mint 路径的唯一授权方，并受 timelock 每资产累计 cap 约束；bridge `totalMintedOut` 永不得超过 `totalBurnedIn` |
+| `treasuryProxy / treasuryPolicyVersion` | 规范 CoNET L1 `TreasuryBridgeV3` proxy，以及 DLE 物理 burn 与 replacement mint 使用的精确 miner 治理 policy/version |
+| `canonicalTokenProxy / implementationVersion` | 地址稳定的 `TreasuryCanonicalERC20V3` proxy 与批准 implementation/version；须可验证 `treasuryAssetKind(token)==Canonical`、所需 role grant，以及适用时的 `DeveloperFxIssuer.isForwardAllowed(token)` |
+| `dleTreasuryAdapterCodeHash` | 挂接于 Treasury V3 的逐字节 DLE authority interface；只有已配置 `AssetBurnMintGateway` 可请求 DLE burn/mint，每个请求消费一个全局唯一 treasury operation id |
+| `mintAuthorityProof / bridgeMintCap` | 可验证 Treasury V3 是唯一 token 级 DLE mint/burn 路径，并在 burn 时按 timelock 每资产累计 cap 预留 replacement；gateway `totalMintedOut` 永不得超过已激活 `totalBurnedIn` |
 | `tokenSemanticsHash` | 冻结 decimals、精确 debit/burn/mint 行为、返回值规则和 callback policy；fee-on-transfer、rebasing、callback-capable、非精确或特权绕过语义不具备准入资格 |
 | `referenceSetHash` | 对估值所用经济独立参考资产 / 路由集合的承诺；conet-USDC 脱锚检查至少需要一个非 conet-USDC 参考，并 **应当**跨独立流动性 / bridge 域取中位数 |
-| `routeHash / policyVersion` | 被事件引用的不可变路由 + adapter 参数；治理更新须经 timelock，并产生新版本 |
+| `routeHash / policyVersion` | 被事件引用的不可变 oracle route + Treasury policy + DLE adapter 参数；治理更新须经 timelock，并产生新版本 |
 | `twapWindow` | 治理冻结的观察窗口；同块 spot reserve 不足以作为依据 |
 | `minObservationCount` | TWAP 所需最少独立 observation / cardinality |
 | `minLiquidity` | 抵抗价格操纵所需的最低池深 |
 | `minChargeableNotional` | 粉尘下限，防止最小单位向上取整把宣称的 1 bp 变成无上限的实际费率 |
-| `minIngressUsdc6` | 单笔外部 burn 流入和每个新分配 spillover tip 的最低 oracle 名义价值；v1 从 **10,000,000** 开始，只能通过 timelock `costEpoch` policy 更新 |
+| `minIngressUsdc6` | 单笔外部 burn 流入和每个新分配 spillover tip 的最低 oracle 名义价值。**10,000,000 是 v1 预生产校准种子，尚非实测经济事实**；生产激活须先接受已实测 `costEpoch`，之后只能通过 timelock policy 更新 |
 | `maxTipUsdc6` | 单 tip 直接损失上限；v1 为 **100,000,000**，普通 cost-epoch 更新不得上调 |
 | `maxIngressOverheadBps / costEpoch` | 治理用来依据实测 p95 固定流入费用压力测试下限的目标；每份 receipt 绑定 active epoch 与精确 floor/cap |
 | `maxAggregateExposureUsdc6 / maxPerEpochNotionalUsdc6` | 跨全部 tip 的路由级风险上限；把同一资产拆成许多 ≤100-USDC tip 不得绕过 oracle 操纵暴露上限 |
@@ -2781,29 +2799,33 @@ sellerProceeds = quoteAmount
 | `maxDeviationBps` | spot/TWAP 或 route/reference 偏差过大时的熔断阈值 |
 | `status` | `ACTIVE / PAUSED / REMOVED`；仅 `ACTIVE` 可创建资产 tip 或执行普通状态改变 |
 
-**最低外部流入（产品冻结）。**
+**最低外部流入（临时经济校准；100-USDC 安全封顶仍冻结）。**
 
 ```text
-10_000_000 ≤ minIngressUsdc6
+candidateProductFloorUsdc6 = 10_000_000
 minIngressUsdc6 ≤ activatedIngressNotionalUsdc6 ≤ maxTipUsdc6
 maxTipUsdc6 = 100_000_000                         // v1
 
-p95FixedIngressChargeUsdc6 =
-  p95IngressExecutionChargeUsdc6
+p99FixedIngressLiabilityUsdc6 =
+  p99IngressExecutionChargeUsdc6
   + nonRefundableCreationChargeUsdc6
 
 recommendedMinIngressUsdc6 =
-  ceilDiv(p95FixedIngressChargeUsdc6 * 10_000,
+  ceilDiv(p99FixedIngressLiabilityUsdc6 * 10_000,
           maxIngressOverheadBps)
+
+productionMinIngressUsdc6 =
+  max(candidateProductFloorUsdc6,
+      recommendedMinIngressUsdc6)
 ```
 
-v1 初始 policy 为 **每个已激活资产 tip 10–100 USDC 等值**。`AssetBurnMintGateway` 通过自身规范 L1 oracle adapter 计算 burn 时和 activation 时的名义价值；调用者自报金额永远不是权威值。新 `costEpoch` 配置的下限必须不低于 v1 10-USDC 产品 floor 与上述实测建议值的较大者。若所需 floor 会超过 100 USDC，则当前 profile 下的新资产流入在经济上不可偿付，必须暂停；不得静默补贴，也不得抬高安全封顶。
+v1 设计候选为 **每个已激活资产 tip 10–100 USDC 等值**，但 2026-08-13 证据窗口 **没有**测出完整 DLE 流入负债。因此 **10 USDC 仍是临时校准输入**，不得表述为已经经济证明的下限。`AssetBurnMintGateway` 通过自身规范 L1 oracle adapter 计算 burn 时和 activation 时的名义价值；调用者自报金额永远不是权威值。只有实测 `costEpoch` 能完整计入 queue、genesis AC、burn、activation、DA、archive、refund、exit 与 emergency 负债并复算 `productionMinIngressUsdc6` 后，生产资产流入才可开启。若实测建议值超过 100 USDC，则当前 profile 下的新资产流入在经济上不可偿付，必须暂停；不得静默补贴，也不得抬高已冻结的安全封顶。
 
-低于下限的金额 **不得 burn**。钱包可仅在本地保留可撤销 intent，并聚合同一 owner 的更多单位，直至一笔直接流入达到下限；v1 不创建低于下限的链上 receipt，不汇集无关用户 principal，也不依赖中心化 batch custodian。流入执行准备金、NFT/创建准备金与 epoch 可用性资金仍须分别报价和记账：10 USDC 是准入门槛，不是预付 gas，也不替代这些账本。
+低于下限的金额 **不得 burn**。钱包可仅在本地保留可撤销 intent，并聚合同一 owner 的更多单位，直至一笔直接流入达到下限；v1 不创建低于下限的链上 receipt，不汇集无关用户 principal，也不依赖中心化 batch custodian。流入执行准备金、NFT/创建准备金与 epoch 可用性资金仍须分别报价和记账：active measured floor 是准入门槛，不是预付 gas，也不替代这些账本。
 
 该下限适用于外部 backing 激活，以及内部 spillover 创建新 live tip。若既有 tip 仅因市场价格变化后来跌破下限，不得没收、自动关闭或判无效。普通动作不得故意制造粉尘余数；完整退出和带挑战期强制退出不受该下限阻断（§4.6）。
 
-**没有经批准的 CoNET L1 交易池/oracle adapter，或没有精确 burn/mint adapter ⇒ 不得创建资产类链或流入。** 仅仅“池存在”仍不够：深度不足、历史窗口不足、观察过期、decimals 异常、缺少 gateway mint authority、token 语义不安全、bridge cap 耗尽、流入价值不在区间内或状态暂停都应拒绝。已终局 L1 burn receipt 只能证明精确数量及供应量减少，并在 `BURNED_PENDING` 中保持不可花费；只有合法 genesis AC 使 L1 `activateBurnIngress` 终局、gateway 新鲜报价仍位于 receipt policy 的 floor/cap 内，且资产 FSM 观察到 `BurnIngressActivated` 后，才可 credit L2 backing。若资产之后失去准入资格，验证人和归档必须拒绝普通价值状态改变，不得自造价格，也不得把失败当作 0；§4.6 的带挑战期 L1 强制退出仍可基于冻结合法 AC 和最后安全 adapter policy 执行。
+**没有经批准的 CoNET L1 交易池/oracle adapter、没有 Treasury V3 规范登记，或没有由 Treasury 控制的精确 DLE burn/mint 路径 ⇒ 不得创建资产类链或流入。** 仅仅“池存在”仍不够：深度不足、历史窗口不足、观察过期、decimals 异常、Treasury/token proxy 或 policy version 过期、缺少 Treasury role/operation replay proof、开发者 FX 资格失效、token 语义不安全、replacement capacity 耗尽、流入价值不在区间内或状态暂停都应拒绝。已终局 Treasury burn receipt 只能证明精确数量及供应量减少，并在 `BURNED_PENDING` 中保持不可花费；只有合法 genesis AC 使 L1 `activateBurnIngress` 终局、gateway 新鲜报价仍位于 receipt policy 的 floor/cap 内，且资产 FSM 观察到 `BurnIngressActivated` 后，才可 credit L2 backing。若普通准入资格之后失效，验证人和归档必须拒绝普通价值状态改变，不得自造价格，也不得把失败当作 0；退款与 §4.6 的带挑战期 L1 强制退出仍须通过冻结的最后安全 Treasury policy 与已预留 replacement entitlement 保持可用。
 
 提出资产状态改变的一方默认承担手续费。在请求进入验证人投票前，该方必须先在 L1 `FeeVault` 锁定 `assetFeeUsdc6` 数量的规范 conet-USDC。事件绑定：
 
@@ -2871,7 +2893,7 @@ AvailabilityBudgetV1 = {
 \mathrm{requiredValidator}_e+\mathrm{requiredHistoryService}_e}.
 \]
 
-生产环境对新链准入要求治理冻结的目标至少为 **1.2×**。低于目标时，冻结向受影响组分配新链，并触发租金重定价、准备金补足、有界补贴或经安全 re-home 缩减容量；不得追回已赚余额，也不得静默降低 5+2 / 4-of-5 安全不变量。带挑战期强制退出与紧急恢复由单独预先注资的 `emergencyReserveUsdc6` 承保，即使普通准入暂停也必须可用。
+新链准入的候选生产目标至少为 **1.2×**，但只有分子与分母均可独立实测并由已接受 `costEpoch` 承诺后才可执行。2026-08-13 证据窗口无法计算该比率，因为尚无 DLE 5+2 runtime、standby-readiness 会计或可归属月度账单。在这些测量闭环前，生产新链准入保持关闭。激活后，低于目标时冻结向受影响组分配新链，并触发租金重定价、准备金补足、有界补贴或经安全 re-home 缩减容量；不得追回已赚余额，也不得静默降低 5+2 / 4-of-5 安全不变量。带挑战期强制退出与紧急恢复由单独预先注资的 `emergencyReserveUsdc6` 承保，即使普通准入暂停也必须可用。
 
 ### 13.5 现金流表
 
@@ -2879,11 +2901,11 @@ AvailabilityBudgetV1 = {
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | 质押 CONET（CNET）   | 具备归档 / 见证人 / 验证者 / 发行者资格；罚没抵押                                                                                             |
 | L1 NFT mint + 类别 | 每条链的出生证明；绑定 **资产 / 存储 / 交易**；mint gas / 协议 mint 费与 tip **0.01%** **分开**                                                              |
-| 资产准入 / 流入        | 资产须在 L1 `AssetAdmissionRegistry` 为 `ACTIVE`；**包括 conet-USDC 在内的每种资产** 均须有经批准的 CoNET L1 去中心化池/路由 + TWAP adapter + 最低流动性，以及精确批准的 burn/mint adapter。由 gateway 报价的流入先 burn L1 单位进入 `BURNED_PENDING`；只有 genesis-AC 支持且新鲜报价位于 active **10–100 USDC 等值**区间的 L1 激活才 credit 可花费 L2 backing。低于下限的 intent 仅本地聚合且不 burn。未激活 burn 只能退还原 burn 方；不能 burn 的资产不得进入 |
+| 资产准入 / 流入        | Principal 必须是 Treasury V3 规范 ERC-20，并在 L1 `AssetAdmissionRegistry` 为 `ACTIVE`；**包括 conet-USDC 在内的每种规范资产** 均须有经批准的 CoNET L1 去中心化池/路由 + TWAP adapter + 最低流动性。Treasury V3 执行精确 burn 进入 `BURNED_PENDING`；只有 genesis-AC 支持且新鲜报价位于**证据批准的 `minIngressUsdc6`** 与已冻结 **100-USDC 等值封顶**之间的 L1 激活才 credit 可花费 L2 backing。当前 10-USDC 种子仍属临时参数。低于下限的 intent 仅本地聚合且不 burn。未激活 burn 只能通过已预留 Treasury entitlement remint 给原 burn 方；任意/非规范资产不得进入 |
 | 资产事件重估           | 每个资产 **事件** 重估余额；若 **> 100 USDC**，转出超额须确定性均衡到 **新链**，且每条不低于 active 流入下限。市场价格下跌低于下限不得没收既有 tip（§4.6） |
 | 资产事件费            | 发起方预先以规范 **conet-USDC** 锁定 oracle USDC-6 名义金额的 **0.01%**；无有效手续费锁即拒绝；**50% 归档 / 50% \(Q_V\) 验证人**（§13.3–§13.4） |
 | 执行准备金             | 付款人或已授权 sponsor 预锁 `FeeQuoteV1.executionReserveCap`；§13.2a 确定性偿付有上限、可观察的 L1 gas 与冻结 oracle/proof/DA-ingress/跨域/重试单位；未使用 allowance 经 pull payment 退款 |
-| 普通资产退出           | 先终局 AC 支持的 L2 debit；任意 relayer 只提交一次；`AssetBurnMintGateway` 先记账再精确 mint 同一 L1 资产。`ExitFeeQuoteV1` 只支付客观 conet-USDC 执行成本，无百分比退出税且不扣 principal |
+| 普通资产退出           | 先终局 AC 支持的 L2 debit；任意 relayer 只提交一次；`AssetBurnMintGateway` 先记账，再消费一笔 Treasury V3 operation，精确 remint 同一 CoNET L1 规范资产。`ExitFeeQuoteV1` 只支付客观 conet-USDC 执行成本，无百分比退出税且不扣 principal；后续跨链退出是另一笔独立 Treasury V3 操作 |
 | 强制资产退出           | request/challenge/finalize 只相对最新或冻结合法 AC 与累计 burn/mint 账本 remint。流入下限不得阻断安全退出；低于下限的剩余 tip 进入 `DRAIN_ONLY`。预注资 `emergencyReserveUsdc6` 保证无需用户手续费锁也可执行 |
 | Epoch 可用性预算       | 按链租金 + 有界创建准备金释放 + 协议费贡献 + 显式到期 bootstrap 补贴承保固定 5+2 归档、备选、验证人与历史容量；罚没不计入基线覆盖率 |
 | 存储费              | 随 **存储内容** 计费；以 **conet-GB** 支付；欠费 → 停新块                                                                                  |
@@ -2894,29 +2916,75 @@ AvailabilityBudgetV1 = {
 | 交易挂单 / 成交        | L1 锚定卖方签名订单 + 卖方设定报价（**无 NFT oracle / 无 ≤100 USDC 报价封顶**）；成功成交仅收一次，买方在同一 `quoteAsset` 支付 `quoteAmount + ceil(quoteAmount/10,000)`，卖方精确收到 `quoteAmount`；订单 / AC / 付款 / 托管必须完全匹配（§4.7） |
 | 挖矿 / 任务奖励        | 从资产 **conet-USDC**、交易 **quoteAsset** 与存储 **conet-GB** 流支付诚实组成员；资助罚没再分配 |
 | 组规模 vs 收益        | 裂变为更多互不重叠的 5 活跃 + 2 备选组 → **并行带宽**↑；归档 50% 在活跃服务/AC 签署与 standby readiness 职责间加权（§5.2、§13.4） |
-| 主链治理             | 资产准入 registry、pool/oracle 与精确 burn/mint adapter、bridge mint cap、`minIngressUsdc6 / maxTipUsdc6`、报价资产 adapter、协议费率、客观 `FeeScheduleV1`、执行 floor/cost epoch、可用性/紧急准备金、资源 cap 与 subsidy ceiling。v1 默认：**资产流入在 L1 burn / 退出终局后在 L1 mint**、**10–100 USDC 等值激活流入/新 tip 区间**、**1 bp 协议费 + 付款人封顶执行准备金 + epoch 可用性预算**、**仅协议费 50/50 归档/验证人**、**资产协议费 = conet-USDC**、**交易协议费 = quoteAsset**、**存储 = conet-GB** |
+| 主链治理             | 资产准入 registry、pool/oracle、准入的 Treasury V3 proxy + 规范 token proxy/version + DLE authority-interface code hash + policy epoch、排他 replacement reservation 与 mint cap、`minIngressUsdc6 / maxTipUsdc6`、报价资产 adapter、协议费率、客观 `FeeScheduleV1`、执行 floor/cost epoch、可用性/紧急准备金、资源 cap 与 subsidy ceiling。v1 默认：**资产流入时由 Treasury V3 burn CoNET L1 规范 ERC-20 principal / 仅在退款或退出终局后 remint**、**证据批准下限至已冻结 100-USDC 等值的激活流入/新 tip 区间**（10 USDC 只是当前校准种子）、**1 bp 协议费 + 付款人封顶执行准备金 + epoch 可用性预算**、**仅协议费 50/50 归档/验证人**、**资产协议费 = conet-USDC**、**交易协议费 = quoteAsset**、**存储 = conet-GB** |
 
-### 13.6 强制经济压力测试
+### 13.6 经济实测证据与强制闭环门槛
+
+首个证据窗口于 **2026-08-13** 在 **CoNET chainId 224422** 上取得，用于替换此前假设的执行成本与月固定容量示例。结论是 **尚未闭环**：当前仓库有 DLE 规范与形式化模型，但没有已部署的规范 DLE queue/freeze/reserve、Genesis-AC submitter、`AssetBurnMintGateway`、force-exit challenger、roster-transition 合约，也没有 5-active + 2-standby DLE Archive runtime。缺失的 DLE 路径不得填入虚构 gas 或月度价格。
+
+**现役组件代理实测。** 采样 gas price 为 **1,000,007 wei/gas**。CNET 数字仅作原生 gas 算术；由于没有带冻结时间戳与置信窗口的 CNET/USDC 报价，本白皮书不虚构 USDC 成本。
+
+| 实测路径 | 样本 | 结果 | 经济边界 |
+| --- | ---: | --- | --- |
+| 完整三票 `TreasuryBridgeV3` operation | 11 笔 | p50 **444,989 gas**；p95 **479,340 gas**；max **486,095 gas**；p95 ≈ **4.7934e-7 CNET** | 现役 Treasury quorum 执行代理；不含 DLE AC、receipt、credit、refund、exit-right 与 capacity reservation |
+| `initiateBurnMintForUser` | 4 份 receipt | **107,654–120,314 gas**；max ≈ **1.2031e-7 CNET** | 仅为现役 burn leg 代理 |
+| `mintForAdmin` | 3 份 receipt | **58,922–76,044 gas**；max ≈ **7.6045e-8 CNET** | 仅为现役 mint leg 代理；不是 DLE exit |
+| `BeamioOracle.updateRatesBatch` | 50 份 receipt | min **82,699 gas**；p50/p95/p99 **89,081 gas**；p95 ≈ **8.9082e-8 CNET** | 现役 oracle 写入代理；不是 DLE TWAP/breaker adapter |
+
+**DA 字节与临时参考 harness。** 对系统型 RS \((n,k)=(7,4)\)，纯 codeword 膨胀确定为 **1.75×**。CPU 时间来自 Apple M1 / 16 GB 上的临时 JavaScript 参考 harness；仓库尚无生产编码器、第二语言实现、冻结 WAL framing 或 DLE archive runtime。
+
+| 规范 body | 编码后字节 | 参考 encode + Merkle p50 / p95 | 每秒 1 个 coded set、30 天 |
+| --- | ---: | ---: | ---: |
+| 1 KiB | 1,792 B | 0.345 / 0.656 ms | 4.326 GiB |
+| 64 KiB | 114,688 B | 6.437 / 14.753 ms | 276.855 GiB |
+| 1 MiB | 1,835,008 B | 99.018 / 250.696 ms | 4,429.688 GiB |
+
+以上字节量不含 SSZ、签名、QC、TLS/PGP framing、WAL、索引、snapshot、repair traffic、单独保留的 canonical body 与每成员可重建 policy。它们是容量公式，不是存储或出口带宽账单。
+
+**现役 L1 双 archive 资源基线。** `38.102.126.50` 上两个同机 CoNET L1 geth archive RPC 在采样点占用 **46.86 GB** 磁盘与合计 **27.03 GiB** RSS。按进程生命周期计数外推 30 天约为 **731.5 core-hours** 与 **19,465 GiB-hours**。Geth P2P 外推为每 30 天 **3.38 GB ingress / 4.01 GB egress**；整机 NIC 外推为 **3.43 TB RX / 5.65 TB TX**，但包含 public RPC 与其它服务。这不是 DLE 5+2 测量，两个进程不构成独立故障域，也没有可归属的服务器、存储、带宽、IP、DDoS、电力与运维账单。不得把该基线简单乘以七。
+
+**Oracle 读取延迟代理。** 每个 endpoint/method 顺序采样 100 次：
+
+| Endpoint / method | p95 | p99 | Gas 语义 |
+| --- | ---: | ---: | --- |
+| `rpc1` · `getRate(USDC)` | 78.09 ms | 81.06 ms | 24,136 estimated gas；`eth_call` 不付 gas |
+| `publicrpc` · `getRate(USDC)` | 81.44 ms | 102.01 ms | 同上 |
+| `rpc1` · QuoteHelper | 82.88 ms | 238.43 ms | 31,091 estimated gas；`eth_call` 不付 gas |
+| `publicrpc` · QuoteHelper | 138.30 ms | 222.61 ms | 同上 |
+
+该短窗包含网络与 RPC 排队，不能代表 DLE oracle 更新、TWAP、stale rejection、circuit breaker 或 24 小时 p99。
+
+**尚未测量的 DLE 专属负债仍是发布阻断项：**
+
+| 必测域 | 2026-08-13 状态 |
+| --- | --- |
+| L1 enqueue / freeze / reserve gas | 无实现、部署或 receipt |
+| Genesis AC 提交 | 仅有规范/向量；签名验证与 storage gas 未知 |
+| Activation 与 failed-genesis refund | 无 gateway 路径 |
+| 普通/强制退出 request、challenge、finalize | 无已部署路径 |
+| Standby readiness | 无 DLE standby sync-lag、readiness-proof 或 takeover 会计 |
+| Rotation 与 re-home | 无 roster-transition 或 dual-quorum runtime |
+| Archive 月度价格 | 无跨独立故障域的 30 天 5+2 计量，也无可归属账单 |
 
 部署必须发布版本化 `FeeScaleProfileV1`，至少覆盖：
 
 | 维度 | 必测场景 | 验收标准 |
 | --- | --- | --- |
-| 名义金额 / 流入区间 | 0.01 / 1 / 配置下限 / 10 / 100 USDC 等值及高价值 NFT 报价 | 低于下限的外部资产流入不 burn 即拒绝；合法区间流入与均衡 spillover 不产生粉尘 tip；高价值协议费确定 |
-| L1 gas | p50 / p95 / p99 与 3× shock | 治理选定目标分位下执行准备金 coverage ratio ≥1.2 |
+| 名义金额 / 流入区间 | 0.01 / 1 / 候选下限 / 实测下限 / 100 USDC 等值及高价值 NFT 报价 | 低于下限的外部资产流入不 burn 即拒绝；实测下限可复算；合法流入与均衡 spillover 不产生粉尘 tip |
+| L1 gas | 每个实质成功/revert 分支的 p50 / p95 / p99 与 3× shock | 执行准备金 coverage ratio 可计算，且在所选分位 ≥1.2 |
 | Proof | none / Merkle / normal-exit AC / `BadEncodingProof` / force-exit challenge | 重型证明单独报价或由紧急准备金预付，不由普通 1 bp 流量补贴 |
-| DA | 1 KiB / 64 KiB / 1 MiB 规范 body | byte/retention 成本显式，storage GB 流保持独立 |
-| 故障 | 一次重试 / 多 relayer / L1 reorg / stale oracle | 重试 cap、失败预算与退款可审计 |
-| Archive profile | 正常 5+2 / 一名 active 离线 / standby 提升 | quorum 保持 4/5，轮换与 readiness 成本已计入 |
+| DA | 生产编码器与 archive runtime 上的 1 KiB / 64 KiB / 1 MiB 规范 body | byte、CPU、WAL、retention、repair 与 egress 成本可归属 |
+| 故障 | 一次重试 / 多 relayer / L1 reorg / stale oracle / breaker | 重试 cap、失败预算与退款可审计 |
+| Archive profile | 正常 5+2 / active 离线 / standby 提升 / rotation / re-home | quorum 保持 4/5，且跨独立故障域计量 30 天 readiness/availability 成本 |
 
-以下算术是 **规范测试形状**，不是已冻结的成本断言。若实测边际执行成本为 \(C_{\mathrm{exec}}\)，则仅靠 1 bp 与该成本持平所需的名义金额为：
+规范计算为：
 
 \[
 N_{\mathrm{exec\text{-}break\text{-}even}}
 =\frac{C_{\mathrm{exec}}}{0.0001}.
 \]
 
-例如，\(C_{\mathrm{exec}}=0.02\) conet-USDC 意味着 \(N_{\mathrm{break\text{-}even}}=200\) USDC 等值，高于 100-USDC 资产 tip 封顶。因此该情景中协议费 **不可能**兼任执行预算。另收 0.02 执行费时，示例总费率在 0.01、1、10、100 USDC 名义金额下分别约为 200.01%、2.01%、0.21% 与 0.03%。按冻结的流入 policy，前两种根本不是外部资产流入：钱包只在本地聚合，达到配置下限前不 burn。其它 operation class 必须显式合批、由具名补贴池赞助，或在进入共识前拒绝；不得隐藏服务者亏损。
+只有 \(C_{\mathrm{exec}}\) 与原生币到 USDC 的转换均来自同一已接受 cost epoch 后，才可发布数值 break-even 结果。
 
 可用性还须计算：
 
@@ -2927,18 +2995,20 @@ N_{\mathrm{exec\text{-}break\text{-}even}}
 {\mathrm{eventsPerMonth}\times0.0001}.
 \]
 
-若每天 10,000 个事件、平均名义金额 10 USDC、月固定容量成本 2,000 conet-USDC，则 1 bp 每月仅产生 300 conet-USDC，即 **0.15×** 覆盖率，尚缺 1,700 conet-USDC 的租金/准备金/补贴。以上数值仅为示例；生产环境必须替换为实测 CoNET L1 gas、oracle、proof、DA、relayer、归档、备选、验证人与历史服务数据。
+只有月固定容量成本、事件量与协议费贡献均来自同一已接受 cost epoch 后，才可发布数值可用性结果。
 
-`FeeScaleProfileV1` 验收门槛为：
+候选 `FeeScaleProfileV1` 验收门槛为：
 
-1. 所选 p95/p99 目标下的执行覆盖率（含冻结风险 buffer）**≥1.2×**；
-2. 每个活跃组在接收新分配前的 epoch 可用性覆盖率 **≥1.2×**；
+1. `epochExecutionReserve / epochP95ExecutionLiability ≥ 1.20`；
+2. 每个活跃组在接收新分配前满足 `epochAvailabilityFunding / epochP95AvailabilityCost ≥ 1.20`；
 3. p99 + 3× gas shock 下仍可偿付，且不挪用用户 principal 或协议安全费余额；
-4. 补贴来源具名、按 epoch 封顶、会到期，并与已赚收入分开报告；
-5. 普通准入冻结时，force-exit / 紧急恢复仍由独立准备金全额承保。
-6. 配置的 `minIngressUsdc6` 不低于 v1 10-USDC 产品 floor 与成本导出的 `recommendedMinIngressUsdc6`；若建议值超过 `maxTipUsdc6`，则暂停流入。
+4. `emergencyReserve ≥ concurrentP99(forceExit + refund + reHome)`；
+5. 补贴来源具名、按 epoch 封顶、会到期，并与已赚收入分开报告；
+6. 仅在建议值已实测后，`minIngressUsdc6 ≥ max(10_000_000, recommendedMinIngressUsdc6)`；若建议值超过 `maxTipUsdc6`，则暂停流入。
 
-**交互式配套分析。** 独立 Cursor Canvas **“CoNET-DLE Economic Fee Stress Model”** 是本节的参数化配套模型。运营者可调整协议 bps、流入 floor/cap、每事件执行收费与成本、每日流量、月度归档/验证人/历史预算、链租金、创建准备金释放及显式补贴；模型会给出执行覆盖率、可用性覆盖率、**补贴前运营盈亏**、补贴后资金余额、break-even 名义金额及当前下限是否经济充足。补贴不得计为已赚利润。Canvas 输出仅用于分析，不得覆盖经 timelock 生效的 L1 policy。
+**当前决定：** 本证据窗口未能经济证明 10-USDC 下限、执行 1.2×、可用性 1.2× 或紧急准备金门槛。DLE 生产资产流入与新链准入必须保持关闭，直至隔离 benchmark 部署全部缺失合约，对每个实质分支至少记录 1,000 个成功和 1,000 个失败样本，在七个独立故障域运行 30 天 5+2 pilot，至少执行 100 次 rotation、30 次 re-home 与 100 次 standby takeover，并发布 code hash、receipt、原始计量、账单、报价 policy、分位数、置信区间与失败率。
+
+**交互式配套分析。** 参数化模型归档于 [dle-economic-fee-stress-model.md](../../../canvas/dle-economic-fee-stress-model.md)，完整实测报告归档于 [dle-p1-real-cost-measurement-report.md](../../../canvas/dle-p1-real-cost-measurement-report.md)，归档索引见 [src/canvas/README.md](../../../canvas/README.md)。Canvas 输出仅用于分析，不得覆盖实测且经 timelock 生效的 L1 policy。
 
 
 ---
@@ -2961,15 +3031,17 @@ CoNET-DLE 精神上最接近 **「许多微账本 + 随机委员会 + 归档终�
 
 ## 15. 开放设计问题 / 实现备注
 
-**2026-08-13 规范补充：** 归档节点明确**无出块权**。验证人委员会是唯一出块 / 提案层；归档仅接收候选、确定性重放、质量检查，并以 Tendermint 式 PrevoteQC → PrecommitQC（=AC）认证。归档扩容变量冻结为 \(G_e\)、\(N_e=5G_e\) 与 \(U_e\)；仅 \(U_e\ge7\) 时由五名全新活跃成员与两名专属有序备选形成新组。`OperatorDomainRegistryV1` 绑定可挑战的运营者/基础设施/角色域；`AdaptiveRotationV1` 强制轮换全部五个活跃槽与 key epochs。其它组库存只能提供带证明的只读服务。`L1QueueAccumulatorV1` 在无 \(Q_G\) 的情况下提供规范队列顺序/区间冻结；随后以 \(Q_A=4/5\)、nonce reservation 与任意 relayer 完成 placement。DA precommit 意味完整规范重放和字节精确 `dle.rs.v1` 重编码，而非只持有 chunk。共识使用规范 SSZ sign-bytes、nil-safe lock、crash-consistent WAL 与确定性 membership activation。资产类流入在 L1 burn 规范资产，退出终局后由 `AssetBurnMintGateway` remint；缺少精确 burn/mint 语义的资产不得准入。经济层明确拆分 1 bp 协议价值费、客观且由付款人封顶的执行准备金，以及固定 epoch 可用性预算；普通退出使用 `ExitFeeQuoteV1`，强制退出由紧急准备金承保。以上规则取代全部旧冲突表述。
+**2026-08-13 规范补充：** 归档节点明确**无出块权**。验证人委员会是唯一出块 / 提案层；归档仅接收候选、确定性重放、质量检查，并以 Tendermint 式 PrevoteQC → PrecommitQC（=AC）认证。归档扩容变量冻结为 \(G_e\)、\(N_e=5G_e\) 与 \(U_e\)；仅 \(U_e\ge7\) 时由五名全新活跃成员与两名专属有序备选形成新组。`OperatorDomainRegistryV1` 绑定可挑战的运营者/基础设施/角色域；`AdaptiveRotationV1` 强制轮换全部五个活跃槽与 key epochs。其它组库存只能提供带证明的只读服务。`L1QueueAccumulatorV1` 在无 \(Q_G\) 的情况下提供规范队列顺序/区间冻结；随后以 \(Q_A=4/5\)、nonce reservation 与任意 relayer 完成 placement。DA precommit 意味完整规范重放和字节精确 `dle.rs.v1` 重编码，而非只持有 chunk。共识使用规范 SSZ sign-bytes、nil-safe lock、crash-consistent WAL 与确定性 membership activation。资产类仅接收 Treasury V3 认可的 CoNET L1 规范 ERC-20：`AssetBurnMintGateway` 协调 DLE proof/accounting，Treasury V3 执行精确 burn 及终局退款/退出 remint。缺少被冻结的 Treasury proxy/token/policy/DLE-authority tuple 与精确 supply 语义的资产不得准入。经济层明确拆分 1 bp 协议价值费、客观且由付款人封顶的执行准备金，以及固定 epoch 可用性预算；普通退出使用 `ExitFeeQuoteV1`，强制退出由紧急准备金承保。以上规则取代全部旧冲突表述。
+
+**经济证据边界：** 100-USDC 单 tip 安全封顶已冻结；10-USDC 候选下限与 1.2× 执行/可用性目标仍是未激活的预生产校准门槛，必须由 §13.6 的已接受实测 `costEpoch` 闭环后才可启用。下文“要求 1.2×”只描述实测后的准入条件，不代表当前已有经济证明的运行比率。
 
 以下条目显式留下，便于工程冻结参数而不改写论题：
 
-1. 归档平面冻结为互不重叠的 **5 活跃 + 2 备选组**。任何活跃归档可接收新链请求；全归档镜像 `QUEUED / NewChainQueue`，但由 `L1QueueAccumulatorV1` 排序和冻结 `L1QueueRangeCheckpoint`，再经 **UniformPlacementV1**、L1 reservation、验证人创世、归档 AC 与任意 relayer 提交的 \(Q_A=4/5\) PlacementCertificate 完成绑定。增长不重映射已有 tip；MC 仅用于解散/re-home。验证人 \(N_V=7,Q_V=5,S_{\mathrm{sb}}=2\) 是唯一出块层；归档只做 Mode A 重放、质量检查、Prevote/Precommit 与 AC 聚合。§5.2.1 已冻结 Tendermint 式 PrevoteQC → PrecommitQC（=AC）的精确 SSZ Container、签名域、规范 golden vector、正确 nil/lock 规则、crash-consistent WAL、membership/key epochs、TC pacemaker、确定性 \(H/H+1\) membership activation 与 L1 escape。`AdaptiveRotationV1`、`OperatorDomainRegistryV1` 和字节精确 `dle.rs.v1` 正确编码亦为协议冻结。开放工程项包括超时数值、其余 conformance-vector 语料/打包格式、registry attestor/adjudication policy、L1 累加器深度/gas 基准、MC ABI、v2 负载单位/上限/权重与 `ArchiveLoadSnapshotV2` fraud-proof 编码、DepositBundle 编码、罚没比例、strike/反证/解押窗口。初始抽签与 churn-window 风险形式为规范，实测相关性是运营输入。
+1. 归档平面冻结为互不重叠的 **5 活跃 + 2 备选组**。任何活跃归档可接收新链请求；全归档镜像 `QUEUED / NewChainQueue`，但由 `L1QueueAccumulatorV1` 排序和冻结 `L1QueueRangeCheckpoint`，再经 **UniformPlacementV1**、L1 reservation、验证人创世、归档 AC 与任意 relayer 提交的 \(Q_A=4/5\) PlacementCertificate 完成绑定。增长不重映射已有 tip；MC 仅用于解散/re-home。验证人 \(N_V=7,Q_V=5,S_{\mathrm{sb}}=2\) 是唯一出块层；归档只做 Mode A 重放、质量检查、Prevote/Precommit 与 AC 聚合。Tendermint 式 PrevoteQC → PrecommitQC（=AC）的 SSZ、nil/lock、WAL、动态名册、reject/accept 与发布向量现已由上方链接的规范性一致性规范和 JSON 语料冻结。`AdaptiveRotationV1`、独立规范性的 `OperatorDomainRegistryV1` 裁决规范及字节精确 `dle.rs.v1` 正确编码亦为协议冻结。开放工程项包括超时数值、冻结裁决状态机内的具体 registry attestor 地址与经济参数、L1 累加器深度/gas 基准、MC ABI、v2 负载单位/上限/权重与 `ArchiveLoadSnapshotV2` fraud-proof 编码、DepositBundle 编码、罚没比例、strike/反证/解押窗口。初始抽签与 churn-window 风险形式为规范，实测相关性是运营输入。
 2. Roulette 随机性分两条域隔离路径冻结。验证人抽选（§7.8）使用 \(R_e = H(\texttt{"dle.roulette.v1"}\,\|\,\mathrm{L1BeaconFinalizedRandomness}_e\,\|\,e\,\|\,\mathrm{shardId}\,\|\,\mathrm{poolRoot}_e)\)；新链托管（§5.2.0a）使用队列检查点 + 合格组注册根上的 \(R^{\mathrm{place}}_e\)，且 v1 采用确定性均匀 batch 排列。两者均须在绑定的 **CoNET beacon / CL 已终局随机信标** 已知前冻结全部参与集合根，且都不得使用 execution `block.hash`。可选 ECVRF 票据可消费 \(R_e\) 但不得回写；可选归档 VRF 拼接已拒绝。Commit–reveal **仅 MVP**。待开项：精确 CL 随机字段 / slot 对齐 ABI、Merkle 编码、冻结时序常量。二期候选为 \(\mathrm{ThresholdVRF}_{t,N}(m_e)\) 与完整规范的 `LoadWeightedPlacementV2`；若再叠加归档 VRF，须预 beacon 冻结 `vrfContributorRoot`，禁止「缺失即从哈希删除」。
 3. 无正当拒签的精确绑定罚没比例 B_{\mathrm{refuse}}、网络故障沉默的可选轻度可用性分数衰减，以及 T_{\mathrm{vote}} / T_{\mathrm{sb}} 是否仅墙钟、或同时引用本地 PoH 测量（§6.5）——**不得** 把 PoH 当作共享顺序（§7.9）。
 4. PoH 已产品冻结为仅本地节拍时钟；新链顺序来自 `L1QueueAccumulatorV1`，单 tip 顺序来自 selection attestations 与 AC，而非归档出块或单独 PoH。
-5. 罚没金额、赏金份额、禁期，以及 **`ArchiveCensorshipChallenge`** 的具体 \(T_{\mathrm{archive}}\) / 保证金规模仍开放。手续费币种 **不是** 开放项：v1 产品冻结为 **存储=conet-GB**、**资产转账=经批准 pool/TWAP 估值并通过 L1 手续费锁支付规范 CoNET L1 conet-USDC**、**普通资产退出=conet-USDC `ExitFeeQuoteV1` 执行准备金**、**强制资产退出=预注资紧急准备金**、**交易成交=同一 `quoteAsset`**。资产 principal 在 L1 流入时 burn、退出终局后精确 remint；普通或强制退出均不得截留 principal。1 bp **协议价值费**按 **50/50 归档/验证人**拆分；付款人封顶的 `FeeQuoteV1` 执行准备金仅偿付可观察 L1 gas 与 `FeeScheduleV1` 客观资源单位；`AvailabilityBudgetV1` 单独承保固定 5+2 / 验证人 / 历史容量（§13）。新分配要求可用性覆盖率 ≥1.2× 及 p95/p99 执行覆盖。开放项：归档 50% 内 \(w_{\mathrm{service}},w_{\mathrm{vote}},w_{\mathrm{standby}}\) 的精确权重、standby-readiness 窗口、registry/gateway/adapter 的具体地址与治理延迟、实测速率/cost epoch/risk margin、链租金与创建准备金水平，以及显式 subsidy-pool 上限。
+5. 罚没金额、赏金份额、禁期，以及 **`ArchiveCensorshipChallenge`** 的具体 \(T_{\mathrm{archive}}\) / 保证金规模仍开放。手续费币种 **不是** 开放项：v1 产品冻结为 **存储=conet-GB**、**资产转账=经批准 pool/TWAP 估值并通过 L1 手续费锁支付规范 CoNET L1 conet-USDC**、**普通资产退出=conet-USDC `ExitFeeQuoteV1` 执行准备金**、**强制资产退出=预注资紧急准备金**、**交易成交=同一 `quoteAsset`**。Treasury V3 在 L1 流入时 burn 规范 principal，且仅为失败创世终局退款或终局退出精确 remint；普通或强制退出均不得截留 principal。1 bp **协议价值费**按 **50/50 归档/验证人**拆分；付款人封顶的 `FeeQuoteV1` 执行准备金仅偿付可观察 L1 gas 与 `FeeScheduleV1` 客观资源单位；`AvailabilityBudgetV1` 单独承保固定 5+2 / 验证人 / 历史容量（§13）。新分配要求可用性覆盖率 ≥1.2× 及 p95/p99 执行覆盖。开放项：归档 50% 内 \(w_{\mathrm{service}},w_{\mathrm{vote}},w_{\mathrm{standby}}\) 的精确权重、standby-readiness 窗口、准入 registry / Treasury proxy / 规范 token proxy / gateway / DLE authority interface 的具体地址与治理延迟、实测速率/cost epoch/risk margin、链租金与创建准备金水平，以及显式 subsidy-pool 上限。
 6. **按类 FSM 元模型 + Trade 转移表** 已产品冻结（§10）：无 tip VM；共用事件编码位宽、重放域 `CoNET-DLE-TipFSM-v1`、nonce、时间源、USDC-6、oracle round 绑定、`tipStateRoot` Merkle 路径与错误码；Trade 状态 `None/Open/Locked/SettleReady/Settled/Closed` 与事件 `TradeOpened…Expired`（§10.2）。资产 / 存储表为 **形式冻结骨架**（§10.3–§10.4）。开放项：SSZ vs RLP 容器选型、DepositBundle 字节布局、资产/存储完整前置行、手续费拆分叶更新、存储挑战 / 销售↔资产时序常量——**不是** Mode A 可否跳过确定性重放。
 7. 开放交易 tip 的 Matcher / 订单索引发现（链外索引 vs 专用索引角色）——不得绕过 L1 所有权 / 托管规则（§4.7）；**不得** 发明 NFT 价格 oracle 或重新施加 ≤100 USDC **报价** 封顶。卖方直接意图已产品冻结：带版本的 EIP-712 `SellerOrder`（AA 卖方用 EIP-1271）、在取得标的托管的同一 L1 交易中把类型化摘要写入 `escrowOrderHash[tradeId]`、nonce `UNUSED→RESERVED→CONSUMED`，并在 TradeOpened / SettleReady AC 中精确绑定 `sellerOrderHash`。**`settleTrade` AC 验证** 同样冻结：L1 卖方订单相等性、托管、付款 / 买方约束、EIP-712 SettleReady 字段、L1 `archiveMembershipRoot` checkpoint、拒绝过期名册、仅在 L1 成功后 tip 标 Settled。开放项：Settlement / MembershipCheckpoint **地址**、付款 token / adapter 白名单、fee-policy 具体编码、调用方策略（任意人 vs 有保证金 relayer），以及 **省 gas** 的 AC checkpoint / 聚合格式（相对每笔 settle 做原始多 ECDSA）。
 8. 交付 miner 授权集规模、最先完成者 **挑战 / 心跳**（保留打款前）、签名 URL TTL、多收件人 vs 每 miner index 密文，以及可选盲购隐私（§4.8 / CopyrightContentModule 论题）。
@@ -2981,7 +3053,7 @@ CoNET-DLE 精神上最接近 **「许多微账本 + 随机委员会 + 归档终�
 14. 清晰区分 **历史 Avalanche-subnet 时代主链草图** 与 **后期 CoNET L1 / DePIN 部署**——DLE 集群论题保持不变。
 15. 钱包层 **ERC-5564 CoNET 配置** 细节（announcement 合约 / 注册表、默认 *n*、view-tag 参数、恢复/扫描 UX）以及客户端如何公布 **隐身元地址**（AddressPGP / tip 外二维码）——必须留在 tip/归档/验证人委员会路径 **之外**；**不得** 把 BIP-47 / BIP-352 留作 CoNET L1 的备选运行时（§4.5）。
 16. 分层 **密钥保险库** 参数（spend 派生批次大小、硬件/阈值策略、恢复映射加密、分片 derivation domain ID、默认单设备每小时合并/转出上限）以及 **密钥域 / 恢复域** 隔离 UX——仅客户端产品；非 tip/归档/验证人共识（§4.5、§12.9）。
-17. **可验证 DA + burn/mint 退出** 形式已产品冻结（§5.2.1、§4.6）：字节精确 **`dle.rs.v1` \((7,4)\)**，含冻结的 \(GF(2^8)\) 矩阵、padding、叶树、测试向量、每个 precommit signer 的完整 body 重编码、`BadEncodingProof`、指派份额保管与 **UnavailableChallenge**。AC 字段含 `bodyCommitment`、`payloadLength`、`codecSpecHash`、`daRoot`、`chunkAssignmentRoot`、`tipStateRoot`、parent AC 与 L1 context。流入精确 burn 规范 L1 单位；普通退出只在 AC 支持的 debit 后 remint，并可使用 `ExitFeeQuoteV1`；强制退出采用 **`requestForceWithdraw → challengeForceWithdraw → finalizeForceWithdraw`**、单调 `latestKnownAC`、合约派生 claim id/nullifier、pending owner 支出冻结、累计 `totalBurnedIn` / `totalMintedOut` 会计、紧急准备金承保与 \(T_{\mathrm{exit}}\)。旧一步式接口和 escrow-vault 模型禁止。开放项：DA/exit/archive 超时、保证金/赏金、精确规范 `BlockBodyV1` 容器、欺诈证明执行环境/gas 基准、AC ancestry 证明编码、gateway/adapter ABI 与 token allowlist——**不是** chunk membership 是否足以证明正确编码。
+17. **可验证 DA + burn/mint 退出** 形式已产品冻结（§5.2.1、§4.6）：字节精确 **`dle.rs.v1` \((7,4)\)**，含冻结的 \(GF(2^8)\) 矩阵、padding、叶树、测试向量、每个 precommit signer 的完整 body 重编码、`BadEncodingProof`、指派份额保管与 **UnavailableChallenge**。AC 字段含 `bodyCommitment`、`payloadLength`、`codecSpecHash`、`daRoot`、`chunkAssignmentRoot`、`tipStateRoot`、parent AC 与 L1 context。Treasury V3 精确 burn 规范 L1 单位；普通退出只在 AC 支持的 debit 后通过 Treasury V3 remint，并可使用 `ExitFeeQuoteV1`；强制退出采用 **`requestForceWithdraw → challengeForceWithdraw → finalizeForceWithdraw`**、单调 `latestKnownAC`、合约派生 claim id/nullifier、pending owner 支出冻结、累计 `totalBurnedIn` / `totalMintedOut` 会计、紧急准备金承保与 \(T_{\mathrm{exit}}\)。旧一步式接口和 escrow-vault 模型禁止。开放项：DA/exit/archive 超时、保证金/赏金、精确规范 `BlockBodyV1` 容器、欺诈证明执行环境/gas 基准、AC ancestry 证明编码、gateway + Treasury DLE authority interface ABI 与规范 token allowlist——**不是** chunk membership 是否足以证明正确编码。
 
 ---
 
@@ -2991,7 +3063,7 @@ CoNET-DLE 以去中心化集群维护大量并行、事件驱动的原子链：�
 
 归档扩容以 \(G_e\) 表示注册组数、\(U_e\) 表示未分配合格归档数；仅 \(U_e\ge7\) 时，由满足 `OperatorDomainRegistryV1` 的五个全新活跃规范运营者域与两个专属备选形成下一组；既有组保留归属并提供带证明的历史。`AdaptiveRotationV1` 随后逐次替换一个计划活跃槽、轮换 key epochs，并在 `T_cycleMax` 内完成五槽 churn；已有 tip 绑定的是组而不是永久运营者。解散/re-home 需要双 \(Q_A\) MigrationCertificate。计划退出与计划 churn 均用 MembershipUpdateCertificate 原子切换。
 
-安全性仍有条件。≤100 USDC 等值资产 tip 上限只限制单 tip 直接损失，不能修复委员会或归档俘获。资产链还要求 L1 `AssetAdmissionRegistry`、批准的 pool/TWAP、由 gateway 控制的精确 burn/mint adapter 和发起方出资的规范 conet-USDC fee lock；流入 burn L1 principal，只有退出终局才可 remint。交易结算直接收取卖方所选 `quoteAsset`，绝不 oracle 估值 NFT。生产必须跟踪验证人 \(P_{\mathrm{prop}}/P_{\mathrm{year}}\)、归档初始抽签及 churn-window capture、任一分片与跨角色相关风险、运营者/基础设施集中度和 \(E_C\le E_{\max}\)。L1 身份/结算/队列顺序、可挑战运营者域、强制轮换、membership checkpoints、standby readiness、正确编码且可重建 DA、累计 burn/mint 守恒、强制退出和客户端密钥域隔离是相互独立的安全层。吞吐可随互不重叠的归档组与事件流扩展，但本文不声称消除区块链不可能三角。
+安全性仍有条件。≤100 USDC 等值资产 tip 上限只限制单 tip 直接损失，不能修复委员会或归档俘获。资产链还要求 L1 `AssetAdmissionRegistry`、批准的 pool/TWAP、冻结的 Treasury V3 proxy/token/policy/DLE-authority tuple、排他 replacement reservation，以及发起方出资的规范 conet-USDC fee lock；流入时由 Treasury V3 burn CoNET L1 规范 principal，且仅有终局退款或退出才可 remint。交易结算直接收取卖方所选 `quoteAsset`，绝不 oracle 估值 NFT。生产必须跟踪验证人 \(P_{\mathrm{prop}}/P_{\mathrm{year}}\)、归档初始抽签及 churn-window capture、任一分片与跨角色相关风险、运营者/基础设施集中度和 \(E_C\le E_{\max}\)。L1 身份/结算/队列顺序、可挑战运营者域、强制轮换、membership checkpoints、standby readiness、正确编码且可重建 DA、累计 burn/mint 守恒、强制退出和客户端密钥域隔离是相互独立的安全层。吞吐可随互不重叠的归档组与事件流扩展，但本文不声称消除区块链不可能三角。
 
 ---
 
@@ -3063,7 +3135,7 @@ CoNET-DLE 以去中心化集群维护大量并行、事件驱动的原子链：�
 | **UnavailableChallenge** | L1 游戏：AC 已存在但 chunk 缺失；被点名成员须打开精确 `dle.rs.v1` 指派份额，否则罚没；有效打开 < \(k\) 则冻结高度（§5.2.1）。 |
 | **`dle.rs.v1` / \((n,k)=(7,4)\)** | 字节精确的系统 \(GF(2^8)\) codec，固定矩阵、padding、Merkle leaves 与测试向量；每个 precommit signer 重放完整 body 并重算七份 chunk/root，任意 4 份可重建（§5.2.1）。 |
 | **BadEncodingProof** | 客观证明 AC 承诺的 chunk 不匹配 `bodyCommitment` 或确定性 `dle.rs.v1` codeword；有效证明冻结并罚没错误高度（§5.2.1）。 |
-| **L1 AssetBurnMintGateway** | 资产类 L1 供应量守恒 gateway：把已准入资产精确 burn 到 `BURNED_PENDING`；仅凭合法 genesis AC 激活 backing，或只向原 burn 方退款已过期且未激活的 burn。普通/强制退出终局后精确 remint 同一资产，并维护 `latestKnownAC`、per-tip/global 已激活 burn 与 mint-out、owner 累计 mint 及挑战退出（§4.6、§5.2.1）。 |
+| **L1 AssetBurnMintGateway + Treasury V3** | 只准入 Treasury V3 规范 ERC-20 principal。Treasury V3 执行精确物理 burn/remint 并持有全局单次消费 operation domain；gateway 记录 `BURNED_PENDING`、仅凭合法 genesis AC 激活 backing、只向原 burn 方退款已过期未激活 burn，并在 Treasury remint 前消费一份共同 exit right。它维护 `latestKnownAC`、per-tip/global credit 与 mint-out、replacement reservation、owner 累计 mint 及挑战退出（§4.6、§5.2.1）。 |
 | **ExitFeeQuoteV1** | 仅绑定一次普通资产退出的 conet-USDC 执行准备金 quote；支付客观 proof/relayer/L1 gas 成本，`protocolFeeAmount=0`，不得扣 remint principal（§13.2）。 |
 | **强制退出 claim** | L1 `request → challenge → finalize` 状态机；claim id/nullifier 由合约派生；更高合法后继 AC 可降低 / 取消过期 claim；仅 finalize 增加累计 `mintedByAssetOwner` 并 remint 已证明余额，gas 由紧急准备金承保（§5.2.1）。 |
 | **天然隐私**                                  | 双轨：DePIN **通讯** 隐私 + **提高聚类成本**、打断单地址投资组合等价的 **资产** 隐私——**非** 强匿名（§4.5、§7.6）。                                                                                                                   |
@@ -3091,8 +3163,8 @@ CoNET-DLE 以去中心化集群维护大量并行、事件驱动的原子链：�
 | **tipStateRoot**                             | 接受事件后 tip FSM 叶的 Keccak Merkle 根；绑定进 SettleReady / DA AC（§4.7、§5.2.1、§10.1）。                                                                                                                      |
 | **Proof of History（PoH）**                 | 可验证的 **本地** 节拍 / 防回拨时钟（h_{t+1}=\mathrm{SHA256}(h_t)）；**不是** 跨归档共享顺序（§7.9）。                                                                                              |
 | **规范事件顺序** | 新链准入顺序由 L1 `L1QueueAccumulatorV1` 决定；单 tip 事件顺序由 selection attestations + AC 决定，绝不由单一 PoH 链决定（§7.9）。 |
-| **资产类链** | 仅承载 L1 `ACTIVE` 准入资产的可转让账本；**包括 conet-USDC 在内的每种资产** 均须有经批准的 CoNET L1 去中心化 pool/route + TWAP，以及精确 burn/mint adapter。外部 burn 流入与新 spillover tip 在 **10–100 USDC 等值**区间内激活且每事件重估；超顶转出 → 均衡新链（§4.6）。转账发起方须预锁定 oracle USDC-6 名义金额 **1 bp 的规范 conet-USDC**（§13）。 |
-| **AssetAdmissionRegistry** | CoNET L1 资产准入注册表；以 `ACTIVE` 状态、独立参考集承诺、规范 pool/TWAP adapter、精确 burn/mint adapter 与 code hash、mint authority/cap、token 语义、流动性、粉尘下限、聚合/每 epoch 暴露上限、时效、偏差熔断与 policy version 为资产类创建及事件设门（§13.3）。 |
+| **资产类链** | 仅承载 `ACTIVE` 的 CoNET L1 Treasury V3 规范 ERC-20 可转让账本；**包括 conet-USDC 在内的每种资产** 均须有经批准的 CoNET L1 去中心化 pool/route + TWAP，以及精确准入的 Treasury proxy/token/policy/DLE-authority tuple。Treasury burn 流入与新 spillover tip 在**证据批准下限与已冻结 100-USDC 等值封顶**之间激活且每事件重估；超顶转出 → 均衡新链；终局退款/退出通过 Treasury V3 remint 同一规范资产（§4.6）。转账发起方须预锁定 oracle USDC-6 名义金额 **1 bp 的规范 conet-USDC**（§13）。 |
+| **AssetAdmissionRegistry** | CoNET L1 资产准入注册表；以 `ACTIVE` 状态、独立参考集承诺、规范 pool/TWAP adapter、Treasury proxy、规范 token proxy/version、DLE authority-interface code hash、Treasury policy epoch、排他 replacement reservation/mint cap、安全 token 语义、流动性、粉尘下限、聚合/每 epoch 暴露上限、时效与偏差熔断为资产类创建及事件设门（§13.3）。 |
 | **FeeVault / feeLockId**                    | 资产事件精确 `feeUsdc6` 的 CoNET L1 conet-USDC 锁；一个 event nonce 只能原子消费一个已终局 lock id 一次，或在 deadline 后转为可退款，再按 50/50 记入归档/验证人 pull-based claim（§13.3–§13.4）。 |
 | **溢出建新链** | 重估资产余额 **> 100 USDC** 时，转出 / 超额须创建新资产 tip，并重新分配已有 L2 backing；不得再次 burn/mint L1 principal（§4.6）。 |
 | **存储类链**                                  | 数据/状态 / 创作者内容账本；保留费 + 可选 **以 GB 计价的访问权**（§4.8）；版权 ZERO 树节点（§4.9）；销售账本（§4.10）。                                                                                           |
@@ -3122,13 +3194,15 @@ CoNET-DLE 以去中心化集群维护大量并行、事件驱动的原子链：�
 用户 → 保留同 owner 的本地可撤销 intent；若估值低于 minIngressUsdc6，
        只在本地聚合，不 burn、不铸造 NFT、也不创建 pending receipt
      → 达标后请求唯一 CoNET L1 NFT（类别 = 资产）
-     → 要求资产在 AssetAdmissionRegistry 为 ACTIVE；
-       包括 conet-USDC 在内的每种资产均须有经批准的 CoNET L1
+     → 要求 Treasury V3 规范 ERC-20 在 AssetAdmissionRegistry 为 ACTIVE；
+       包括 conet-USDC 在内的每种规范资产均须有经批准的 CoNET L1
        pool/route + 独立参考集 + TWAP + 最低流动性；
-       精确批准的 burn/mint adapter、mint authority/cap 与安全 token 语义；
+       冻结 Treasury proxy/policy/token 版本 + DLE authority interface、
+       全局单次消费 treasury operation domain、role proof 与 reserved cap；
        执行 minIngressUsdc6/maxTipUsdc6 与路由级聚合/每 epoch 暴露上限
      → 用户授权 AssetBurnMintGateway；gateway 自行取得规范报价，
-       要求 10–100 USDC 等值后 burn 精确 L1 单位；
+       要求证据批准下限至已冻结 100-USDC 等值封顶，
+       再由 Treasury V3 burn 精确规范单位；
        已终局 BurnReceiptV1 进入 BURNED_PENDING，并绑定 floor/cap/costEpoch；
        此时尚无可花费 L2 backing
      → 任意活跃归档接收请求 → 全局 QUEUED / L1 NewChainQueue
