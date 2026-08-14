@@ -23,7 +23,3 @@ export function filterEvents(events: DleEventRow[], query: string): DleEventRow[
       .includes(needle),
   )
 }
-
-export function eventMatchesQuery(event: DleEventRow, query: string): boolean {
-  return filterEvents([event], query).length === 1
-}

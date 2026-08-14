@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { EventTable } from '../components/EventTable'
 import { StatusPill } from '../components/StatusPill'
@@ -11,6 +11,9 @@ export function EventsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const queryFromUrl = searchParams.get('q') ?? ''
   const [draft, setDraft] = useState(queryFromUrl)
+  useEffect(() => {
+    setDraft(queryFromUrl)
+  }, [queryFromUrl])
   const live = snapshot.events.some((row) => row.source === 'live')
   const rows = useMemo(
     () => filterEvents(sortEventsNewestFirst(snapshot.events), queryFromUrl),
