@@ -15,6 +15,8 @@ Public hostname (user-authorized): **`https://dle.conet.network`** on `70.35.205
 The SPA is same-origin; nginx proxies `/health`, `/rpc`, and `/api/v2/dle` to lab archives on TCP **27101**.
 Do **not** invent additional hostnames, and do **not** write this URL into Solidity constants.
 
+The UI uses a dark neon glass theme and the DLE mark in `explorer/public/dle-mark.png`. Events are listed **newest first**. There is no top navigation bar — main pages use a title capsule, detail pages use a circular back button, and section tabs stay in the footer.
+
 ## Run locally
 
 From `src/conet-layer2` (install explorer deps once):
