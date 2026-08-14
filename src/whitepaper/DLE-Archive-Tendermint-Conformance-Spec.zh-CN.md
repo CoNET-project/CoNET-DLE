@@ -1,10 +1,12 @@
 # CoNET-DLE Archive Tendermint 一致性规范
 
-**状态：** 规范性草案；Proposal/Vote SSZ 向量已冻结，P0 互操作闭环尚未完成
+**状态：** 规范性草案；可执行 v2 语料与 Archive A MVP 已冻结，生产互操作闭环尚未完成
 **修订：** 2026-08-13
 **成对译本：** [`DLE-Archive-Tendermint-Conformance-Spec.md`](./DLE-Archive-Tendermint-Conformance-Spec.md)
-**规范向量：** [`DLE-Archive-Tendermint-Vectors-v1.json`](./DLE-Archive-Tendermint-Vectors-v1.json)
-**语料摘要：** [`DLE-Archive-Tendermint-Vectors-v1.sha256`](./DLE-Archive-Tendermint-Vectors-v1.sha256)
+**遗留不可变向量：** [`DLE-Archive-Tendermint-Vectors-v1.json`](./DLE-Archive-Tendermint-Vectors-v1.json)
+**规范可执行语料：** [`../../conformance/corpus/DLE-Archive-Tendermint-Vectors-v2.json`](../../conformance/corpus/DLE-Archive-Tendermint-Vectors-v2.json)
+**Schema：** [`../../conformance/schema/dle-archive-tendermint-corpus-v2.schema.json`](../../conformance/schema/dle-archive-tendermint-corpus-v2.schema.json)
+**SHA-256 manifest：** [`../../conformance/DLE-Archive-Tendermint-Corpus-v2.sha256`](../../conformance/DLE-Archive-Tendermint-Corpus-v2.sha256)
 
 本规范冻结白皮书摘要对应的字节级与状态转换行为。Archive 实现只有通过完整向量语料后，才可在生产 membership root 下投票。
 
@@ -19,7 +21,7 @@
 
 ## 2. Canonical 向量产物
 
-`DLE-Archive-Tendermint-Vectors-v1.json` 是规范性产物，包含：
+`DLE-Archive-Tendermint-Vectors-v1.json` 继续作为不可变兼容产物。其六个 Proposal/Vote 向量逐字节嵌入规范性 `conformance/corpus/DLE-Archive-Tendermint-Vectors-v2.json`。v2 语料另含：
 
 1. 以下对象的精确 SSZ bytes、SSZ `hash_tree_root` 与 signing root：
    - 无 valid round 的 proposal；
@@ -28,12 +30,14 @@
    - nil prevote；
    - 绑定 PrevoteQC 的 non-nil precommit；
    - nil precommit；
-2. lock/valid-round 状态转换；
-3. WAL crash/restart 结果；
-4. membership activation/rejection 案例；
-5. `CandidateRejectCertificate` 与 accept vote 冲突。
+2. 带顺序输入、输出、错误、终态与 state root 的机器可读 lock/valid-round 状态转换；
+3. 固定 `PrevoteQC`、`ArchiveCertificate`、`TimeoutCertificate`、`CandidateRejectCertificate` container 与 golden root；
+4. 字节精确的 WAL safety record/frame，以及损坏/截断尾部结果；
+5. coordinator 选择、membership activation/rejection 与 `CandidateRejectCertificate` 冲突案例；
+6. 字节精确的系统型 RS `(7,4)` 向量、DA root 与全部 35 组四分片重建集合；
+7. 确定性的 `5 active + 2 ready standby` 计划退出生命周期。
 
-实现必须直接把该 JSON 作为测试输入。可转换成实现语言的 fixture，但 CI 必须先验证其与仓库产物逐字节一致。
+实现必须直接把 v2 JSON 作为测试输入，并用仓库内 schema 校验。可转换成实现语言的 fixture，但 CI 必须先验证其与仓库产物及 SHA-256 manifest 逐字节一致。
 
 ## 3. SSZ 与签名规则
 
@@ -150,20 +154,26 @@ Wire/API 可包装这些值，但语义 code 固定：
 6. 在 QC 前、QC 后、AC 前、AC 后做 reject/accept conflict 测试；
 7. CI 校验 corpus hash；修改向量必须经过 protocol-version/revision 审查。
 
-已于 2026-08-13 按声明的 fixed container 独立重算六个 SSZ 向量；其 canonical serialization、SHA-256 SSZ root 与 Keccak signing root 均与仓库值一致，JSON 亦成功解析全部 22 个状态机向量。该次校验不能替代确定性语义 replay 或强制要求的第二个生产语言实现。
+Archive A 会重算六个不可变 v1 Proposal/Vote 向量与全部 v2 certificate 字节/root，校验 JSON Schema，确定性 replay v2 FSM/生命周期向量，验证 WAL 损坏行为，并从全部 35 种 4-of-7 子集重建每个 RS 向量。这仍不能替代强制要求的第二个生产语言实现。
 
 任何一个向量不一致的实现都不得签 production `dle.archive.tendermint.v1` 对象。
 
-## 11. 尚未闭合的 P0 发布阻塞项
+## 11. 已冻结 v2 机器边界与剩余发布阻塞项
 
-现有语料是生产 signer 的必要条件，但仍非充分条件。以下事项属于规范性发布阻塞项，严禁留给实现者自由发挥：
+第一批可执行实现冻结下列规则。实现必须从 v2 语料读取精确值，不得从本摘要手抄：
 
-1. **唯一最终签名语义。** 必须冻结 secp256k1 signature 是直接签 SSZ 派生 `signingRoot`，还是签唯一的 canonical EIP-712 wrapper（该 wrapper 承诺此 root）。当前白皮书同时要求用于 L1 AC 验证的 vote 使用 EIP-712；实现不得自行发明 SSZ↔EIP-712 映射，也不得要求两份具有独立语义的签名。
-2. **证书容器。** 必须发布 `PrevoteQC`、`PrecommitQC/ArchiveCertificate`、`TimeoutQC` 与 `CandidateRejectCertificate` 的固定宽度 canonical SSZ container 和 golden vector，明确 signer 顺序、bitmap/list、未用 slot、重复 signer 拒绝、子对象 root 与 signature bytes。
-3. **证书引用。** 必须逐字节定义 `H(QC)` 与 `prevoteQCRef`，包括 domain tag，以及引用究竟承诺完整证书、SSZ root 还是另一 digest。重复 `0xab` 等值只能作为结构 fixture，不能作为规范引用算法。
-4. **Coordinator 选择。** 必须冻结 `(archiveGroupId, chainNftId, tipHeight, attemptNonce, membershipRoot, round)` 的确定性 coordinator 公式、canonical roster 顺序、整数端序及 modulo/rejection 行为。
-5. **WAL framing。** 必须冻结字节级 WAL record/frame 格式、sequence/checksum、原子 durability 边界与损坏尾部恢复；只有自然语言 crash 结果不足以形成跨语言 replay vector。
-6. **可执行语义向量。** 必须把自由文本 `initial` / `expected` 替换为带版本的机器可读 state、顺序输入、预期输出、rejection code 与最终 state root；自然语言仅保留为注释。
-7. **Reject 原因。** 必须冻结 `CandidateRejectCertificate.reasonCode` enum 及每项证据要求。
+1. **Certificate 与引用。** Certificate kind 固定为 `PrevoteQC=1`、`ArchiveCertificate=2`、`TimeoutCertificate=3`、`CandidateRejectCertificate=4`。每张 certificate 有五个规范 active-signer slot、bitmap 位 `0..4`、65-byte signature、零填充的未签名 signature slot，且 popcount 至少为四。Standby 永不占 certificate signer slot。引用为 `SHA-256(UTF8("dle.archive.certref.v2") || uint8(kind) || hash_tree_root(certificate))`。
+2. **Signing root。** Fixed-container root 使用 SSZ SHA-256 merkleization。Signing root 继续为 `keccak256(UTF8(domainTag) || hash_tree_root(object))`；v2 语料分别冻结 QC、AC、TC、Reject 的 domain tag 与 golden root。
+3. **Coordinator。** 五个 active `Bytes32` member ID 按无符号 bytewise 升序排序。选择 preimage 为 `UTF8("dle.archive.coordinator.v1")`，随后依次拼接 little-endian `archiveGroupId:uint64`、`chainNftId:uint256`、`tipHeight:uint64`、`attemptNonce:uint64`、`membershipRoot:Bytes32`、`round:uint32`。候选为 `SHA-256(preimage || counter:uint32le)`；取低 64 位并按 little-endian 解释，在 `floor(2^64/5)*5` 以下做 rejection sampling，再 modulo five。
+4. **WAL。** Frame 为 `DLEW || version:uint16le || flags:uint16le || sequence:uint64le || payloadLength:uint32le || SHA-256(payload) || payload || SHA-256(header||payload)`。Safety-record payload 包含精确 canonical sign bytes、root、65-byte signature、proposal/lock/valid/QC/TC state、membership/key epoch 与 committed height。`fsync` 是 emit 边界。同一 `(domain,height,round,step)` 的字节不同 record 返回 `ERR_WAL_DOUBLE_SIGN`；损坏或截断尾部必须进入 non-voting recovery。
+5. **Error 与 reject reason。** 该版本的全集是语料中的 `errorEnums` 与 `rejectReasons`。每个 reject reason 都要求非零 evidence hash。
+6. **RS `(7,4)` 与 DA。** `dle.rs.v1` 使用语料内固定的系统型 generator matrix，域为 `GF(2^8)`，primitive polynomial 为 `0x11d`。输入 frame 为 `uint64le(bodyLength)||body||zero-padding`。Domain-separated SHA-256 leaf/branch 规则及第八个 pad leaf 均由语料固定。全部 35 种四分片子集必须重建出精确 body。
+7. **可执行语义与 5+2 生命周期。** FSM 与 lifecycle vector 是顺序数据，不是自然语言。State root 绑定全部安全字段。计划退出向量只以有序 `standby[0]` 替换一个 active slot，同时增加两个 epoch、保留四名 active、前移 `standby[1]`，且不降低 quorum。
 
-在上述产物及其 corpus digest 入库，并由两个生产语言独立复现之前，本规范仍为 P0 未闭合，任何 archive signer 均不得启用生产投票。
+仍有以下生产阻塞项：
+
+1. 冻结 L1 验证所用的唯一 canonical EIP-712 wrapper，包括 secp256k1 signature 是签该 wrapper 还是直接签 SSZ 派生 root；实现不得自造映射，也不得要求两份独立语义 signature；
+2. 由第二套独立生产语言实现复现完整 schema/corpus，并运行跨进程 differential test；
+3. 在确定性 core 外补齐生产 networking、key custody/rotation、L1 checkpoint 验证、signature recovery 与 crash-injection integration。
+
+在这些阻塞项闭合前，不得启用任何生产 archive signer。

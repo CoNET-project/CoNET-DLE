@@ -1,0 +1,35 @@
+{
+  "schema": "LabCorrelationV1",
+  "notes": [
+    {
+      "check": "seven-unique-hosts",
+      "ok": true,
+      "detail": "seven distinct hostId values"
+    },
+    {
+      "check": "provider-diversity-honest",
+      "ok": true,
+      "detail": "providers=IONOS Inc.,HostHatch, LLC; five IONOS + two HostHatch is host-isolated, not fully provider-isolated"
+    },
+    {
+      "check": "asn-diversity-honest",
+      "ok": true,
+      "detail": "asns=AS8560,AS63473; AS8560 still covers five IONOS leases"
+    },
+    {
+      "check": "region-diversity-honest",
+      "ok": true,
+      "detail": "regions=us-east-ny,us-central-mo,ap-northeast-tokyo"
+    },
+    {
+      "check": "tcp-27101-mesh",
+      "ok": true,
+      "detail": "7x7 HTTP 200 on lab TCP 27101; all agents lastQuorumOk=true with 6 peers"
+    },
+    {
+      "check": "host-month-invoice-usd-4-unmetered",
+      "ok": true,
+      "detail": "operator-stated USD 4 per host-month, unmetered traffic; invoice subtotal USD 28"
+    }
+  ]
+}

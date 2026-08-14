@@ -4,7 +4,7 @@
 
 **作者：** Peter Xie  
 **初稿：** 2023  
-**修订：** 2026-08-13（每组 5 名活跃归档 + 2 名专属有序备选、严格 4/5 quorum、五槽 AdaptiveRotationV1、OperatorDomainRegistryV1、L1QueueAccumulatorV1、线级 Tendermint/SSZ/WAL 规则、确定性 `dle.rs.v1` 正确编码证明、带挑战期强制退出、Treasury V3 规范 ERC-20 burn/remint 网关、**P1 实测证据边界：100-USDC 安全封顶已冻结，10-USDC 下限与 1.2× coverage 仍属临时参数**、L1 锚定卖方订单、x402 v2 AI pay-per-use / API gateway 目标 profile、协议费/执行准备金/可用性预算三账本、Treasury 规范资产 L1 pool/TWAP 准入；归档无出块权）
+**修订：** 2026-08-13（每组 5 名活跃归档 + 2 名专属有序备选、严格 4/5 quorum、可执行 Archive Tendermint v2 语料/Archive A MVP、五槽 AdaptiveRotationV1、OperatorDomainRegistryV1、L1QueueAccumulatorV1、线级 Tendermint/SSZ/WAL 规则、确定性 `dle.rs.v1` 正确编码证明、带挑战期强制退出、Treasury V3 规范 ERC-20 burn/remint 网关、**P1 实测证据边界：100-USDC 安全封顶已冻结，10-USDC 下限与 1.2× coverage 仍属临时参数**、L1 锚定卖方订单、x402 v2 AI pay-per-use / API gateway 目标 profile、协议费/执行准备金/可用性预算三账本、Treasury 规范资产 L1 pool/TWAP 准入；归档无出块权）
 
 **成对译本（必须同步更新）：** [`Decentralization Cluster multi-chain.md`](./Decentralization%20Cluster%20multi-chain.md)
 **同步守则：** `.cursor/rules/conet-layer2-whitepaper-bilingual-sync.mdc`
@@ -12,7 +12,7 @@
 **规范性实现规范：**
 
 - [`AssetBurnMintGateway 不变量规范`](./DLE-AssetBurnMintGateway-Invariant-Spec.zh-CN.md) + 有界 [`TLA+ 模型`](./DLEAssetBurnMintGateway.tla)
-- [`Archive Tendermint 一致性规范`](./DLE-Archive-Tendermint-Conformance-Spec.zh-CN.md) + canonical [`SSZ/状态机向量`](./DLE-Archive-Tendermint-Vectors-v1.json)
+- [`Archive Tendermint 一致性规范`](./DLE-Archive-Tendermint-Conformance-Spec.zh-CN.md) + 不可变 [`v1 Proposal/Vote 向量`](./DLE-Archive-Tendermint-Vectors-v1.json) + 规范可执行 [`v2 语料`](../../conformance/corpus/DLE-Archive-Tendermint-Vectors-v2.json)
 - [`OperatorDomainRegistryV1 规范`](./DLE-OperatorDomainRegistryV1-Spec.zh-CN.md)
 
 **开发评估快照：** [`DLE P0/P1 形式化补正评估`](../../../canvas/dle-p0-p1-formalization-review.md) 记录本轮批评到控制项的映射及尚未完成的工程发布门；该快照不具规范性。
@@ -1119,7 +1119,7 @@ RESERVED | GENESIS_AC --deadline--> EXPIRED
 
 ### 5.2.1 归档分片 BFT 与归档证书（产品冻结）
 
-当前字节级 Proposal/Vote SSZ 语料、nil/lock 转换、WAL crash/restart 结果、确定性 membership-switch 拒签案例及 `CandidateRejectCertificate` 冲突处理冻结于 [`Archive Tendermint 一致性规范`](./DLE-Archive-Tendermint-Conformance-Spec.zh-CN.md) 与 [`DLE-Archive-Tendermint-Vectors-v1.json`](./DLE-Archive-Tendermint-Vectors-v1.json)。一致性规范中的 P0 闭环章节具有控制效力：在 SSZ→EIP-712 签名映射、QC/TC/AC/Reject container、`H(QC)`、coordinator 公式、WAL frame、可执行语义向量及 reject-reason enum 同样冻结前，生产发布仍被阻塞。不得用本节文字填补这些缺口或接受不同 encoding/状态转换。
+字节级 Proposal/Vote 向量继续不可变地保存在 [`DLE-Archive-Tendermint-Vectors-v1.json`](./DLE-Archive-Tendermint-Vectors-v1.json)。规范可执行 [`v2 语料`](../../conformance/corpus/DLE-Archive-Tendermint-Vectors-v2.json) 及其 [SHA-256 manifest](../../conformance/DLE-Archive-Tendermint-Corpus-v2.sha256) 进一步冻结 QC/AC/TC/Reject container 与引用、signing root、coordinator 选择、WAL safety record/frame、error/reject enum、顺序 FSM/生命周期向量与确定性 RS `(7,4)` golden data。[`Archive Tendermint 一致性规范`](./DLE-Archive-Tendermint-Conformance-Spec.zh-CN.md) 具有控制效力。生产仍被唯一 SSZ→EIP-712 signature wrapper、第二套独立语言复现及生产 integration 阻塞；本节 prose 不得覆盖机器语料。
 
 等待池、roulette 抽选、质检、接受/拒绝、回滚与存档 **运行在托管归档分片上**——但 **安全根不是单一归档运营者**。每个分片是经典部分同步 BFT 委员会。**仅有法定人数规模并不构成协议：** 缺少下文锁定 / justify 状态机时，「凑齐 \(Q_A\) 签名」**不等于** 完整 BFT。
 

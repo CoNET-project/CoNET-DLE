@@ -1,0 +1,104 @@
+name: DLE TypeScript MVP CI
+
+on:
+  pull_request:
+    paths:
+      - "conformance/**"
+      - "evidence/**"
+      - "implementations/archive-a/**"
+      - "implementations/archive-b/**"
+      - "docs/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - ".github/workflows/dle-typescript-mvp-ci.yml"
+  push:
+    paths:
+      - "conformance/**"
+      - "evidence/**"
+      - "implementations/archive-a/**"
+      - "implementations/archive-b/**"
+      - "docs/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - ".github/workflows/dle-typescript-mvp-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    env:
+      CI_EVIDENCE_ROOT: ${{ runner.temp }}/dle-typescript-mvp-evidence
+      CI_EVIDENCE_LOGS: ${{ runner.temp }}/dle-typescript-mvp-evidence/logs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            implementations/archive-b/package-lock.json
+      - name: Install root dependencies
+        run: npm ci
+      - name: Install Archive B dependencies
+        run: npm --prefix implementations/archive-b ci
+      - name: Prepare evidence directory
+        run: mkdir -p "$CI_EVIDENCE_LOGS"
+      - name: Verify CI evidence contract
+        run: |
+          set -o pipefail
+          npm run evidence:verify | tee "$CI_EVIDENCE_LOGS/ci-evidence-contract.log"
+      - name: Verify canonical corpus integrity
+        run: |
+          set -o pipefail
+          npm run corpus:check | tee "$CI_EVIDENCE_LOGS/corpus-integrity.log"
+      - name: Enforce Archive implementation boundary
+        run: |
+          set -o pipefail
+          npm run boundary:check | tee "$CI_EVIDENCE_LOGS/dependency-boundary.log"
+      - name: Build Archive A
+        run: |
+          set -o pipefail
+          npm run archive-a:build | tee "$CI_EVIDENCE_LOGS/archive-a-build.log"
+      - name: Test Archive A
+        run: |
+          set -o pipefail
+          npm run archive-a:test | tee "$CI_EVIDENCE_LOGS/archive-a-test.log"
+      - name: Run Archive A corpus conformance
+        run: |
+          set -o pipefail
+          npm run archive-a:conformance | tee "$CI_EVIDENCE_LOGS/archive-a-conformance.log"
+      - name: Build Archive B
+        run: |
+          set -o pipefail
+          npm run archive-b:build | tee "$CI_EVIDENCE_LOGS/archive-b-build.log"
+      - name: Test Archive B
+        run: |
+          set -o pipefail
+          npm run archive-b:test | tee "$CI_EVIDENCE_LOGS/archive-b-test.log"
+      - name: Run Archive B corpus conformance
+        run: |
+          set -o pipefail
+          npm run archive-b:conformance | tee "$CI_EVIDENCE_LOGS/archive-b-conformance.log"
+      - name: Run differential conformance
+        run: |
+          set -o pipefail
+          npm run differential | tee "$CI_EVIDENCE_LOGS/differential.log"
+      - name: Collect verified CI evidence
+        run: |
+          npm run evidence:collect -- \
+            --output "$CI_EVIDENCE_ROOT/bundle" \
+            --artifacts "$CI_EVIDENCE_ROOT" \
+            --revision "$GITHUB_SHA"
+          npm run evidence:verify-manifest -- --output "$CI_EVIDENCE_ROOT/bundle"
+      - name: Upload CI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dle-typescript-mvp-evidence-${{ github.sha }}
+          path: ${{ runner.temp }}/dle-typescript-mvp-evidence
+          if-no-files-found: warn

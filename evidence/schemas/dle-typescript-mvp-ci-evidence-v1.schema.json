@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:conet:dle:typescript-mvp:ci-evidence:v1",
+  "title": "CoNET DLE TypeScript MVP CI evidence manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaVersion",
+    "sourceRevision",
+    "corpus",
+    "dependencyBoundary",
+    "checks",
+    "artifacts"
+  ],
+  "properties": {
+    "schema": {
+      "const": "DleTypeScriptMvpCiEvidenceManifestV1"
+    },
+    "schemaVersion": {
+      "const": "conet.dle.typescript-mvp.ci.v1"
+    },
+    "sourceRevision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "corpus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "corpus", "integrityManifest"],
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/digestFile"
+        },
+        "corpus": {
+          "$ref": "#/$defs/digestFile"
+        },
+        "integrityManifest": {
+          "$ref": "#/$defs/digestFile"
+        }
+      }
+    },
+    "dependencyBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceRoots", "prohibitedCrossImports"],
+      "properties": {
+        "sourceRoots": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "prohibitedCrossImports": {
+          "const": true
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 9,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "command", "artifact", "status"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "command": {
+            "type": "string",
+            "minLength": 1
+          },
+          "artifact": {
+            "type": "string",
+            "pattern": "^logs/[A-Za-z0-9._-]+\\.log$"
+          },
+          "status": {
+            "const": "passed"
+          }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 9,
+      "items": {
+        "$ref": "#/$defs/digestFile"
+      }
+    }
+  },
+  "$defs": {
+    "digestFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

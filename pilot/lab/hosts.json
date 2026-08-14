@@ -1,0 +1,73 @@
+{
+  "schema": "PilotLabHostsV1",
+  "pilotId": "conet-dle-30d-lab-2026-08",
+  "sshUser": "peter",
+  "labPort": 27101,
+  "labDir": "/home/peter/dle-30d-lab",
+  "protectedProcessNames": [
+    "geth",
+    "beacon-chain",
+    "validator",
+    "prysm",
+    "conet-geth-load-guard",
+    "conet_load15_geth_watch"
+  ],
+  "hosts": [
+    {
+      "domainId": "fd-01-ionos-45",
+      "sshHost": "74.208.224.45",
+      "class": "deprecated-l1-clean",
+      "leftoverElCl": false,
+      "doNotStartValidator": true,
+      "notes": "DEPRECATED 136v migrated to 216.225.202.23:7201. Leftover datadir may exist. EL/CL not running. Never start-with-va."
+    },
+    {
+      "domainId": "fd-02-ionos-189",
+      "sshHost": "216.225.197.189",
+      "class": "shared-readonly-beacon",
+      "leftoverElCl": true,
+      "doNotStartValidator": true,
+      "notes": "Live shared read-only beacon. DLE lab must stay in ~/dle-30d-lab and must never restart geth/beacon."
+    },
+    {
+      "domainId": "fd-03-ionos-98",
+      "sshHost": "198.251.77.98",
+      "class": "shared-readonly-beacon",
+      "leftoverElCl": true,
+      "doNotStartValidator": true,
+      "notes": "Live shared read-only geth+beacon plus SI. Tight RAM. Isolated DLE only."
+    },
+    {
+      "domainId": "fd-04-hosthatch-tokyo1",
+      "sshHost": "167.254.243.38",
+      "class": "greenfield-lab",
+      "leftoverElCl": false,
+      "doNotStartValidator": true,
+      "notes": "Fresh HostHatch Tokyo host tokyo1. 1 CPU / 2 GiB / 9 GB. Lightweight archive replica only."
+    },
+    {
+      "domainId": "fd-05-hosthatch-tokyo2",
+      "sshHost": "170.205.39.67",
+      "class": "greenfield-lab",
+      "leftoverElCl": false,
+      "doNotStartValidator": true,
+      "notes": "Fresh HostHatch Tokyo host tokyo2. 1 CPU / 2 GiB / 9 GB. Lightweight archive replica only."
+    },
+    {
+      "domainId": "fd-06-ionos-174",
+      "sshHost": "216.225.193.174",
+      "class": "deprecated-l1-leftover-running",
+      "leftoverElCl": true,
+      "doNotStartValidator": true,
+      "notes": "DEPRECATED leftover geth+beacon may stay running. Never start-with-va. Never restart EL/CL."
+    },
+    {
+      "domainId": "fd-07-ionos-207",
+      "sshHost": "212.227.242.207",
+      "class": "deprecated-l1-leftover-running",
+      "leftoverElCl": true,
+      "doNotStartValidator": true,
+      "notes": "DEPRECATED leftover geth+beacon. VA+redeem already disabled. Never restart EL/CL."
+    }
+  ]
+}

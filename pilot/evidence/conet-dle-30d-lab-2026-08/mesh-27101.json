@@ -1,0 +1,60 @@
+{
+  "schema": "LabMeshProbeV1",
+  "pilotId": "conet-dle-30d-lab-2026-08",
+  "probedAt": "2026-08-14T17:50:00.000Z",
+  "port": 27101,
+  "protocol": "tcp",
+  "note": "Private lab evidence. Do not publish raw IPs. Cloud firewall already opened TCP 27101; this probe confirms the 7x7 mesh.",
+  "pairs": 49,
+  "http200": 49,
+  "agents": [
+    {
+      "domainId": "fd-01-ionos-45",
+      "lastQuorumOk": true,
+      "lastPeerOk": 6,
+      "heartbeats": 239
+    },
+    {
+      "domainId": "fd-02-ionos-189",
+      "lastQuorumOk": true,
+      "lastPeerOk": 6,
+      "heartbeats": 238
+    },
+    {
+      "domainId": "fd-03-ionos-98",
+      "lastQuorumOk": true,
+      "lastPeerOk": 6,
+      "heartbeats": 238
+    },
+    {
+      "domainId": "fd-04-hosthatch-tokyo1",
+      "lastQuorumOk": true,
+      "lastPeerOk": 6,
+      "heartbeats": 237
+    },
+    {
+      "domainId": "fd-05-hosthatch-tokyo2",
+      "lastQuorumOk": true,
+      "lastPeerOk": 6,
+      "heartbeats": 237
+    },
+    {
+      "domainId": "fd-06-ionos-174",
+      "lastQuorumOk": true,
+      "lastPeerOk": 6,
+      "heartbeats": 237
+    },
+    {
+      "domainId": "fd-07-ionos-207",
+      "lastQuorumOk": true,
+      "lastPeerOk": 6,
+      "heartbeats": 236
+    }
+  ],
+  "quorum": {
+    "activeRequired": 4,
+    "activeObserved": 5,
+    "standbyObserved": 2,
+    "allAgentsLastQuorumOk": true
+  }
+}

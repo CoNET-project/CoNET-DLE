@@ -1,0 +1,84 @@
+{
+  "schema": "PilotInventoryV1",
+  "pilotId": "conet-dle-30d-lab-2026-08",
+  "generatedAt": "2026-08-14T17:50:00.000Z",
+  "domains": [
+    {
+      "domainId": "fd-01-ionos-45",
+      "operatorDomainId": "op-ionos-lease-74-208-224-45",
+      "operatorLegalName": "CoNET Labs IONOS VPS Linux M lease 74.208.224.45",
+      "hostId": "host-ionos-74-208-224-45",
+      "provider": "IONOS Inc.",
+      "region": "us-east-ny",
+      "networkAsn": "AS8560",
+      "role": "active",
+      "billingRef": "usd-4-unmetered-host-ionos-74-208-224-45"
+    },
+    {
+      "domainId": "fd-02-ionos-189",
+      "operatorDomainId": "op-ionos-lease-216-225-197-189",
+      "operatorLegalName": "CoNET Labs IONOS VPS Linux M lease 216.225.197.189",
+      "hostId": "host-ionos-216-225-197-189",
+      "provider": "IONOS Inc.",
+      "region": "us-east-ny",
+      "networkAsn": "AS8560",
+      "role": "active",
+      "billingRef": "usd-4-unmetered-host-ionos-216-225-197-189"
+    },
+    {
+      "domainId": "fd-03-ionos-98",
+      "operatorDomainId": "op-ionos-lease-198-251-77-98",
+      "operatorLegalName": "CoNET Labs IONOS VPS Linux M lease 198.251.77.98",
+      "hostId": "host-ionos-198-251-77-98",
+      "provider": "IONOS Inc.",
+      "region": "us-central-mo",
+      "networkAsn": "AS8560",
+      "role": "active",
+      "billingRef": "usd-4-unmetered-host-ionos-198-251-77-98"
+    },
+    {
+      "domainId": "fd-04-hosthatch-tokyo1",
+      "operatorDomainId": "op-hosthatch-lease-167-254-243-38",
+      "operatorLegalName": "CoNET Labs HostHatch Tokyo lease 167.254.243.38",
+      "hostId": "host-hosthatch-tokyo1-167-254-243-38",
+      "provider": "HostHatch, LLC",
+      "region": "ap-northeast-tokyo",
+      "networkAsn": "AS63473",
+      "role": "active",
+      "billingRef": "usd-4-unmetered-host-hosthatch-tokyo1-167-254-243-38"
+    },
+    {
+      "domainId": "fd-05-hosthatch-tokyo2",
+      "operatorDomainId": "op-hosthatch-lease-170-205-39-67",
+      "operatorLegalName": "CoNET Labs HostHatch Tokyo lease 170.205.39.67",
+      "hostId": "host-hosthatch-tokyo2-170-205-39-67",
+      "provider": "HostHatch, LLC",
+      "region": "ap-northeast-tokyo",
+      "networkAsn": "AS63473",
+      "role": "active",
+      "billingRef": "usd-4-unmetered-host-hosthatch-tokyo2-170-205-39-67"
+    },
+    {
+      "domainId": "fd-06-ionos-174",
+      "operatorDomainId": "op-ionos-lease-216-225-193-174",
+      "operatorLegalName": "CoNET Labs IONOS VPS Linux M lease 216.225.193.174",
+      "hostId": "host-ionos-216-225-193-174",
+      "provider": "IONOS Inc.",
+      "region": "us-east-ny",
+      "networkAsn": "AS8560",
+      "role": "standby",
+      "billingRef": "usd-4-unmetered-host-ionos-216-225-193-174"
+    },
+    {
+      "domainId": "fd-07-ionos-207",
+      "operatorDomainId": "op-ionos-lease-212-227-242-207",
+      "operatorLegalName": "CoNET Labs IONOS VPS Linux M lease 212.227.242.207",
+      "hostId": "host-ionos-212-227-242-207",
+      "provider": "IONOS Inc.",
+      "region": "us-east-ny",
+      "networkAsn": "AS8560",
+      "role": "standby",
+      "billingRef": "usd-4-unmetered-host-ionos-212-227-242-207"
+    }
+  ]
+}

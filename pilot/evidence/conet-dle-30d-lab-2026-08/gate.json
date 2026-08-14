@@ -1,0 +1,13 @@
+{
+  "schema": "PilotGateSnapshotV1",
+  "epoch": 1,
+  "warmupStartedAt": "2026-08-14T17:10:16.786Z",
+  "pilotStartedAt": null,
+  "lastSafetyFailureAt": null,
+  "resetCount": 0,
+  "counters": {
+    "rotations": 0,
+    "rehomes": 0,
+    "takeovers": 0
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "@conet/dle-30-day-pilot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "clean": "node -e \"import('node:fs').then(({rmSync})=>rmSync('dist',{recursive:true,force:true}))\"",
+    "build": "npm run clean && tsc -p tsconfig.json",
+    "lint": "node scripts/lint.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test dist/test/*.test.js",
+    "preflight": "npm run build && node dist/src/cli.js preflight",
+    "lab:preflight": "npm run build && node dist/src/cli.js lab-preflight",
+    "lab:deploy": "npm run build && node dist/src/cli.js lab-deploy",
+    "lab:deploy-archive": "npm run build && node dist/src/cli.js lab-deploy-archive",
+    "lab:accept-archive": "npm run build && node dist/src/cli.js lab-accept-archive",
+    "lab:status": "npm run build && node dist/src/cli.js lab-status",
+    "lab:warmup": "npm run build && node dist/src/cli.js lab-warmup",
+    "lab:inject-crash": "npm run build && node dist/src/cli.js lab-inject-crash",
+    "dry-run": "npm run build && node dist/src/cli.js dry-run",
+    "bundle": "npm run build && node dist/src/cli.js bundle",
+    "verify": "npm run build && node dist/src/cli.js verify"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2"
+  }
+}

@@ -4,7 +4,7 @@
 
 **Author:** Peter Xie  
 **First draft:** 2023  
-**Revision:** 2026-08-13 (5-active + 2-standby archive groups + strict 4/5 quorum + line-level Tendermint/WAL rules + AdaptiveRotationV1 + OperatorDomainRegistryV1 + L1QueueAccumulatorV1 scale profile + deterministic `dle.rs.v1` correct-encoding proof + challenged force exit + Treasury V3 canonical ERC-20 burn/remint gateway + **measured P1 economic evidence boundary: 100-USDC safety cap frozen, 10-USDC floor and 1.2× coverage still provisional** + L1-anchored seller orders + x402 v2 AI pay-per-use / API-gateway target profile + three-ledger protocol/execution/availability economics + Treasury-canonical L1 pool/TWAP asset admission; archives have no block-production right)
+**Revision:** 2026-08-13 (5-active + 2-standby archive groups + strict 4/5 quorum + executable Archive Tendermint v2 corpus/Archive A MVP + line-level Tendermint/WAL rules + AdaptiveRotationV1 + OperatorDomainRegistryV1 + L1QueueAccumulatorV1 scale profile + deterministic `dle.rs.v1` correct-encoding proof + challenged force exit + Treasury V3 canonical ERC-20 burn/remint gateway + **measured P1 economic evidence boundary: 100-USDC safety cap frozen, 10-USDC floor and 1.2× coverage still provisional** + L1-anchored seller orders + x402 v2 AI pay-per-use / API-gateway target profile + three-ledger protocol/execution/availability economics + Treasury-canonical L1 pool/TWAP asset admission; archives have no block-production right)
 
 **Paired translation (must stay in sync):** [`Decentralization Cluster multi-chain.zh-CN.md`](./Decentralization%20Cluster%20multi-chain.zh-CN.md)
 **Sync rule:** `.cursor/rules/conet-layer2-whitepaper-bilingual-sync.mdc`
@@ -12,7 +12,7 @@
 **Normative implementation specifications:**
 
 - [`AssetBurnMintGateway Invariant Specification`](./DLE-AssetBurnMintGateway-Invariant-Spec.md) + bounded [`TLA+ model`](./DLEAssetBurnMintGateway.tla)
-- [`Archive Tendermint Conformance Specification`](./DLE-Archive-Tendermint-Conformance-Spec.md) + canonical [`SSZ/state-machine vectors`](./DLE-Archive-Tendermint-Vectors-v1.json)
+- [`Archive Tendermint Conformance Specification`](./DLE-Archive-Tendermint-Conformance-Spec.md) + immutable [`v1 Proposal/Vote vectors`](./DLE-Archive-Tendermint-Vectors-v1.json) + canonical executable [`v2 corpus`](../../conformance/corpus/DLE-Archive-Tendermint-Vectors-v2.json)
 - [`OperatorDomainRegistryV1 Specification`](./DLE-OperatorDomainRegistryV1-Spec.md)
 
 **Development review snapshot:** [`DLE P0/P1 formalization review`](../../../canvas/dle-p0-p1-formalization-review.md) records the criticism-to-control mapping and remaining implementation release gates; it is non-normative.
@@ -1098,7 +1098,7 @@ RESERVED | GENESIS_AC --deadline--> EXPIRED
 
 ### 5.2.1 Archive-shard BFT & Archive Certificate (product freeze)
 
-The current byte-level Proposal/Vote SSZ corpus, nil/lock transitions, WAL crash/restart outcomes, deterministic membership-switch rejection cases, and `CandidateRejectCertificate` conflict handling are frozen in the [`Archive Tendermint Conformance Specification`](./DLE-Archive-Tendermint-Conformance-Spec.md) and [`DLE-Archive-Tendermint-Vectors-v1.json`](./DLE-Archive-Tendermint-Vectors-v1.json). The conformance specification’s P0 closure section is controlling: production remains blocked until the SSZ→EIP-712 signature mapping, QC/TC/AC/Reject containers, `H(QC)`, coordinator formula, WAL frame, executable semantic vectors, and reject-reason enum are also frozen. Prose in this section cannot be used to fill those gaps or accept a divergent encoding/state transition.
+The byte-level Proposal/Vote vectors remain immutable in [`DLE-Archive-Tendermint-Vectors-v1.json`](./DLE-Archive-Tendermint-Vectors-v1.json). The canonical executable [`v2 corpus`](../../conformance/corpus/DLE-Archive-Tendermint-Vectors-v2.json) and its [SHA-256 manifest](../../conformance/DLE-Archive-Tendermint-Corpus-v2.sha256) additionally freeze QC/AC/TC/Reject containers and references, signing roots, coordinator selection, WAL safety records/frames, error and reject enums, ordered FSM/lifecycle vectors, and deterministic RS `(7,4)` golden data. The [`Archive Tendermint Conformance Specification`](./DLE-Archive-Tendermint-Conformance-Spec.md) is controlling. Production remains blocked on the single SSZ→EIP-712 signature wrapper, an independent second-language reproduction, and production integration; prose in this section cannot override the machine corpus.
 
 The waiting pool, roulette draw, quality check, accept/reject, rollback, and archival **run on the hosting archive shard**—but the **security root is not a single archive operator**. Each shard is a classical partially synchronous BFT committee. **Quorum size alone is not a protocol:** without the lock / justify state machine below, collecting \(Q_A\) signatures does **not** constitute complete BFT.
 

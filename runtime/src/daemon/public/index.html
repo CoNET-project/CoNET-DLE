@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CoNET-DLE daemon (browser)</title>
+    <style>
+      body {
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        margin: 2rem auto;
+        max-width: 42rem;
+        color: #0f172a;
+      }
+      label,
+      button,
+      input,
+      pre {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      input,
+      button,
+      pre {
+        margin-top: 0.5rem;
+        padding: 0.6rem 0.75rem;
+        border-radius: 0.5rem;
+        border: 1px solid #cbd5e1;
+      }
+      button {
+        background: #0051d1;
+        color: white;
+        border: 0;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      pre {
+        background: #f8fafc;
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>DLE daemon</h1>
+    <p>This page runs the lightweight daemon in the browser. The archive node must run in Node.js.</p>
+    <label for="archive">Archive URL</label>
+    <input id="archive" value="http://127.0.0.1:27101" autocomplete="off" />
+    <button id="connect" type="button">Connect</button>
+    <pre id="out">idle</pre>
+    <script type="module">
+      const DLE_JSONRPC_VERSION = '2.0'
+      let rpcId = 1
+
+      function daemonInfo(archiveUrl) {
+        return {
+          command: 'daemon',
+          runtime: 'browser',
+          archiveUrl,
+        }
+      }
+
+      async function callArchive(archiveUrl, method, params = []) {
+        const endpoint = archiveUrl.replace(/\/$/, '')
+        const response = await fetch(`${endpoint}/rpc`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: DLE_JSONRPC_VERSION, id: rpcId, method, params }),
+        })
+        rpcId += 1
+        if (!response.ok) throw new Error('archive HTTP ' + response.status)
+        return response.json()
+      }
+
+      async function probe(archiveUrl) {
+        const endpoint = archiveUrl.replace(/\/$/, '')
+        const healthRes = await fetch(endpoint + '/health')
+        if (!healthRes.ok) throw new Error('archive health HTTP ' + healthRes.status)
+        const health = await healthRes.json()
+        const info = await callArchive(archiveUrl, 'dle_info')
+        return {
+          daemon: daemonInfo(archiveUrl),
+          health,
+          info,
+          wait: {
+            schema: 'DleOnDemandWaitV1',
+            status: 'queued',
+            slot: null,
+            note: 'Wait hook is local-only in this scaffold.',
+          },
+        }
+      }
+
+      const out = document.getElementById('out')
+      document.getElementById('connect').addEventListener('click', async () => {
+        const archiveUrl = document.getElementById('archive').value.trim()
+        out.textContent = 'connecting…'
+        try {
+          const result = await probe(archiveUrl)
+          out.textContent = JSON.stringify(result, null, 2)
+        } catch (error) {
+          out.textContent = String(error)
+        }
+      })
+    </script>
+  </body>
+</html>

@@ -1,0 +1,67 @@
+import type { DleEventRow } from '../types'
+
+const DEMO_AT = [
+  '2026-08-14T17:48:12.000Z',
+  '2026-08-14T17:48:18.000Z',
+  '2026-08-14T17:48:24.000Z',
+  '2026-08-14T17:48:30.000Z',
+  '2026-08-14T17:49:00.000Z',
+  '2026-08-14T17:49:06.000Z',
+]
+
+export const DEMO_EVENT_FIXTURES: DleEventRow[] = [
+  {
+    id: 'fixture-lab-start',
+    at: DEMO_AT[0] ?? '',
+    type: 'lab-start',
+    domainId: 'fd-01-ionos-45',
+    role: 'active',
+    detail: 'Archive process started on TCP 27101',
+    source: 'fixture',
+  },
+  {
+    id: 'fixture-listen',
+    at: DEMO_AT[1] ?? '',
+    type: 'listen',
+    port: 27101,
+    detail: 'HTTP /health and /rpc bound',
+    source: 'fixture',
+  },
+  {
+    id: 'fixture-rpc-info',
+    at: DEMO_AT[2] ?? '',
+    type: 'rpc',
+    method: 'dle_info',
+    ok: true,
+    detail: 'Read-only JSON-RPC',
+    source: 'fixture',
+  },
+  {
+    id: 'fixture-rpc-call',
+    at: DEMO_AT[3] ?? '',
+    type: 'rpc',
+    method: 'eth_call',
+    ok: false,
+    detail: 'Rejected: no tip VM',
+    source: 'fixture',
+  },
+  {
+    id: 'fixture-heartbeat',
+    at: DEMO_AT[4] ?? '',
+    type: 'heartbeat',
+    domainId: 'fd-01-ionos-45',
+    quorumOk: true,
+    peerOk: 6,
+    detail: 'Lab heartbeat (fixture, not a live quorum proof)',
+    source: 'fixture',
+  },
+  {
+    id: 'fixture-rpc-tip',
+    at: DEMO_AT[5] ?? '',
+    type: 'rpc',
+    method: 'dle_tip',
+    ok: true,
+    detail: 'Tip height 0x0 until Archive Certificate',
+    source: 'fixture',
+  },
+]

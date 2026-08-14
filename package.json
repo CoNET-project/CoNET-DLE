@@ -1,0 +1,43 @@
+{
+  "name": "@conet/dle-conformance",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run archive-a:test && npm run differential:test",
+    "corpus:write": "tsx implementations/archive-a/src/generate-corpus.ts --write",
+    "corpus:check": "tsx implementations/archive-a/src/generate-corpus.ts --check",
+    "boundary:check": "tsx evidence/scripts/check-dependency-boundaries.ts",
+    "evidence:verify": "tsx evidence/scripts/ci-evidence.ts verify",
+    "evidence:collect": "tsx evidence/scripts/ci-evidence.ts collect",
+    "evidence:verify-manifest": "tsx evidence/scripts/ci-evidence.ts verify-manifest",
+    "archive-a:build": "tsc -p tsconfig.json",
+    "archive-a:test": "tsx --test implementations/archive-a/test/**/*.test.ts",
+    "archive-a:conformance": "tsx --test implementations/archive-a/test/core.test.ts",
+    "archive-b:build": "npm --prefix implementations/archive-b run build",
+    "archive-b:test": "npm --prefix implementations/archive-b run test",
+    "archive-b:conformance": "npm --prefix implementations/archive-b run conformance",
+    "conformance": "npm run archive-a:conformance",
+    "differential:test": "tsx --test conformance/differential/**/*.test.ts",
+    "differential": "tsx conformance/differential/runner.ts",
+    "archive": "tsx runtime/src/archive/cli.ts",
+    "daemon": "tsx runtime/src/daemon/cli.ts",
+    "daemon:browser": "tsx runtime/src/daemon/serve-browser.ts",
+    "runtime:build": "tsc -p runtime/tsconfig.archive.json && tsc -p runtime/tsconfig.daemon.json && node -e \"import('node:fs').then(({writeFileSync})=>{writeFileSync('runtime/dist/archive/package.json', JSON.stringify({type:'module',private:true,name:'@conet/dle-archive-runtime'},null,2)+'\\n')})\"",
+    "runtime:test": "tsx --test runtime/test/**/*.test.ts",
+    "explorer:dev": "npm --prefix explorer run dev",
+    "explorer:build": "npm --prefix explorer run build",
+    "lab:deploy-archive": "npm run runtime:build && tsx pilot/src/cli.ts lab-deploy-archive",
+    "lab:accept-archive": "tsx pilot/src/cli.ts lab-accept-archive"
+  },
+  "dependencies": {
+    "ethers": "^6.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "ajv": "^8.20.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}

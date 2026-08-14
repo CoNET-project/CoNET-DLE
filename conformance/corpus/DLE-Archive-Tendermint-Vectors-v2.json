@@ -1,0 +1,1465 @@
+{
+  "schema": "dle.archive.tendermint.corpus.v2",
+  "revision": "2026-08-13",
+  "supersedesProseStateVectorsFrom": "DLE-Archive-Tendermint-Vectors-v1.json",
+  "compatibility": {
+    "v1Preserved": true,
+    "legacyProposalVoteVectors": [
+      {
+        "id": "SSZ-PROPOSAL-NO-VALID",
+        "type": "ProposalSignBytesV1",
+        "signatureDomainTag": "dle.archive.proposal.v1",
+        "input": {
+          "validRoundOrNone": 4294967295,
+          "validPrevoteQCRefOrZero": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "canonicalSsz": "0x06c8ad5ba4b5da846bda64f2f14ed297a12fd7d4bc9b2f7e0c28ca572dd8483fa66c03000000000007000000000000002a00000000000000000000000000000000000000000000000000000000000000090000000000000002000000c22aa4e9f8a69f660a9ede9d91a069ae2fddc679a3ccd48f67654db6643f9493ffffffff000000000000000000000000000000000000000000000000000000000000000003000000000000000b0000000000000011111111111111111111111111111111111111111111111111111111111111110500000000000000",
+        "hashTreeRoot": "0x0af7294ce69fe0c42cdb24a901bd2e9c535e4aa6221b26a32b17b7792c21c757",
+        "signingRoot": "0xe6e1d74dbddcd11cbae8bc5e25a6bbc0221096fb8e2b30255c1500cf6658ecef"
+      },
+      {
+        "id": "SSZ-PROPOSAL-VALID-ROUND-1",
+        "type": "ProposalSignBytesV1",
+        "signatureDomainTag": "dle.archive.proposal.v1",
+        "input": {
+          "validRoundOrNone": 1,
+          "validPrevoteQCRefOrZero": "0xabababababababababababababababababababababababababababababababab"
+        },
+        "canonicalSsz": "0x06c8ad5ba4b5da846bda64f2f14ed297a12fd7d4bc9b2f7e0c28ca572dd8483fa66c03000000000007000000000000002a00000000000000000000000000000000000000000000000000000000000000090000000000000002000000c22aa4e9f8a69f660a9ede9d91a069ae2fddc679a3ccd48f67654db6643f949301000000abababababababababababababababababababababababababababababababab03000000000000000b0000000000000011111111111111111111111111111111111111111111111111111111111111110500000000000000",
+        "hashTreeRoot": "0xc7a72bdbe8d08522a3cd3bd07eca81e5e811e028a4697b340ebb8c0072d5060b",
+        "signingRoot": "0x9e507ef7640d018599020e1f866dea664b76bcdeac902981498f0a4ab369c90b"
+      },
+      {
+        "id": "SSZ-PREVOTE-ACCEPT",
+        "type": "VoteSignBytesV1",
+        "signatureDomainTag": "dle.archive.vote.v1",
+        "input": {
+          "step": 1,
+          "valueHashOrZero": "0xc22aa4e9f8a69f660a9ede9d91a069ae2fddc679a3ccd48f67654db6643f9493",
+          "prevoteQCRefOrZero": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "canonicalSsz": "0x06c8ad5ba4b5da846bda64f2f14ed297a12fd7d4bc9b2f7e0c28ca572dd8483fa66c03000000000007000000000000002a0000000000000000000000000000000000000000000000000000000000000009000000000000000200000001c22aa4e9f8a69f660a9ede9d91a069ae2fddc679a3ccd48f67654db6643f949303000000000000000b00000000000000111111111111111111111111111111111111111111111111111111111111111105000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "hashTreeRoot": "0xda3dc38126779d884f807cef5797e4dbe97707d70a13970972b7d91b72cb0c15",
+        "signingRoot": "0x31ffeecd1ba1eddd2adc320eb3aacf82294e51e22b320d6a7b0255cc3474dcbf"
+      },
+      {
+        "id": "SSZ-PREVOTE-NIL",
+        "type": "VoteSignBytesV1",
+        "signatureDomainTag": "dle.archive.vote.v1",
+        "input": {
+          "step": 1,
+          "valueHashOrZero": "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "prevoteQCRefOrZero": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "canonicalSsz": "0x06c8ad5ba4b5da846bda64f2f14ed297a12fd7d4bc9b2f7e0c28ca572dd8483fa66c03000000000007000000000000002a0000000000000000000000000000000000000000000000000000000000000009000000000000000200000001000000000000000000000000000000000000000000000000000000000000000003000000000000000b00000000000000111111111111111111111111111111111111111111111111111111111111111105000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "hashTreeRoot": "0xf6bab9337ccad5c674cc0840ec5ce9bb8ab40ce51f3839798a4b4a8fd6e0dcdf",
+        "signingRoot": "0xd9de909838ed155b0eb4fc46b6adfb7a55f7e07998f5cc377eeb0e13963d9e61"
+      },
+      {
+        "id": "SSZ-PRECOMMIT-ACCEPT",
+        "type": "VoteSignBytesV1",
+        "signatureDomainTag": "dle.archive.vote.v1",
+        "input": {
+          "step": 2,
+          "valueHashOrZero": "0xc22aa4e9f8a69f660a9ede9d91a069ae2fddc679a3ccd48f67654db6643f9493",
+          "prevoteQCRefOrZero": "0xabababababababababababababababababababababababababababababababab"
+        },
+        "canonicalSsz": "0x06c8ad5ba4b5da846bda64f2f14ed297a12fd7d4bc9b2f7e0c28ca572dd8483fa66c03000000000007000000000000002a0000000000000000000000000000000000000000000000000000000000000009000000000000000200000002c22aa4e9f8a69f660a9ede9d91a069ae2fddc679a3ccd48f67654db6643f949303000000000000000b0000000000000011111111111111111111111111111111111111111111111111111111111111110500000000000000abababababababababababababababababababababababababababababababab",
+        "hashTreeRoot": "0x64bbf7fc11f328bf51b6d9bbc7be33c8387ce6bb5c5f42bba7e8c500439250b8",
+        "signingRoot": "0x436a9fc8a93943eb8177c2da51b6f32ad11af38636d01c79e876afd9bcfb664b"
+      },
+      {
+        "id": "SSZ-PRECOMMIT-NIL",
+        "type": "VoteSignBytesV1",
+        "signatureDomainTag": "dle.archive.vote.v1",
+        "input": {
+          "step": 2,
+          "valueHashOrZero": "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "prevoteQCRefOrZero": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "canonicalSsz": "0x06c8ad5ba4b5da846bda64f2f14ed297a12fd7d4bc9b2f7e0c28ca572dd8483fa66c03000000000007000000000000002a0000000000000000000000000000000000000000000000000000000000000009000000000000000200000002000000000000000000000000000000000000000000000000000000000000000003000000000000000b00000000000000111111111111111111111111111111111111111111111111111111111111111105000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "hashTreeRoot": "0xf8cbf2c7c17160b9f0bf0a085535b4ca1f531ba170f389b6aba93c799e208baf",
+        "signingRoot": "0x5545e721bb1683118ee64849876097a4ac0155019acbe4b93f942c235a3375c5"
+      }
+    ]
+  },
+  "constants": {
+    "protocolVersion": "0x3291fbf416c139f892b870ef87cf18d584fe156e918dea6fcb77f3feb0876b7b",
+    "activeArchives": 5,
+    "readyStandbys": 2,
+    "quorum": 4,
+    "noneRound": 4294967295,
+    "nilValue": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "signatureBytes": 65,
+    "certificateSignerSlots": 5,
+    "wal": {
+      "magicAscii": "DLEW",
+      "version": 1,
+      "headerBytes": 52,
+      "checksumBytes": 32,
+      "checksum": "SHA-256",
+      "safetyRecord": "uint16le(version) || uint8(kind) || uint8(domain) || uint64le(height) || uint32le(round) || uint8(step) || uint32le(signBytesLength) || signBytes || signingRoot[32] || signature[65] || proposalHash[32] || lockedValue[32] || uint32le(lockedRound) || validValue[32] || uint32le(validRound) || qcRef[32] || tcRef[32] || uint64le(membershipEpoch) || membershipRoot[32] || uint64le(keyEpoch) || uint64le(committedHeight)"
+    },
+    "rs": {
+      "name": "dle.rs.v1",
+      "n": 7,
+      "k": 4,
+      "field": "GF(2^8)",
+      "primitivePolynomial": "0x11d",
+      "generatorMatrix": [
+        [
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          82,
+          247,
+          2,
+          166
+        ],
+        [
+          247,
+          7,
+          4,
+          245
+        ],
+        [
+          2,
+          4,
+          213,
+          210
+        ]
+      ],
+      "frame": "uint64le(bodyLength) || body || zero-padding",
+      "leafHash": "SHA-256(0x00 || uint32le(index) || uint64le(bodyLength) || shard)",
+      "padLeaf": "SHA-256(0x02)",
+      "branchHash": "SHA-256(0x01 || left || right)"
+    }
+  },
+  "errorEnums": [
+    "ERR_INVALID_CANONICAL_SSZ",
+    "ERR_SIGNING_ROOT_MISMATCH",
+    "ERR_NIL_ENCODING",
+    "ERR_INVALID_VALID_ROUND",
+    "ERR_LOCK_CONFLICT",
+    "ERR_INVALID_CERTIFICATE_KIND",
+    "ERR_INVALID_CERTIFICATE_REFERENCE",
+    "ERR_INVALID_QUORUM",
+    "ERR_DUPLICATE_SIGNER",
+    "ERR_NON_CANONICAL_SIGNER_ORDER",
+    "ERR_SIGNER_NOT_ACTIVE",
+    "ERR_WAL_DOUBLE_SIGN",
+    "ERR_WAL_RECOVERY_REQUIRED",
+    "ERR_WAL_SEQUENCE",
+    "ERR_MEMBERSHIP_NOT_ACTIVE",
+    "ERR_MEMBERSHIP_ROOT_MISMATCH",
+    "ERR_MIXED_MEMBERSHIP_ROOT",
+    "ERR_KEY_EPOCH_MISMATCH",
+    "ERR_AMBIGUOUS_L1_MEMBERSHIP_CHECKPOINT",
+    "ERR_REJECT_ACCEPT_CONFLICT",
+    "ERR_REJECT_AFTER_FINALITY",
+    "ERR_INVALID_REJECT_REASON",
+    "ERR_INVALID_REJECT_EVIDENCE",
+    "ERR_INVALID_COORDINATOR",
+    "ERR_INVALID_RS_CODEWORD",
+    "ERR_INSUFFICIENT_SHARDS",
+    "ERR_LIFECYCLE_TRANSITION"
+  ],
+  "rejectReasons": [
+    {
+      "name": "InvalidValidatorQuorum",
+      "code": 1,
+      "evidenceRequired": true
+    },
+    {
+      "name": "InvalidStateTransition",
+      "code": 2,
+      "evidenceRequired": true
+    },
+    {
+      "name": "BodyCommitmentMismatch",
+      "code": 3,
+      "evidenceRequired": true
+    },
+    {
+      "name": "DaRootMismatch",
+      "code": 4,
+      "evidenceRequired": true
+    },
+    {
+      "name": "InvalidRsCodeword",
+      "code": 5,
+      "evidenceRequired": true
+    },
+    {
+      "name": "UnavailableBody",
+      "code": 6,
+      "evidenceRequired": true
+    },
+    {
+      "name": "InvalidParentCertificate",
+      "code": 7,
+      "evidenceRequired": true
+    },
+    {
+      "name": "MembershipMismatch",
+      "code": 8,
+      "evidenceRequired": true
+    }
+  ],
+  "containers": {
+    "ProposalSignBytesV1": [
+      [
+        "protocolVersion",
+        "bytes32"
+      ],
+      [
+        "l1ChainId",
+        "uint64"
+      ],
+      [
+        "archiveGroupId",
+        "uint64"
+      ],
+      [
+        "chainNftId",
+        "uint256"
+      ],
+      [
+        "tipHeight",
+        "uint64"
+      ],
+      [
+        "round",
+        "uint32"
+      ],
+      [
+        "proposalValueHash",
+        "bytes32"
+      ],
+      [
+        "validRoundOrNone",
+        "uint32"
+      ],
+      [
+        "validPrevoteQCRefOrZero",
+        "bytes32"
+      ],
+      [
+        "attemptNonce",
+        "uint64"
+      ],
+      [
+        "membershipEpoch",
+        "uint64"
+      ],
+      [
+        "membershipRoot",
+        "bytes32"
+      ],
+      [
+        "keyEpoch",
+        "uint64"
+      ]
+    ],
+    "VoteSignBytesV1": [
+      [
+        "protocolVersion",
+        "bytes32"
+      ],
+      [
+        "l1ChainId",
+        "uint64"
+      ],
+      [
+        "archiveGroupId",
+        "uint64"
+      ],
+      [
+        "chainNftId",
+        "uint256"
+      ],
+      [
+        "tipHeight",
+        "uint64"
+      ],
+      [
+        "round",
+        "uint32"
+      ],
+      [
+        "step",
+        "uint8"
+      ],
+      [
+        "valueHashOrZero",
+        "bytes32"
+      ],
+      [
+        "attemptNonce",
+        "uint64"
+      ],
+      [
+        "membershipEpoch",
+        "uint64"
+      ],
+      [
+        "membershipRoot",
+        "bytes32"
+      ],
+      [
+        "keyEpoch",
+        "uint64"
+      ],
+      [
+        "prevoteQCRefOrZero",
+        "bytes32"
+      ]
+    ],
+    "PrevoteQCV2": [
+      [
+        "protocolVersion",
+        "bytes32"
+      ],
+      [
+        "kind",
+        "uint8"
+      ],
+      [
+        "l1ChainId",
+        "uint64"
+      ],
+      [
+        "archiveGroupId",
+        "uint64"
+      ],
+      [
+        "chainNftId",
+        "uint256"
+      ],
+      [
+        "tipHeight",
+        "uint64"
+      ],
+      [
+        "round",
+        "uint32"
+      ],
+      [
+        "valueHashOrZero",
+        "bytes32"
+      ],
+      [
+        "attemptNonce",
+        "uint64"
+      ],
+      [
+        "membershipEpoch",
+        "uint64"
+      ],
+      [
+        "membershipRoot",
+        "bytes32"
+      ],
+      [
+        "keyEpoch",
+        "uint64"
+      ],
+      [
+        "voteRoot",
+        "bytes32"
+      ],
+      [
+        "signerBitmap",
+        "uint8"
+      ],
+      [
+        "signerIds",
+        "bytes32x5"
+      ],
+      [
+        "signatures",
+        "bytes65x5"
+      ]
+    ],
+    "ArchiveCertificateV2": [
+      [
+        "protocolVersion",
+        "bytes32"
+      ],
+      [
+        "kind",
+        "uint8"
+      ],
+      [
+        "l1ChainId",
+        "uint64"
+      ],
+      [
+        "archiveGroupId",
+        "uint64"
+      ],
+      [
+        "chainNftId",
+        "uint256"
+      ],
+      [
+        "tipHeight",
+        "uint64"
+      ],
+      [
+        "round",
+        "uint32"
+      ],
+      [
+        "valueHash",
+        "bytes32"
+      ],
+      [
+        "attemptNonce",
+        "uint64"
+      ],
+      [
+        "membershipEpoch",
+        "uint64"
+      ],
+      [
+        "membershipRoot",
+        "bytes32"
+      ],
+      [
+        "keyEpoch",
+        "uint64"
+      ],
+      [
+        "prevoteQCRef",
+        "bytes32"
+      ],
+      [
+        "voteRoot",
+        "bytes32"
+      ],
+      [
+        "signerBitmap",
+        "uint8"
+      ],
+      [
+        "signerIds",
+        "bytes32x5"
+      ],
+      [
+        "signatures",
+        "bytes65x5"
+      ]
+    ],
+    "TimeoutCertificateV2": [
+      [
+        "protocolVersion",
+        "bytes32"
+      ],
+      [
+        "kind",
+        "uint8"
+      ],
+      [
+        "l1ChainId",
+        "uint64"
+      ],
+      [
+        "archiveGroupId",
+        "uint64"
+      ],
+      [
+        "chainNftId",
+        "uint256"
+      ],
+      [
+        "tipHeight",
+        "uint64"
+      ],
+      [
+        "round",
+        "uint32"
+      ],
+      [
+        "timeoutStep",
+        "uint8"
+      ],
+      [
+        "attemptNonce",
+        "uint64"
+      ],
+      [
+        "membershipEpoch",
+        "uint64"
+      ],
+      [
+        "membershipRoot",
+        "bytes32"
+      ],
+      [
+        "keyEpoch",
+        "uint64"
+      ],
+      [
+        "highestPrevoteQCRefOrZero",
+        "bytes32"
+      ],
+      [
+        "highestTimeoutQCRefOrZero",
+        "bytes32"
+      ],
+      [
+        "timeoutVoteRoot",
+        "bytes32"
+      ],
+      [
+        "signerBitmap",
+        "uint8"
+      ],
+      [
+        "signerIds",
+        "bytes32x5"
+      ],
+      [
+        "signatures",
+        "bytes65x5"
+      ]
+    ],
+    "CandidateRejectCertificateV2": [
+      [
+        "protocolVersion",
+        "bytes32"
+      ],
+      [
+        "kind",
+        "uint8"
+      ],
+      [
+        "l1ChainId",
+        "uint64"
+      ],
+      [
+        "archiveGroupId",
+        "uint64"
+      ],
+      [
+        "chainNftId",
+        "uint256"
+      ],
+      [
+        "tipHeight",
+        "uint64"
+      ],
+      [
+        "round",
+        "uint32"
+      ],
+      [
+        "candidateId",
+        "bytes32"
+      ],
+      [
+        "attemptNonce",
+        "uint64"
+      ],
+      [
+        "membershipEpoch",
+        "uint64"
+      ],
+      [
+        "membershipRoot",
+        "bytes32"
+      ],
+      [
+        "keyEpoch",
+        "uint64"
+      ],
+      [
+        "reasonCode",
+        "uint16"
+      ],
+      [
+        "evidenceHash",
+        "bytes32"
+      ],
+      [
+        "rejectVoteRoot",
+        "bytes32"
+      ],
+      [
+        "signerBitmap",
+        "uint8"
+      ],
+      [
+        "signerIds",
+        "bytes32x5"
+      ],
+      [
+        "signatures",
+        "bytes65x5"
+      ]
+    ]
+  },
+  "certificateReference": "SHA-256(UTF8(\"dle.archive.certref.v2\") || uint8(kind) || hash_tree_root(certificate))",
+  "certificateVectors": [
+    {
+      "id": "CERT-PREVOTE-QC-4-OF-5",
+      "container": "PrevoteQCV2",
+      "input": {
+        "protocolVersion": "0x3291fbf416c139f892b870ef87cf18d584fe156e918dea6fcb77f3feb0876b7b",
+        "l1ChainId": "224422",
+        "archiveGroupId": "7",
+        "chainNftId": "42",
+        "tipHeight": "9",
+        "round": 2,
+        "attemptNonce": "3",
+        "membershipEpoch": "11",
+        "membershipRoot": "0x1ea92d4c76b2931a5d1b344dd104f6c7530c1bdea3afeee6ccafac98d3786bb3",
+        "keyEpoch": "5",
+        "signerBitmap": 15,
+        "signerIds": [
+          "0x510e3dbd33aab02ab240110ad683235b3727b8b0137c839ad67ddbf8a9af7b4d",
+          "0x80ddc5842b190b1c2c81f4804a2831268d85d7f65cbbe9737eef9a2cca4f60f4",
+          "0x91aefb9dca9d37459ecca2773e7d74c7e51b0470c123109c91c6f7256cc2fe30",
+          "0xec8b144e1d5bd0bbf5e47ce883f42d37f7c006424ceebe3539152a066d5193cb",
+          "0xeea74ddb9787719572414e65b695c75e8180ad281faaf9836b805c7d0bfeee40"
+        ],
+        "signatures": [
+          "0x1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+          "0x2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+          "0x3333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+          "0x4444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444",
+          "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        ],
+        "kind": 1,
+        "valueHashOrZero": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+        "voteRoot": "0x8ccae6c89e4660eff1ad15b40b45f8ab06a42fa34a0e18015ba43a84b3c2438d"
+      },
+      "canonicalSsz": "0x3291fbf416c139f892b870ef87cf18d584fe156e918dea6fcb77f3feb0876b7b01a66c03000000000007000000000000002a00000000000000000000000000000000000000000000000000000000000000090000000000000002000000fcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b5703000000000000000b000000000000001ea92d4c76b2931a5d1b344dd104f6c7530c1bdea3afeee6ccafac98d3786bb305000000000000008ccae6c89e4660eff1ad15b40b45f8ab06a42fa34a0e18015ba43a84b3c2438d0f510e3dbd33aab02ab240110ad683235b3727b8b0137c839ad67ddbf8a9af7b4d80ddc5842b190b1c2c81f4804a2831268d85d7f65cbbe9737eef9a2cca4f60f491aefb9dca9d37459ecca2773e7d74c7e51b0470c123109c91c6f7256cc2fe30ec8b144e1d5bd0bbf5e47ce883f42d37f7c006424ceebe3539152a066d5193cbeea74ddb9787719572414e65b695c75e8180ad281faaf9836b805c7d0bfeee4011111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111112222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333344444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "hashTreeRoot": "0x268b3c38c2600e0174bb8232ddb5efa695fcb389c5eca480a73c6f50e72fa986",
+      "signingRoot": "0xf1e74fea044dacd92e6e805c637f509ad02176948f3287e125f0ad99a01cd756",
+      "certificateRef": "0x6714208fe23bf574f4383af9a06ffb3173d0338d867c1188da3df52411a26aa4"
+    },
+    {
+      "id": "CERT-ARCHIVE-CERTIFICATE-4-OF-5",
+      "container": "ArchiveCertificateV2",
+      "input": {
+        "protocolVersion": "0x3291fbf416c139f892b870ef87cf18d584fe156e918dea6fcb77f3feb0876b7b",
+        "l1ChainId": "224422",
+        "archiveGroupId": "7",
+        "chainNftId": "42",
+        "tipHeight": "9",
+        "round": 2,
+        "attemptNonce": "3",
+        "membershipEpoch": "11",
+        "membershipRoot": "0x1ea92d4c76b2931a5d1b344dd104f6c7530c1bdea3afeee6ccafac98d3786bb3",
+        "keyEpoch": "5",
+        "signerBitmap": 15,
+        "signerIds": [
+          "0x510e3dbd33aab02ab240110ad683235b3727b8b0137c839ad67ddbf8a9af7b4d",
+          "0x80ddc5842b190b1c2c81f4804a2831268d85d7f65cbbe9737eef9a2cca4f60f4",
+          "0x91aefb9dca9d37459ecca2773e7d74c7e51b0470c123109c91c6f7256cc2fe30",
+          "0xec8b144e1d5bd0bbf5e47ce883f42d37f7c006424ceebe3539152a066d5193cb",
+          "0xeea74ddb9787719572414e65b695c75e8180ad281faaf9836b805c7d0bfeee40"
+        ],
+        "signatures": [
+          "0x1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+          "0x2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+          "0x3333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+          "0x4444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444",
+          "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        ],
+        "kind": 2,
+        "valueHash": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+        "prevoteQCRef": "0x6714208fe23bf574f4383af9a06ffb3173d0338d867c1188da3df52411a26aa4",
+        "voteRoot": "0x07b981425d1ec8c251395203b24bac22eba8ca6412137c02b9402a23f062557b"
+      },
+      "canonicalSsz": "0x3291fbf416c139f892b870ef87cf18d584fe156e918dea6fcb77f3feb0876b7b02a66c03000000000007000000000000002a00000000000000000000000000000000000000000000000000000000000000090000000000000002000000fcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b5703000000000000000b000000000000001ea92d4c76b2931a5d1b344dd104f6c7530c1bdea3afeee6ccafac98d3786bb305000000000000006714208fe23bf574f4383af9a06ffb3173d0338d867c1188da3df52411a26aa407b981425d1ec8c251395203b24bac22eba8ca6412137c02b9402a23f062557b0f510e3dbd33aab02ab240110ad683235b3727b8b0137c839ad67ddbf8a9af7b4d80ddc5842b190b1c2c81f4804a2831268d85d7f65cbbe9737eef9a2cca4f60f491aefb9dca9d37459ecca2773e7d74c7e51b0470c123109c91c6f7256cc2fe30ec8b144e1d5bd0bbf5e47ce883f42d37f7c006424ceebe3539152a066d5193cbeea74ddb9787719572414e65b695c75e8180ad281faaf9836b805c7d0bfeee4011111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111112222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333344444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "hashTreeRoot": "0x94e2ed2533cb9e3f73a44e7d79315f1d45294d1302bfac377d0e5ffcb6446a41",
+      "signingRoot": "0x1d8b004bd27b6f8b60156cf52926bfce61b8a1fb5502ecc976bf2322db641867",
+      "certificateRef": "0x514ea85403abeecd3c812968ede764e423552d8d64040d245d3eda8d4743194f"
+    },
+    {
+      "id": "CERT-TIMEOUT-CERTIFICATE-4-OF-5",
+      "container": "TimeoutCertificateV2",
+      "input": {
+        "protocolVersion": "0x3291fbf416c139f892b870ef87cf18d584fe156e918dea6fcb77f3feb0876b7b",
+        "l1ChainId": "224422",
+        "archiveGroupId": "7",
+        "chainNftId": "42",
+        "tipHeight": "9",
+        "round": 2,
+        "attemptNonce": "3",
+        "membershipEpoch": "11",
+        "membershipRoot": "0x1ea92d4c76b2931a5d1b344dd104f6c7530c1bdea3afeee6ccafac98d3786bb3",
+        "keyEpoch": "5",
+        "signerBitmap": 15,
+        "signerIds": [
+          "0x510e3dbd33aab02ab240110ad683235b3727b8b0137c839ad67ddbf8a9af7b4d",
+          "0x80ddc5842b190b1c2c81f4804a2831268d85d7f65cbbe9737eef9a2cca4f60f4",
+          "0x91aefb9dca9d37459ecca2773e7d74c7e51b0470c123109c91c6f7256cc2fe30",
+          "0xec8b144e1d5bd0bbf5e47ce883f42d37f7c006424ceebe3539152a066d5193cb",
+          "0xeea74ddb9787719572414e65b695c75e8180ad281faaf9836b805c7d0bfeee40"
+        ],
+        "signatures": [
+          "0x1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+          "0x2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+          "0x3333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+          "0x4444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444",
+          "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        ],
+        "kind": 3,
+        "timeoutStep": 2,
+        "highestPrevoteQCRefOrZero": "0x6714208fe23bf574f4383af9a06ffb3173d0338d867c1188da3df52411a26aa4",
+        "highestTimeoutQCRefOrZero": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "timeoutVoteRoot": "0x6ab61de4e3e00bc92fc821d98883646998df36f21d063f44c3e0ccc2aeed8571"
+      },
+      "canonicalSsz": "0x3291fbf416c139f892b870ef87cf18d584fe156e918dea6fcb77f3feb0876b7b03a66c03000000000007000000000000002a000000000000000000000000000000000000000000000000000000000000000900000000000000020000000203000000000000000b000000000000001ea92d4c76b2931a5d1b344dd104f6c7530c1bdea3afeee6ccafac98d3786bb305000000000000006714208fe23bf574f4383af9a06ffb3173d0338d867c1188da3df52411a26aa400000000000000000000000000000000000000000000000000000000000000006ab61de4e3e00bc92fc821d98883646998df36f21d063f44c3e0ccc2aeed85710f510e3dbd33aab02ab240110ad683235b3727b8b0137c839ad67ddbf8a9af7b4d80ddc5842b190b1c2c81f4804a2831268d85d7f65cbbe9737eef9a2cca4f60f491aefb9dca9d37459ecca2773e7d74c7e51b0470c123109c91c6f7256cc2fe30ec8b144e1d5bd0bbf5e47ce883f42d37f7c006424ceebe3539152a066d5193cbeea74ddb9787719572414e65b695c75e8180ad281faaf9836b805c7d0bfeee4011111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111112222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333344444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "hashTreeRoot": "0xe8f2a422a23c71fae9c3bdbbe8d70d4d75171699ed624999443ba8254d613a87",
+      "signingRoot": "0xe1e6162a894ccc93669d038bb2a56296944ff4dffb4ac743f8a7b25b40bcea23",
+      "certificateRef": "0x8e53bef8402cd3551d8237d84eed816aa17c6ee218e9dbe39d804eff484535fd"
+    },
+    {
+      "id": "CERT-CANDIDATE-REJECT-4-OF-5",
+      "container": "CandidateRejectCertificateV2",
+      "input": {
+        "protocolVersion": "0x3291fbf416c139f892b870ef87cf18d584fe156e918dea6fcb77f3feb0876b7b",
+        "l1ChainId": "224422",
+        "archiveGroupId": "7",
+        "chainNftId": "42",
+        "tipHeight": "9",
+        "round": 2,
+        "attemptNonce": "3",
+        "membershipEpoch": "11",
+        "membershipRoot": "0x1ea92d4c76b2931a5d1b344dd104f6c7530c1bdea3afeee6ccafac98d3786bb3",
+        "keyEpoch": "5",
+        "signerBitmap": 15,
+        "signerIds": [
+          "0x510e3dbd33aab02ab240110ad683235b3727b8b0137c839ad67ddbf8a9af7b4d",
+          "0x80ddc5842b190b1c2c81f4804a2831268d85d7f65cbbe9737eef9a2cca4f60f4",
+          "0x91aefb9dca9d37459ecca2773e7d74c7e51b0470c123109c91c6f7256cc2fe30",
+          "0xec8b144e1d5bd0bbf5e47ce883f42d37f7c006424ceebe3539152a066d5193cb",
+          "0xeea74ddb9787719572414e65b695c75e8180ad281faaf9836b805c7d0bfeee40"
+        ],
+        "signatures": [
+          "0x1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+          "0x2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+          "0x3333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+          "0x4444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444",
+          "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        ],
+        "kind": 4,
+        "candidateId": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+        "reasonCode": 5,
+        "evidenceHash": "0xd6df3fcf4592f6742ca49d88e61b97880a92fa53329ce442aadace9eac86a607",
+        "rejectVoteRoot": "0x10d14c24864aca9231097c394c3c9011f3a2cf81190896f9eb52f926da0d6808"
+      },
+      "canonicalSsz": "0x3291fbf416c139f892b870ef87cf18d584fe156e918dea6fcb77f3feb0876b7b04a66c03000000000007000000000000002a00000000000000000000000000000000000000000000000000000000000000090000000000000002000000fcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b5703000000000000000b000000000000001ea92d4c76b2931a5d1b344dd104f6c7530c1bdea3afeee6ccafac98d3786bb305000000000000000500d6df3fcf4592f6742ca49d88e61b97880a92fa53329ce442aadace9eac86a60710d14c24864aca9231097c394c3c9011f3a2cf81190896f9eb52f926da0d68080f510e3dbd33aab02ab240110ad683235b3727b8b0137c839ad67ddbf8a9af7b4d80ddc5842b190b1c2c81f4804a2831268d85d7f65cbbe9737eef9a2cca4f60f491aefb9dca9d37459ecca2773e7d74c7e51b0470c123109c91c6f7256cc2fe30ec8b144e1d5bd0bbf5e47ce883f42d37f7c006424ceebe3539152a066d5193cbeea74ddb9787719572414e65b695c75e8180ad281faaf9836b805c7d0bfeee4011111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111112222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333344444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "hashTreeRoot": "0x99d4565a78584546e3dfe29e797428be906170945228e21ea065167c6bba0422",
+      "signingRoot": "0x2d89d443d3ce0a004e8e8e6be57f929a8323ff1c0de2bd57bfca221c7ccce94e",
+      "certificateRef": "0x711594f0bb8fa02276bd66be8e1d924c4eec4b85e004aee39a683ef6f7a19e6a"
+    }
+  ],
+  "coordinatorVectors": [
+    {
+      "id": "COORDINATOR-CANONICAL-ROSTER-ROUND-2",
+      "input": {
+        "roster": [
+          "0xec8b144e1d5bd0bbf5e47ce883f42d37f7c006424ceebe3539152a066d5193cb",
+          "0x510e3dbd33aab02ab240110ad683235b3727b8b0137c839ad67ddbf8a9af7b4d",
+          "0xeea74ddb9787719572414e65b695c75e8180ad281faaf9836b805c7d0bfeee40",
+          "0x80ddc5842b190b1c2c81f4804a2831268d85d7f65cbbe9737eef9a2cca4f60f4",
+          "0x91aefb9dca9d37459ecca2773e7d74c7e51b0470c123109c91c6f7256cc2fe30"
+        ],
+        "archiveGroupId": "7",
+        "chainNftId": "42",
+        "tipHeight": "9",
+        "attemptNonce": "3",
+        "membershipRoot": "0x1ea92d4c76b2931a5d1b344dd104f6c7530c1bdea3afeee6ccafac98d3786bb3",
+        "round": 2
+      },
+      "expected": {
+        "canonicalRoster": [
+          "0x510e3dbd33aab02ab240110ad683235b3727b8b0137c839ad67ddbf8a9af7b4d",
+          "0x80ddc5842b190b1c2c81f4804a2831268d85d7f65cbbe9737eef9a2cca4f60f4",
+          "0x91aefb9dca9d37459ecca2773e7d74c7e51b0470c123109c91c6f7256cc2fe30",
+          "0xec8b144e1d5bd0bbf5e47ce883f42d37f7c006424ceebe3539152a066d5193cb",
+          "0xeea74ddb9787719572414e65b695c75e8180ad281faaf9836b805c7d0bfeee40"
+        ],
+        "digest": "0x6b88d5e78a4c6a6d8d1a0406061d5ad80f8d6838b1e8ae1be3b4a9ad6f53485a",
+        "sample": "7884198257144203371",
+        "index": 1,
+        "coordinator": "0x80ddc5842b190b1c2c81f4804a2831268d85d7f65cbbe9737eef9a2cca4f60f4",
+        "counter": 0
+      }
+    }
+  ],
+  "walVectors": [
+    {
+      "id": "WAL-FRAME-VOTE-1",
+      "input": {
+        "sequence": "1",
+        "flags": 1,
+        "payload": "0x0100010109000000000000000200000001d50000003291fbf416c139f892b870ef87cf18d584fe156e918dea6fcb77f3feb0876b7ba66c03000000000007000000000000002a0000000000000000000000000000000000000000000000000000000000000009000000000000000200000001fcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b5703000000000000000b000000000000001ea92d4c76b2931a5d1b344dd104f6c7530c1bdea3afeee6ccafac98d3786bb305000000000000000000000000000000000000000000000000000000000000000000000000000000f7f9913fb913321e630b2d47bd4b3ef0934d026a4cf79b05c8a1917931c68deb1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111fcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b570000000000000000000000000000000000000000000000000000000000000000ffffffff0000000000000000000000000000000000000000000000000000000000000000ffffffff000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b000000000000001ea92d4c76b2931a5d1b344dd104f6c7530c1bdea3afeee6ccafac98d3786bb305000000000000000800000000000000"
+      },
+      "frame": "0x444c45570100010001000000000000002b0200002730a6d4811eb55fa0123cf70931ac4829ae47ba746ab75f5924bc12f58136000100010109000000000000000200000001d50000003291fbf416c139f892b870ef87cf18d584fe156e918dea6fcb77f3feb0876b7ba66c03000000000007000000000000002a0000000000000000000000000000000000000000000000000000000000000009000000000000000200000001fcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b5703000000000000000b000000000000001ea92d4c76b2931a5d1b344dd104f6c7530c1bdea3afeee6ccafac98d3786bb305000000000000000000000000000000000000000000000000000000000000000000000000000000f7f9913fb913321e630b2d47bd4b3ef0934d026a4cf79b05c8a1917931c68deb1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111fcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b570000000000000000000000000000000000000000000000000000000000000000ffffffff0000000000000000000000000000000000000000000000000000000000000000ffffffff000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b000000000000001ea92d4c76b2931a5d1b344dd104f6c7530c1bdea3afeee6ccafac98d3786bb30500000000000000080000000000000068c4ee20917108ddbe33156499b93e2865c160c0ffcc15ec4a7d20ca5bf8f5ef",
+      "frameSha256": "0x88c411b44e1f857d82a23379b7c8864060916c99af7c4d6cc62c92a948cc9999",
+      "expected": {
+        "frameCount": 1,
+        "recoveryRequired": false,
+        "validBytes": 639
+      }
+    },
+    {
+      "id": "WAL-CORRUPT-CHECKSUM",
+      "frame": "0x444c45570100010001000000000000002b0200002730a6d4811eb55fa0123cf70931ac4829ae47ba746ab75f5924bc12f58136000100010109000000000000000200000001d50000003291fbf416c139f892b870ef87cf18d584fe156e918dea6fcb77f3feb0876b7ba66c03000000000007000000000000002a0000000000000000000000000000000000000000000000000000000000000009000000000000000200000001fcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b5703000000000000000b000000000000001ea92d4c76b2931a5d1b344dd104f6c7530c1bdea3afeee6ccafac98d3786bb305000000000000000000000000000000000000000000000000000000000000000000000000000000f7f9913fb913321e630b2d47bd4b3ef0934d026a4cf79b05c8a1917931c68deb1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111fcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b570000000000000000000000000000000000000000000000000000000000000000ffffffff0000000000000000000000000000000000000000000000000000000000000000ffffffff000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b000000000000001ea92d4c76b2931a5d1b344dd104f6c7530c1bdea3afeee6ccafac98d3786bb30500000000000000080000000000000068c4ee20917108ddbe33156499b93e2865c160c0ffcc15ec4a7d20ca5bf8f5ee",
+      "expected": {
+        "frameCount": 0,
+        "recoveryRequired": true,
+        "validBytes": 0,
+        "code": "ERR_WAL_RECOVERY_REQUIRED"
+      }
+    },
+    {
+      "id": "WAL-TRUNCATED-TAIL",
+      "frame": "0x444c45570100010001000000000000002b0200002730a6d4811eb55fa0123cf70931ac4829ae47ba746ab75f5924bc12f58136000100010109000000000000000200000001d50000003291fbf416c139f892b870ef87cf18d584fe156e918dea6fcb77f3feb0876b7ba66c03000000000007000000000000002a0000000000000000000000000000000000000000000000000000000000000009000000000000000200000001fcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b5703000000000000000b000000000000001ea92d4c76b2931a5d1b344dd104f6c7530c1bdea3afeee6ccafac98d3786bb305000000000000000000000000000000000000000000000000000000000000000000000000000000f7f9913fb913321e630b2d47bd4b3ef0934d026a4cf79b05c8a1917931c68deb1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111fcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b570000000000000000000000000000000000000000000000000000000000000000ffffffff0000000000000000000000000000000000000000000000000000000000000000ffffffff000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b000000000000001ea92d4c76b2931a5d1b344dd104f6c7530c1bdea3afeee6ccafac98d3786bb30500000000000000080000000000000068c4ee20917108ddbe33156499b93e2865c160c0ffcc15",
+      "expected": {
+        "frameCount": 0,
+        "recoveryRequired": true,
+        "validBytes": 0,
+        "code": "ERR_WAL_RECOVERY_REQUIRED"
+      }
+    }
+  ],
+  "rsVectors": [
+    {
+      "id": "RS-EMPTY",
+      "body": "0x",
+      "bodyLength": 0,
+      "shardSize": 2,
+      "shards": [
+        "0x0000",
+        "0x0000",
+        "0x0000",
+        "0x0000",
+        "0x0000",
+        "0x0000",
+        "0x0000"
+      ],
+      "bodyCommitment": "0xb824b93a9db1b783186280046c3ddab2bbb229b62a76d184dcb2d7ebf75efc5f",
+      "daRoot": "0xa1861ee823cc7755036e5e4029a3b7098396788cf621f0fed60bd185bed23a26"
+    },
+    {
+      "id": "RS-ONE-BYTE",
+      "body": "0xab",
+      "bodyLength": 1,
+      "shardSize": 3,
+      "shards": [
+        "0x010000",
+        "0x000000",
+        "0x0000ab",
+        "0x000000",
+        "0x52004b",
+        "0xf70096",
+        "0x0200fd"
+      ],
+      "bodyCommitment": "0x64faf8af0de4ec915e80e3180ff7c80d2055fa15b017573570a688b54e870b6e",
+      "daRoot": "0x7d835a331273bc0ba25dfde138b1b4d5f0c319f11deb9664218e31b740418c0b"
+    },
+    {
+      "id": "RS-DLE-CANONICAL",
+      "body": "0x436f4e45542d444c452064657465726d696e697374696320525328372c342920636f72707573207632",
+      "bodyLength": 41,
+      "shardSize": 13,
+      "shards": [
+        "0x2900000000000000436f4e4554",
+        "0x2d444c452064657465726d696e",
+        "0x697374696320525328372c3429",
+        "0x20636f72707573207632000000",
+        "0xad6a74bd7406e66fd9ee5dca14",
+        "0x26527e23da0cdacb26dc46d588",
+        "0x56e8681f7ecfa742c0331f2e81"
+      ],
+      "bodyCommitment": "0x36e7ab0010f9655129ac779659128a16e180b215911f7c7efa8f6b5e59566813",
+      "daRoot": "0x140750808a01f1be06610ee2ffdbd98e9f11b16756f4fdfb3f373f72db409a31"
+    }
+  ],
+  "rsReconstructionSets": [
+    [
+      0,
+      1,
+      2,
+      3
+    ],
+    [
+      0,
+      1,
+      2,
+      4
+    ],
+    [
+      0,
+      1,
+      2,
+      5
+    ],
+    [
+      0,
+      1,
+      2,
+      6
+    ],
+    [
+      0,
+      1,
+      3,
+      4
+    ],
+    [
+      0,
+      1,
+      3,
+      5
+    ],
+    [
+      0,
+      1,
+      3,
+      6
+    ],
+    [
+      0,
+      1,
+      4,
+      5
+    ],
+    [
+      0,
+      1,
+      4,
+      6
+    ],
+    [
+      0,
+      1,
+      5,
+      6
+    ],
+    [
+      0,
+      2,
+      3,
+      4
+    ],
+    [
+      0,
+      2,
+      3,
+      5
+    ],
+    [
+      0,
+      2,
+      3,
+      6
+    ],
+    [
+      0,
+      2,
+      4,
+      5
+    ],
+    [
+      0,
+      2,
+      4,
+      6
+    ],
+    [
+      0,
+      2,
+      5,
+      6
+    ],
+    [
+      0,
+      3,
+      4,
+      5
+    ],
+    [
+      0,
+      3,
+      4,
+      6
+    ],
+    [
+      0,
+      3,
+      5,
+      6
+    ],
+    [
+      0,
+      4,
+      5,
+      6
+    ],
+    [
+      1,
+      2,
+      3,
+      4
+    ],
+    [
+      1,
+      2,
+      3,
+      5
+    ],
+    [
+      1,
+      2,
+      3,
+      6
+    ],
+    [
+      1,
+      2,
+      4,
+      5
+    ],
+    [
+      1,
+      2,
+      4,
+      6
+    ],
+    [
+      1,
+      2,
+      5,
+      6
+    ],
+    [
+      1,
+      3,
+      4,
+      5
+    ],
+    [
+      1,
+      3,
+      4,
+      6
+    ],
+    [
+      1,
+      3,
+      5,
+      6
+    ],
+    [
+      1,
+      4,
+      5,
+      6
+    ],
+    [
+      2,
+      3,
+      4,
+      5
+    ],
+    [
+      2,
+      3,
+      4,
+      6
+    ],
+    [
+      2,
+      3,
+      5,
+      6
+    ],
+    [
+      2,
+      4,
+      5,
+      6
+    ],
+    [
+      3,
+      4,
+      5,
+      6
+    ]
+  ],
+  "stateMachineVectors": [
+    {
+      "id": "TM-V2-NORMAL-COMMIT",
+      "initial": {
+        "height": 9,
+        "round": 2,
+        "step": "PROPOSE",
+        "mode": "VOTING",
+        "lockedValue": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "lockedRound": 4294967295,
+        "validValue": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "validRound": 4294967295,
+        "validPrevoteQCRef": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "committedAcRef": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "rejectRef": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "inputs": [
+        {
+          "type": "PROPOSAL",
+          "value": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+          "available": true,
+          "validRound": 4294967295,
+          "validPrevoteQCRef": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "type": "PREVOTE_QC",
+          "value": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+          "qcRef": "0x6714208fe23bf574f4383af9a06ffb3173d0338d867c1188da3df52411a26aa4"
+        },
+        {
+          "type": "PRECOMMIT_QC",
+          "value": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+          "acRef": "0x514ea85403abeecd3c812968ede764e423552d8d64040d245d3eda8d4743194f"
+        }
+      ],
+      "expected": {
+        "state": {
+          "height": 9,
+          "round": 2,
+          "step": "COMMITTED",
+          "mode": "VOTING",
+          "lockedValue": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+          "lockedRound": 2,
+          "validValue": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+          "validRound": 2,
+          "validPrevoteQCRef": "0x6714208fe23bf574f4383af9a06ffb3173d0338d867c1188da3df52411a26aa4",
+          "committedAcRef": "0x514ea85403abeecd3c812968ede764e423552d8d64040d245d3eda8d4743194f",
+          "rejectRef": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "outputs": [
+          {
+            "action": "PREVOTE",
+            "value": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+            "reference": "0x0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          {
+            "action": "PRECOMMIT",
+            "value": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+            "reference": "0x6714208fe23bf574f4383af9a06ffb3173d0338d867c1188da3df52411a26aa4"
+          },
+          {
+            "action": "COMMIT",
+            "value": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+            "reference": "0x514ea85403abeecd3c812968ede764e423552d8d64040d245d3eda8d4743194f"
+          }
+        ],
+        "errors": [],
+        "stateRoot": "0xd311ba43ff671f3831e31726ca57f80a6ef31569131d6ad041e43c027f6970df"
+      }
+    },
+    {
+      "id": "TM-V2-NIL-ROUND-ADVANCE",
+      "initial": {
+        "height": 9,
+        "round": 2,
+        "step": "PROPOSE",
+        "mode": "VOTING",
+        "lockedValue": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+        "lockedRound": 1,
+        "validValue": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+        "validRound": 1,
+        "validPrevoteQCRef": "0x7c7e103f862e33f62080eb52675ef1424f7781a645b540ec649a2d7eb6506182",
+        "committedAcRef": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "rejectRef": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "inputs": [
+        {
+          "type": "PROPOSAL",
+          "value": "0x90fc884daf13bcd87176dbdd4f142470940f165b7d4b5fc8458188379f2f9863",
+          "available": true,
+          "validRound": 4294967295,
+          "validPrevoteQCRef": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "type": "PREVOTE_QC",
+          "value": "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "qcRef": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "type": "PRECOMMIT_QC",
+          "value": "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "acRef": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "expected": {
+        "state": {
+          "height": 9,
+          "round": 3,
+          "step": "PROPOSE",
+          "mode": "VOTING",
+          "lockedValue": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+          "lockedRound": 1,
+          "validValue": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+          "validRound": 1,
+          "validPrevoteQCRef": "0x7c7e103f862e33f62080eb52675ef1424f7781a645b540ec649a2d7eb6506182",
+          "committedAcRef": "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "rejectRef": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "outputs": [
+          {
+            "action": "PREVOTE",
+            "value": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "reference": "0x0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          {
+            "action": "PRECOMMIT",
+            "value": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "reference": "0x0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          {
+            "action": "ENTER_ROUND",
+            "value": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "reference": "0x0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        ],
+        "errors": [],
+        "stateRoot": "0x7206ef7e87a5573d7d7ab7c6d5b61522a2f187611539608e81f9a24e87cd5f93"
+      }
+    },
+    {
+      "id": "TM-V2-HIGHER-VALID-ROUND",
+      "initial": {
+        "height": 9,
+        "round": 2,
+        "step": "PROPOSE",
+        "mode": "VOTING",
+        "lockedValue": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+        "lockedRound": 1,
+        "validValue": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+        "validRound": 1,
+        "validPrevoteQCRef": "0x7c7e103f862e33f62080eb52675ef1424f7781a645b540ec649a2d7eb6506182",
+        "committedAcRef": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "rejectRef": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "inputs": [
+        {
+          "type": "PROPOSAL",
+          "value": "0x90fc884daf13bcd87176dbdd4f142470940f165b7d4b5fc8458188379f2f9863",
+          "available": true,
+          "validRound": 2,
+          "validPrevoteQCRef": "0xb7b46baa06d1e3094ee1c559e61ef9f26cdafebeb48011cb7462f30f748036d9"
+        }
+      ],
+      "expected": {
+        "state": {
+          "height": 9,
+          "round": 2,
+          "step": "PREVOTE",
+          "mode": "VOTING",
+          "lockedValue": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+          "lockedRound": 1,
+          "validValue": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+          "validRound": 1,
+          "validPrevoteQCRef": "0x7c7e103f862e33f62080eb52675ef1424f7781a645b540ec649a2d7eb6506182",
+          "committedAcRef": "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "rejectRef": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "outputs": [
+          {
+            "action": "PREVOTE",
+            "value": "0x90fc884daf13bcd87176dbdd4f142470940f165b7d4b5fc8458188379f2f9863",
+            "reference": "0x0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        ],
+        "errors": [],
+        "stateRoot": "0xe03dfb50eac0ebce49b1fe615c2611a639aac27f87ddee8486dbae035ac21ee6"
+      }
+    },
+    {
+      "id": "TM-V2-TIMEOUT-PRESERVES-LOCK",
+      "initial": {
+        "height": 9,
+        "round": 2,
+        "step": "PRECOMMIT",
+        "mode": "VOTING",
+        "lockedValue": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+        "lockedRound": 1,
+        "validValue": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+        "validRound": 1,
+        "validPrevoteQCRef": "0x7c7e103f862e33f62080eb52675ef1424f7781a645b540ec649a2d7eb6506182",
+        "committedAcRef": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "rejectRef": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "inputs": [
+        {
+          "type": "PRECOMMIT_TIMEOUT",
+          "tcRef": "0x8e53bef8402cd3551d8237d84eed816aa17c6ee218e9dbe39d804eff484535fd"
+        }
+      ],
+      "expected": {
+        "state": {
+          "height": 9,
+          "round": 3,
+          "step": "PROPOSE",
+          "mode": "VOTING",
+          "lockedValue": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+          "lockedRound": 1,
+          "validValue": "0xfcd6d3dc0518ef3aac3dfce7a9a3e3bc2360a0e6301288278264f102fb4c1b57",
+          "validRound": 1,
+          "validPrevoteQCRef": "0x7c7e103f862e33f62080eb52675ef1424f7781a645b540ec649a2d7eb6506182",
+          "committedAcRef": "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "rejectRef": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "outputs": [
+          {
+            "action": "ENTER_ROUND",
+            "value": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "reference": "0x8e53bef8402cd3551d8237d84eed816aa17c6ee218e9dbe39d804eff484535fd"
+          }
+        ],
+        "errors": [],
+        "stateRoot": "0x7206ef7e87a5573d7d7ab7c6d5b61522a2f187611539608e81f9a24e87cd5f93"
+      }
+    },
+    {
+      "id": "TM-V2-REJECT-FREEZES",
+      "initial": {
+        "height": 9,
+        "round": 2,
+        "step": "PROPOSE",
+        "mode": "VOTING",
+        "lockedValue": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "lockedRound": 4294967295,
+        "validValue": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "validRound": 4294967295,
+        "validPrevoteQCRef": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "committedAcRef": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "rejectRef": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "inputs": [
+        {
+          "type": "REJECT_CERT",
+          "rejectRef": "0x711594f0bb8fa02276bd66be8e1d924c4eec4b85e004aee39a683ef6f7a19e6a",
+          "afterFinality": false
+        }
+      ],
+      "expected": {
+        "state": {
+          "height": 9,
+          "round": 2,
+          "step": "PROPOSE",
+          "mode": "FROZEN",
+          "lockedValue": "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "lockedRound": 4294967295,
+          "validValue": "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "validRound": 4294967295,
+          "validPrevoteQCRef": "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "committedAcRef": "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "rejectRef": "0x711594f0bb8fa02276bd66be8e1d924c4eec4b85e004aee39a683ef6f7a19e6a"
+        },
+        "outputs": [
+          {
+            "action": "FREEZE",
+            "value": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "reference": "0x711594f0bb8fa02276bd66be8e1d924c4eec4b85e004aee39a683ef6f7a19e6a"
+          }
+        ],
+        "errors": [
+          "ERR_REJECT_ACCEPT_CONFLICT"
+        ],
+        "stateRoot": "0x60dc45d09fa65f028dfd3448c72d015dfbc2292a16bc474ab1dfa2488a68e372"
+      }
+    }
+  ],
+  "lifecycleVectors": [
+    {
+      "id": "LIFECYCLE-5-PLUS-2-PLANNED-EXIT",
+      "initial": {
+        "phase": "ACTIVE",
+        "membershipEpoch": 11,
+        "keyEpoch": 5,
+        "active": [
+          "0x510e3dbd33aab02ab240110ad683235b3727b8b0137c839ad67ddbf8a9af7b4d",
+          "0x80ddc5842b190b1c2c81f4804a2831268d85d7f65cbbe9737eef9a2cca4f60f4",
+          "0x91aefb9dca9d37459ecca2773e7d74c7e51b0470c123109c91c6f7256cc2fe30",
+          "0xec8b144e1d5bd0bbf5e47ce883f42d37f7c006424ceebe3539152a066d5193cb",
+          "0xeea74ddb9787719572414e65b695c75e8180ad281faaf9836b805c7d0bfeee40"
+        ],
+        "standby": [
+          "0x2029cc7035b865e88d8dd4ab95d30f6ffd52d82244728547a0082069371f40ad",
+          "0xe07f050640e15c8ca204a15ae051c2798701a4c111b953951562ec3650ee3280"
+        ],
+        "exiting": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "promoted": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "inputs": [
+        {
+          "type": "REQUEST_EXIT",
+          "member": "0x91aefb9dca9d37459ecca2773e7d74c7e51b0470c123109c91c6f7256cc2fe30"
+        },
+        {
+          "type": "BEGIN_DRAIN"
+        },
+        {
+          "type": "BEGIN_STANDBY_SYNC"
+        },
+        {
+          "type": "MARK_HANDOVER_READY"
+        },
+        {
+          "type": "ACTIVATE_SWITCH"
+        }
+      ],
+      "expected": {
+        "state": {
+          "phase": "MEMBERSHIP_SWITCHED",
+          "membershipEpoch": 12,
+          "keyEpoch": 6,
+          "active": [
+            "0x510e3dbd33aab02ab240110ad683235b3727b8b0137c839ad67ddbf8a9af7b4d",
+            "0x80ddc5842b190b1c2c81f4804a2831268d85d7f65cbbe9737eef9a2cca4f60f4",
+            "0x2029cc7035b865e88d8dd4ab95d30f6ffd52d82244728547a0082069371f40ad",
+            "0xec8b144e1d5bd0bbf5e47ce883f42d37f7c006424ceebe3539152a066d5193cb",
+            "0xeea74ddb9787719572414e65b695c75e8180ad281faaf9836b805c7d0bfeee40"
+          ],
+          "standby": [
+            "0xe07f050640e15c8ca204a15ae051c2798701a4c111b953951562ec3650ee3280"
+          ],
+          "exiting": "0x91aefb9dca9d37459ecca2773e7d74c7e51b0470c123109c91c6f7256cc2fe30",
+          "promoted": "0x2029cc7035b865e88d8dd4ab95d30f6ffd52d82244728547a0082069371f40ad"
+        },
+        "stateRoot": "0x883a65facaad8d5373843e4a82dc86a60e2bb116564abce4d969b118b1da60d4"
+      }
+    }
+  ]
+}

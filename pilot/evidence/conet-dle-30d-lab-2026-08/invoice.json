@@ -1,0 +1,118 @@
+{
+  "schema": "InvoiceV1",
+  "invoiceId": "inv-conet-dle-30d-lab-2026-08-host-month",
+  "pilotId": "conet-dle-30d-lab-2026-08",
+  "billingPeriodStart": "2026-08-14T00:00:00.000Z",
+  "billingPeriodEnd": "2026-09-13T23:59:59.000Z",
+  "currency": "USD",
+  "lines": [
+    {
+      "domainId": "fd-01-ionos-45",
+      "meterMetric": "host-month",
+      "quantity": 1,
+      "unitPrice": 4,
+      "amount": 4
+    },
+    {
+      "domainId": "fd-02-ionos-189",
+      "meterMetric": "host-month",
+      "quantity": 1,
+      "unitPrice": 4,
+      "amount": 4
+    },
+    {
+      "domainId": "fd-03-ionos-98",
+      "meterMetric": "host-month",
+      "quantity": 1,
+      "unitPrice": 4,
+      "amount": 4
+    },
+    {
+      "domainId": "fd-04-hosthatch-tokyo1",
+      "meterMetric": "host-month",
+      "quantity": 1,
+      "unitPrice": 4,
+      "amount": 4
+    },
+    {
+      "domainId": "fd-05-hosthatch-tokyo2",
+      "meterMetric": "host-month",
+      "quantity": 1,
+      "unitPrice": 4,
+      "amount": 4
+    },
+    {
+      "domainId": "fd-06-ionos-174",
+      "meterMetric": "host-month",
+      "quantity": 1,
+      "unitPrice": 4,
+      "amount": 4
+    },
+    {
+      "domainId": "fd-07-ionos-207",
+      "meterMetric": "host-month",
+      "quantity": 1,
+      "unitPrice": 4,
+      "amount": 4
+    },
+    {
+      "domainId": "fd-01-ionos-45",
+      "meterMetric": "unmetered-traffic",
+      "quantity": 1,
+      "unitPrice": 0,
+      "amount": 0
+    },
+    {
+      "domainId": "fd-02-ionos-189",
+      "meterMetric": "unmetered-traffic",
+      "quantity": 1,
+      "unitPrice": 0,
+      "amount": 0
+    },
+    {
+      "domainId": "fd-03-ionos-98",
+      "meterMetric": "unmetered-traffic",
+      "quantity": 1,
+      "unitPrice": 0,
+      "amount": 0
+    },
+    {
+      "domainId": "fd-04-hosthatch-tokyo1",
+      "meterMetric": "unmetered-traffic",
+      "quantity": 1,
+      "unitPrice": 0,
+      "amount": 0
+    },
+    {
+      "domainId": "fd-05-hosthatch-tokyo2",
+      "meterMetric": "unmetered-traffic",
+      "quantity": 1,
+      "unitPrice": 0,
+      "amount": 0
+    },
+    {
+      "domainId": "fd-06-ionos-174",
+      "meterMetric": "unmetered-traffic",
+      "quantity": 1,
+      "unitPrice": 0,
+      "amount": 0
+    },
+    {
+      "domainId": "fd-07-ionos-207",
+      "meterMetric": "unmetered-traffic",
+      "quantity": 1,
+      "unitPrice": 0,
+      "amount": 0
+    }
+  ],
+  "subtotal": 28,
+  "sourceBillingRefs": [
+    "usd-4-unmetered-host-ionos-74-208-224-45",
+    "usd-4-unmetered-host-ionos-216-225-197-189",
+    "usd-4-unmetered-host-ionos-198-251-77-98",
+    "usd-4-unmetered-host-hosthatch-tokyo1-167-254-243-38",
+    "usd-4-unmetered-host-hosthatch-tokyo2-170-205-39-67",
+    "usd-4-unmetered-host-ionos-216-225-193-174",
+    "usd-4-unmetered-host-ionos-212-227-242-207"
+  ]
+}

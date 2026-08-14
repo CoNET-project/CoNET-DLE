@@ -1,0 +1,89 @@
+{
+  "schema": "ArchiveRuntimeAcceptV1",
+  "pilotId": "conet-dle-30d-lab-2026-08",
+  "acceptedAt": "2026-08-14T19:02:00.000Z",
+  "port": 27101,
+  "chainIdHex": "0x44c45",
+  "note": "P1 archive command on TCP 27101. Heartbeat quorum only — not networked BFT / Archive Certificate. Do not publish raw IPs. Warmup gate.json was not reset.",
+  "ok": true,
+  "meshOk": true,
+  "daemonOk": true,
+  "protectedOk": true,
+  "pairs": 49,
+  "http200": 49,
+  "producesBlocks": false,
+  "hasTipVm": false,
+  "ethCallRejected": true,
+  "hosts": [
+    {
+      "domainId": "fd-01-ionos-45",
+      "command": "archive",
+      "role": "active",
+      "lastQuorumOk": true,
+      "lastPeerOk": 6,
+      "peerHits": 7,
+      "daemonOk": true,
+      "leftoverElClRunning": false
+    },
+    {
+      "domainId": "fd-02-ionos-189",
+      "command": "archive",
+      "role": "active",
+      "lastQuorumOk": true,
+      "lastPeerOk": 6,
+      "peerHits": 7,
+      "daemonOk": true,
+      "leftoverElClRunning": true
+    },
+    {
+      "domainId": "fd-03-ionos-98",
+      "command": "archive",
+      "role": "active",
+      "lastQuorumOk": true,
+      "lastPeerOk": 6,
+      "peerHits": 7,
+      "daemonOk": true,
+      "leftoverElClRunning": true
+    },
+    {
+      "domainId": "fd-04-hosthatch-tokyo1",
+      "command": "archive",
+      "role": "active",
+      "lastQuorumOk": true,
+      "lastPeerOk": 6,
+      "peerHits": 7,
+      "daemonOk": true,
+      "leftoverElClRunning": false
+    },
+    {
+      "domainId": "fd-05-hosthatch-tokyo2",
+      "command": "archive",
+      "role": "active",
+      "lastQuorumOk": true,
+      "lastPeerOk": 6,
+      "peerHits": 7,
+      "daemonOk": true,
+      "leftoverElClRunning": false
+    },
+    {
+      "domainId": "fd-06-ionos-174",
+      "command": "archive",
+      "role": "standby",
+      "lastQuorumOk": true,
+      "lastPeerOk": 6,
+      "peerHits": 7,
+      "daemonOk": true,
+      "leftoverElClRunning": true
+    },
+    {
+      "domainId": "fd-07-ionos-207",
+      "command": "archive",
+      "role": "standby",
+      "lastQuorumOk": true,
+      "lastPeerOk": 6,
+      "peerHits": 7,
+      "daemonOk": true,
+      "leftoverElClRunning": true
+    }
+  ]
+}
