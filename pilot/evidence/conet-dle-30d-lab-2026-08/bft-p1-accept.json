@@ -1,0 +1,187 @@
+{
+  "schema": "BftP1AcceptV1",
+  "pilotId": "conet-dle-30d-lab-2026-08",
+  "acceptedAt": "2026-08-15T05:37:47.615Z",
+  "port": 27101,
+  "note": "Lab networked PrecommitQC on TCP 27101. HMAC-SHA256 lab MAC derived from public domainId — forgeable, not a frozen EIP-712 L1 wrapper or corpus SSZ object. Not 30-day qualification.",
+  "valueHash": "0x79e9732d1e6bce1432e38b62fc2e99c08ad1dacd8da0c3a8e4b84eef8b61625e",
+  "activeArchives": [
+    "fd-01-ionos-45",
+    "fd-02-ionos-189",
+    "fd-03-ionos-98",
+    "fd-04-hosthatch-tokyo1",
+    "fd-05-hosthatch-tokyo2"
+  ],
+  "standbyArchives": [
+    "fd-06-ionos-174",
+    "fd-07-ionos-207"
+  ],
+  "ok": true,
+  "meshOk": true,
+  "daemonOk": true,
+  "protectedOk": true,
+  "bftOk": true,
+  "rows": [
+    {
+      "domainId": "fd-01-ionos-45",
+      "command": "archive",
+      "role": "active",
+      "lastPeerOk": 6,
+      "lastQuorumOk": true,
+      "daemonOk": true,
+      "peerHits": 7,
+      "expectedPeers": 7,
+      "certificateAvailable": true,
+      "certificateHash": "0x79e9732d1e6bce1432e38b62fc2e99c08ad1dacd8da0c3a8e4b84eef8b61625e",
+      "certificateSigners": [
+        "fd-01-ionos-45",
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ],
+      "geth": "",
+      "beacon": "",
+      "validator": "",
+      "detail": "HOST=ubuntu\nUSER=peter\nMEM=3.8Gi 592Mi 3.2Gi\nARCHIVE_PIDS=814134\nAGENT_PIDS=\nGETH=\nBEACON=\nVALIDATOR=\n{\"ok\":true,\"command\":\"archive\",\"runtime\":\"nodejs\",\"producesBlocks\":false,\"hasTipVm\":false,\"l1Isolated\":true,\"l1ChainIdForbidden\":224422,\"batchSupported\":true,\"chainId\":281669,\"chainIdHex\":\"0x44c45\",\"port\":27101,\"domainId\":\"fd-01-ionos-45\",\"role\":\"active\",\"agent\":\"dle-30d-lab\",\"isolatedFromElCl\":true,\"uptimeMs\":100992,\"heartbeats\":16,\"lastQuorumOk\":true,\"lastPeerOk\":6,\"bftNetworked\":true,\"bftModeA\":true,\"bftCertificateAvailable\":true,\"bftPrevoteCount\":5,\"bftPrecommitCount\":5,\"bftVoted\":true}DAEMON_EXIT=0\nDAEMON_PROBE_BEGIN\n{\n  \"ok\": true,\n  \"command\": \"daemon\",\n  \"runtime\": \"nodejs\",\n  \"archiveUrl\": \"http://127.0.0.1:27101\",\n  \"health\": {\n    \"ok\": true,\n    \"command\": \"archive\",\n    \"runtime\": \"nodejs\",\n    \"producesBlocks\": false,\n    \"hasTipVm\": false,\n    \"l1Isolated\": true,\n    \"l1ChainIdForbidden\": 224422,\n    \"batchSupported\": true,\n    \"chainId\": 281669,\n    \"chainIdHex\": \"0x44c45\",\n    \"port\": 27101,\n    \"domainId\": \"fd-01-ionos-45\",\n    \"role\": \"active\",\n    \"agent\": \"dle-30d-lab\",\n    \"isolatedFromElCl\": true,\n    \"uptimeMs\": 101251,\n    \"heartbeats\": 16,\n    \"lastQuorumOk\": true,\n    \"lastPeerOk\": 6,\n    \"bftNetworked\": true,\n    \"bftModeA\": true,\n    \"bftCertificateAvailable\": true,\n    \"bftPrevoteCount\": 5,\n    \"bftPrecommitCount\": 5,\n    \"bftVoted\": true\n  },\n  \"info\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": {\n      \"command\": \"archive\",\n      \"runtime\": \"nodejs\",\n      \"producesBlocks\": false,\n      \"hasTipVm\": false,\n      \"l1Isolated\": true,\n      \"l1ChainIdForbidden\": 224422,\n      \"batchSupported\": true,\n      \"chainId\": 281669,\n      \"chainIdHex\": \"0x44c45\",\n      \"port\": 27101,\n      \"domainId\": \"fd-01-ionos-45\",\n      \"role\": \"active\"\n    }\n  },\n  \"chainId\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": \"0x44c45\"\n  },\n  \"netVersion\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": \"281669\"\n  },\n  \"tipBlock\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": {\n      \"number\": \"0x1\",\n      \"hash\": \"0x79e9732d1e6bce1432e38b62fc2e99c08ad1dacd8da0c3a8e4b84eef8b61625e\",\n      \"parentHash\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"nonce\": \"0x0000000000000000\",\n      \"sha3Uncles\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"logsBloom\": \"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\",\n      \"transactionsRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"stateRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"receiptsRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"miner\": \"0x0000000000000000000000000000000000000000\",\n      \"difficulty\": \"0x0\",\n      \"totalDifficulty\": \"0x0\",\n      \"extraData\": \"0x\",\n      \"size\": \"0x0\",\n      \"gasLimit\": \"0x0\",\n      \"gasUsed\": \"0x0\",\n      \"timestamp\": \"0x0\",\n      \"transactions\": [],\n      \"uncles\": [],\n      \"mixHash\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"dleFacade\": true,\n      \"dleNote\": \"Synthetic DLE tip placeholder. Archives do not produce blocks; this is not an L1 block.\"\n    }\n  },\n  \"ethCallRejected\": true,\n  \"ethGetBalanceRejected\": true,\n  \"batchOk\": true\n}\nDAEMON_PROBE_END\nCERT_BEGIN\n{\"schema\":\"DleExplorerCertificateV1\",\"available\":true,\"reason\":\"Lab networked PrecommitQC. Not a frozen EIP-712 L1 wrapper or corpus SSZ object.\",\"height\":\"0x1\",\"hash\":\"0x79e9732d1e6bce1432e38b62fc2e99"
+    },
+    {
+      "domainId": "fd-02-ionos-189",
+      "command": "archive",
+      "role": "active",
+      "lastPeerOk": 6,
+      "lastQuorumOk": true,
+      "daemonOk": true,
+      "peerHits": 7,
+      "expectedPeers": 7,
+      "certificateAvailable": true,
+      "certificateHash": "0x79e9732d1e6bce1432e38b62fc2e99c08ad1dacd8da0c3a8e4b84eef8b61625e",
+      "certificateSigners": [
+        "fd-01-ionos-45",
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ],
+      "geth": "",
+      "beacon": "2818",
+      "validator": "",
+      "detail": "HOST=ubuntu\nUSER=peter\nMEM=3.8Gi 1.1Gi 2.7Gi\nARCHIVE_PIDS=187153\nAGENT_PIDS=\nGETH=\nBEACON=2818\nVALIDATOR=\n{\"ok\":true,\"command\":\"archive\",\"runtime\":\"nodejs\",\"producesBlocks\":false,\"hasTipVm\":false,\"l1Isolated\":true,\"l1ChainIdForbidden\":224422,\"batchSupported\":true,\"chainId\":281669,\"chainIdHex\":\"0x44c45\",\"port\":27101,\"domainId\":\"fd-02-ionos-189\",\"role\":\"active\",\"agent\":\"dle-30d-lab\",\"isolatedFromElCl\":true,\"uptimeMs\":89473,\"heartbeats\":14,\"lastQuorumOk\":true,\"lastPeerOk\":6,\"bftNetworked\":true,\"bftModeA\":true,\"bftCertificateAvailable\":true,\"bftPrevoteCount\":5,\"bftPrecommitCount\":5,\"bftVoted\":true}DAEMON_EXIT=0\nDAEMON_PROBE_BEGIN\n{\n  \"ok\": true,\n  \"command\": \"daemon\",\n  \"runtime\": \"nodejs\",\n  \"archiveUrl\": \"http://127.0.0.1:27101\",\n  \"health\": {\n    \"ok\": true,\n    \"command\": \"archive\",\n    \"runtime\": \"nodejs\",\n    \"producesBlocks\": false,\n    \"hasTipVm\": false,\n    \"l1Isolated\": true,\n    \"l1ChainIdForbidden\": 224422,\n    \"batchSupported\": true,\n    \"chainId\": 281669,\n    \"chainIdHex\": \"0x44c45\",\n    \"port\": 27101,\n    \"domainId\": \"fd-02-ionos-189\",\n    \"role\": \"active\",\n    \"agent\": \"dle-30d-lab\",\n    \"isolatedFromElCl\": true,\n    \"uptimeMs\": 89572,\n    \"heartbeats\": 14,\n    \"lastQuorumOk\": true,\n    \"lastPeerOk\": 6,\n    \"bftNetworked\": true,\n    \"bftModeA\": true,\n    \"bftCertificateAvailable\": true,\n    \"bftPrevoteCount\": 5,\n    \"bftPrecommitCount\": 5,\n    \"bftVoted\": true\n  },\n  \"info\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": {\n      \"command\": \"archive\",\n      \"runtime\": \"nodejs\",\n      \"producesBlocks\": false,\n      \"hasTipVm\": false,\n      \"l1Isolated\": true,\n      \"l1ChainIdForbidden\": 224422,\n      \"batchSupported\": true,\n      \"chainId\": 281669,\n      \"chainIdHex\": \"0x44c45\",\n      \"port\": 27101,\n      \"domainId\": \"fd-02-ionos-189\",\n      \"role\": \"active\"\n    }\n  },\n  \"chainId\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": \"0x44c45\"\n  },\n  \"netVersion\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": \"281669\"\n  },\n  \"tipBlock\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": {\n      \"number\": \"0x1\",\n      \"hash\": \"0x79e9732d1e6bce1432e38b62fc2e99c08ad1dacd8da0c3a8e4b84eef8b61625e\",\n      \"parentHash\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"nonce\": \"0x0000000000000000\",\n      \"sha3Uncles\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"logsBloom\": \"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\",\n      \"transactionsRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"stateRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"receiptsRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"miner\": \"0x0000000000000000000000000000000000000000\",\n      \"difficulty\": \"0x0\",\n      \"totalDifficulty\": \"0x0\",\n      \"extraData\": \"0x\",\n      \"size\": \"0x0\",\n      \"gasLimit\": \"0x0\",\n      \"gasUsed\": \"0x0\",\n      \"timestamp\": \"0x0\",\n      \"transactions\": [],\n      \"uncles\": [],\n      \"mixHash\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"dleFacade\": true,\n      \"dleNote\": \"Synthetic DLE tip placeholder. Archives do not produce blocks; this is not an L1 block.\"\n    }\n  },\n  \"ethCallRejected\": true,\n  \"ethGetBalanceRejected\": true,\n  \"batchOk\": true\n}\nDAEMON_PROBE_END\nCERT_BEGIN\n{\"schema\":\"DleExplorerCertificateV1\",\"available\":true,\"reason\":\"Lab networked PrecommitQC. Not a frozen EIP-712 L1 wrapper or corpus SSZ object.\",\"height\":\"0x1\",\"hash\":\"0x79e9732d1e6bce1432e38b62f"
+    },
+    {
+      "domainId": "fd-03-ionos-98",
+      "command": "archive",
+      "role": "active",
+      "lastPeerOk": 6,
+      "lastQuorumOk": true,
+      "daemonOk": true,
+      "peerHits": 7,
+      "expectedPeers": 7,
+      "certificateAvailable": true,
+      "certificateHash": "0x79e9732d1e6bce1432e38b62fc2e99c08ad1dacd8da0c3a8e4b84eef8b61625e",
+      "certificateSigners": [
+        "fd-01-ionos-45",
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ],
+      "geth": "1254206",
+      "beacon": "1219175",
+      "validator": "",
+      "detail": "HOST=ubuntu\nUSER=peter\nMEM=3.8Gi 2.5Gi 1.3Gi\nARCHIVE_PIDS=2123784\nAGENT_PIDS=\nGETH=1254206\nBEACON=1219175\nVALIDATOR=\n{\"ok\":true,\"command\":\"archive\",\"runtime\":\"nodejs\",\"producesBlocks\":false,\"hasTipVm\":false,\"l1Isolated\":true,\"l1ChainIdForbidden\":224422,\"batchSupported\":true,\"chainId\":281669,\"chainIdHex\":\"0x44c45\",\"port\":27101,\"domainId\":\"fd-03-ionos-98\",\"role\":\"active\",\"agent\":\"dle-30d-lab\",\"isolatedFromElCl\":true,\"uptimeMs\":78604,\"heartbeats\":12,\"lastQuorumOk\":true,\"lastPeerOk\":6,\"bftNetworked\":true,\"bftModeA\":true,\"bftCertificateAvailable\":true,\"bftPrevoteCount\":5,\"bftPrecommitCount\":5,\"bftVoted\":true}DAEMON_EXIT=0\nDAEMON_PROBE_BEGIN\n{\n  \"ok\": true,\n  \"command\": \"daemon\",\n  \"runtime\": \"nodejs\",\n  \"archiveUrl\": \"http://127.0.0.1:27101\",\n  \"health\": {\n    \"ok\": true,\n    \"command\": \"archive\",\n    \"runtime\": \"nodejs\",\n    \"producesBlocks\": false,\n    \"hasTipVm\": false,\n    \"l1Isolated\": true,\n    \"l1ChainIdForbidden\": 224422,\n    \"batchSupported\": true,\n    \"chainId\": 281669,\n    \"chainIdHex\": \"0x44c45\",\n    \"port\": 27101,\n    \"domainId\": \"fd-03-ionos-98\",\n    \"role\": \"active\",\n    \"agent\": \"dle-30d-lab\",\n    \"isolatedFromElCl\": true,\n    \"uptimeMs\": 78701,\n    \"heartbeats\": 12,\n    \"lastQuorumOk\": true,\n    \"lastPeerOk\": 6,\n    \"bftNetworked\": true,\n    \"bftModeA\": true,\n    \"bftCertificateAvailable\": true,\n    \"bftPrevoteCount\": 5,\n    \"bftPrecommitCount\": 5,\n    \"bftVoted\": true\n  },\n  \"info\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": {\n      \"command\": \"archive\",\n      \"runtime\": \"nodejs\",\n      \"producesBlocks\": false,\n      \"hasTipVm\": false,\n      \"l1Isolated\": true,\n      \"l1ChainIdForbidden\": 224422,\n      \"batchSupported\": true,\n      \"chainId\": 281669,\n      \"chainIdHex\": \"0x44c45\",\n      \"port\": 27101,\n      \"domainId\": \"fd-03-ionos-98\",\n      \"role\": \"active\"\n    }\n  },\n  \"chainId\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": \"0x44c45\"\n  },\n  \"netVersion\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": \"281669\"\n  },\n  \"tipBlock\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": {\n      \"number\": \"0x1\",\n      \"hash\": \"0x79e9732d1e6bce1432e38b62fc2e99c08ad1dacd8da0c3a8e4b84eef8b61625e\",\n      \"parentHash\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"nonce\": \"0x0000000000000000\",\n      \"sha3Uncles\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"logsBloom\": \"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\",\n      \"transactionsRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"stateRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"receiptsRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"miner\": \"0x0000000000000000000000000000000000000000\",\n      \"difficulty\": \"0x0\",\n      \"totalDifficulty\": \"0x0\",\n      \"extraData\": \"0x\",\n      \"size\": \"0x0\",\n      \"gasLimit\": \"0x0\",\n      \"gasUsed\": \"0x0\",\n      \"timestamp\": \"0x0\",\n      \"transactions\": [],\n      \"uncles\": [],\n      \"mixHash\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"dleFacade\": true,\n      \"dleNote\": \"Synthetic DLE tip placeholder. Archives do not produce blocks; this is not an L1 block.\"\n    }\n  },\n  \"ethCallRejected\": true,\n  \"ethGetBalanceRejected\": true,\n  \"batchOk\": true\n}\nDAEMON_PROBE_END\nCERT_BEGIN\n{\"schema\":\"DleExplorerCertificateV1\",\"available\":true,\"reason\":\"Lab networked PrecommitQC. Not a frozen EIP-712 L1 wrapper or corpus SSZ object.\",\"height\":\"0x1\",\"hash\":\"0x79e9732d1e6bce143"
+    },
+    {
+      "domainId": "fd-04-hosthatch-tokyo1",
+      "command": "archive",
+      "role": "active",
+      "lastPeerOk": 6,
+      "lastQuorumOk": true,
+      "daemonOk": true,
+      "peerHits": 7,
+      "expectedPeers": 7,
+      "certificateAvailable": true,
+      "certificateHash": "0x79e9732d1e6bce1432e38b62fc2e99c08ad1dacd8da0c3a8e4b84eef8b61625e",
+      "certificateSigners": [
+        "fd-01-ionos-45",
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ],
+      "geth": "",
+      "beacon": "",
+      "validator": "",
+      "detail": "HOST=tokyo1\nUSER=peter\nMEM=1.9Gi 427Mi 1.5Gi\nARCHIVE_PIDS=7262\nAGENT_PIDS=\nGETH=\nBEACON=\nVALIDATOR=\n{\"ok\":true,\"command\":\"archive\",\"runtime\":\"nodejs\",\"producesBlocks\":false,\"hasTipVm\":false,\"l1Isolated\":true,\"l1ChainIdForbidden\":224422,\"batchSupported\":true,\"chainId\":281669,\"chainIdHex\":\"0x44c45\",\"port\":27101,\"domainId\":\"fd-04-hosthatch-tokyo1\",\"role\":\"active\",\"agent\":\"dle-30d-lab\",\"isolatedFromElCl\":true,\"uptimeMs\":64371,\"heartbeats\":10,\"lastQuorumOk\":true,\"lastPeerOk\":6,\"bftNetworked\":true,\"bftModeA\":true,\"bftCertificateAvailable\":true,\"bftPrevoteCount\":5,\"bftPrecommitCount\":5,\"bftVoted\":true}DAEMON_EXIT=0\nDAEMON_PROBE_BEGIN\n{\n  \"ok\": true,\n  \"command\": \"daemon\",\n  \"runtime\": \"nodejs\",\n  \"archiveUrl\": \"http://127.0.0.1:27101\",\n  \"health\": {\n    \"ok\": true,\n    \"command\": \"archive\",\n    \"runtime\": \"nodejs\",\n    \"producesBlocks\": false,\n    \"hasTipVm\": false,\n    \"l1Isolated\": true,\n    \"l1ChainIdForbidden\": 224422,\n    \"batchSupported\": true,\n    \"chainId\": 281669,\n    \"chainIdHex\": \"0x44c45\",\n    \"port\": 27101,\n    \"domainId\": \"fd-04-hosthatch-tokyo1\",\n    \"role\": \"active\",\n    \"agent\": \"dle-30d-lab\",\n    \"isolatedFromElCl\": true,\n    \"uptimeMs\": 64489,\n    \"heartbeats\": 10,\n    \"lastQuorumOk\": true,\n    \"lastPeerOk\": 6,\n    \"bftNetworked\": true,\n    \"bftModeA\": true,\n    \"bftCertificateAvailable\": true,\n    \"bftPrevoteCount\": 5,\n    \"bftPrecommitCount\": 5,\n    \"bftVoted\": true\n  },\n  \"info\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": {\n      \"command\": \"archive\",\n      \"runtime\": \"nodejs\",\n      \"producesBlocks\": false,\n      \"hasTipVm\": false,\n      \"l1Isolated\": true,\n      \"l1ChainIdForbidden\": 224422,\n      \"batchSupported\": true,\n      \"chainId\": 281669,\n      \"chainIdHex\": \"0x44c45\",\n      \"port\": 27101,\n      \"domainId\": \"fd-04-hosthatch-tokyo1\",\n      \"role\": \"active\"\n    }\n  },\n  \"chainId\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": \"0x44c45\"\n  },\n  \"netVersion\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": \"281669\"\n  },\n  \"tipBlock\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": {\n      \"number\": \"0x1\",\n      \"hash\": \"0x79e9732d1e6bce1432e38b62fc2e99c08ad1dacd8da0c3a8e4b84eef8b61625e\",\n      \"parentHash\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"nonce\": \"0x0000000000000000\",\n      \"sha3Uncles\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"logsBloom\": \"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\",\n      \"transactionsRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"stateRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"receiptsRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"miner\": \"0x0000000000000000000000000000000000000000\",\n      \"difficulty\": \"0x0\",\n      \"totalDifficulty\": \"0x0\",\n      \"extraData\": \"0x\",\n      \"size\": \"0x0\",\n      \"gasLimit\": \"0x0\",\n      \"gasUsed\": \"0x0\",\n      \"timestamp\": \"0x0\",\n      \"transactions\": [],\n      \"uncles\": [],\n      \"mixHash\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"dleFacade\": true,\n      \"dleNote\": \"Synthetic DLE tip placeholder. Archives do not produce blocks; this is not an L1 block.\"\n    }\n  },\n  \"ethCallRejected\": true,\n  \"ethGetBalanceRejected\": true,\n  \"batchOk\": true\n}\nDAEMON_PROBE_END\nCERT_BEGIN\n{\"schema\":\"DleExplorerCertificateV1\",\"available\":true,\"reason\":\"Lab networked PrecommitQC. Not a frozen EIP-712 L1 wrapper or corpus SSZ object.\",\"height\":\"0x1\",\"hash\":\"0x79e9732d1e"
+    },
+    {
+      "domainId": "fd-05-hosthatch-tokyo2",
+      "command": "archive",
+      "role": "active",
+      "lastPeerOk": 6,
+      "lastQuorumOk": true,
+      "daemonOk": true,
+      "peerHits": 7,
+      "expectedPeers": 7,
+      "certificateAvailable": true,
+      "certificateHash": "0x79e9732d1e6bce1432e38b62fc2e99c08ad1dacd8da0c3a8e4b84eef8b61625e",
+      "certificateSigners": [
+        "fd-01-ionos-45",
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ],
+      "geth": "",
+      "beacon": "",
+      "validator": "",
+      "detail": "HOST=tokyo2\nUSER=peter\nMEM=1.9Gi 420Mi 1.5Gi\nARCHIVE_PIDS=11873\nAGENT_PIDS=\nGETH=\nBEACON=\nVALIDATOR=\n{\"ok\":true,\"command\":\"archive\",\"runtime\":\"nodejs\",\"producesBlocks\":false,\"hasTipVm\":false,\"l1Isolated\":true,\"l1ChainIdForbidden\":224422,\"batchSupported\":true,\"chainId\":281669,\"chainIdHex\":\"0x44c45\",\"port\":27101,\"domainId\":\"fd-05-hosthatch-tokyo2\",\"role\":\"active\",\"agent\":\"dle-30d-lab\",\"isolatedFromElCl\":true,\"uptimeMs\":51025,\"heartbeats\":8,\"lastQuorumOk\":true,\"lastPeerOk\":6,\"bftNetworked\":true,\"bftModeA\":true,\"bftCertificateAvailable\":true,\"bftPrevoteCount\":5,\"bftPrecommitCount\":5,\"bftVoted\":true}DAEMON_EXIT=0\nDAEMON_PROBE_BEGIN\n{\n  \"ok\": true,\n  \"command\": \"daemon\",\n  \"runtime\": \"nodejs\",\n  \"archiveUrl\": \"http://127.0.0.1:27101\",\n  \"health\": {\n    \"ok\": true,\n    \"command\": \"archive\",\n    \"runtime\": \"nodejs\",\n    \"producesBlocks\": false,\n    \"hasTipVm\": false,\n    \"l1Isolated\": true,\n    \"l1ChainIdForbidden\": 224422,\n    \"batchSupported\": true,\n    \"chainId\": 281669,\n    \"chainIdHex\": \"0x44c45\",\n    \"port\": 27101,\n    \"domainId\": \"fd-05-hosthatch-tokyo2\",\n    \"role\": \"active\",\n    \"agent\": \"dle-30d-lab\",\n    \"isolatedFromElCl\": true,\n    \"uptimeMs\": 51139,\n    \"heartbeats\": 8,\n    \"lastQuorumOk\": true,\n    \"lastPeerOk\": 6,\n    \"bftNetworked\": true,\n    \"bftModeA\": true,\n    \"bftCertificateAvailable\": true,\n    \"bftPrevoteCount\": 5,\n    \"bftPrecommitCount\": 5,\n    \"bftVoted\": true\n  },\n  \"info\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": {\n      \"command\": \"archive\",\n      \"runtime\": \"nodejs\",\n      \"producesBlocks\": false,\n      \"hasTipVm\": false,\n      \"l1Isolated\": true,\n      \"l1ChainIdForbidden\": 224422,\n      \"batchSupported\": true,\n      \"chainId\": 281669,\n      \"chainIdHex\": \"0x44c45\",\n      \"port\": 27101,\n      \"domainId\": \"fd-05-hosthatch-tokyo2\",\n      \"role\": \"active\"\n    }\n  },\n  \"chainId\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": \"0x44c45\"\n  },\n  \"netVersion\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": \"281669\"\n  },\n  \"tipBlock\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": {\n      \"number\": \"0x1\",\n      \"hash\": \"0x79e9732d1e6bce1432e38b62fc2e99c08ad1dacd8da0c3a8e4b84eef8b61625e\",\n      \"parentHash\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"nonce\": \"0x0000000000000000\",\n      \"sha3Uncles\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"logsBloom\": \"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\",\n      \"transactionsRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"stateRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"receiptsRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"miner\": \"0x0000000000000000000000000000000000000000\",\n      \"difficulty\": \"0x0\",\n      \"totalDifficulty\": \"0x0\",\n      \"extraData\": \"0x\",\n      \"size\": \"0x0\",\n      \"gasLimit\": \"0x0\",\n      \"gasUsed\": \"0x0\",\n      \"timestamp\": \"0x0\",\n      \"transactions\": [],\n      \"uncles\": [],\n      \"mixHash\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"dleFacade\": true,\n      \"dleNote\": \"Synthetic DLE tip placeholder. Archives do not produce blocks; this is not an L1 block.\"\n    }\n  },\n  \"ethCallRejected\": true,\n  \"ethGetBalanceRejected\": true,\n  \"batchOk\": true\n}\nDAEMON_PROBE_END\nCERT_BEGIN\n{\"schema\":\"DleExplorerCertificateV1\",\"available\":true,\"reason\":\"Lab networked PrecommitQC. Not a frozen EIP-712 L1 wrapper or corpus SSZ object.\",\"height\":\"0x1\",\"hash\":\"0x79e9732d1e6"
+    },
+    {
+      "domainId": "fd-06-ionos-174",
+      "command": "archive",
+      "role": "standby",
+      "lastPeerOk": 6,
+      "lastQuorumOk": true,
+      "daemonOk": true,
+      "peerHits": 7,
+      "expectedPeers": 7,
+      "certificateAvailable": true,
+      "certificateHash": "0x79e9732d1e6bce1432e38b62fc2e99c08ad1dacd8da0c3a8e4b84eef8b61625e",
+      "certificateSigners": [
+        "fd-01-ionos-45",
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ],
+      "geth": "321215",
+      "beacon": "321318",
+      "validator": "",
+      "detail": "HOST=funny-aryabhata.216-225-194-180.plesk.page\nUSER=peter\nMEM=3.8Gi 3.2Gi 550Mi\nARCHIVE_PIDS=417737\nAGENT_PIDS=\nGETH=321215\nBEACON=321318\nVALIDATOR=\n{\"ok\":true,\"command\":\"archive\",\"runtime\":\"nodejs\",\"producesBlocks\":false,\"hasTipVm\":false,\"l1Isolated\":true,\"l1ChainIdForbidden\":224422,\"batchSupported\":true,\"chainId\":281669,\"chainIdHex\":\"0x44c45\",\"port\":27101,\"domainId\":\"fd-06-ionos-174\",\"role\":\"standby\",\"agent\":\"dle-30d-lab\",\"isolatedFromElCl\":true,\"uptimeMs\":39570,\"heartbeats\":6,\"lastQuorumOk\":true,\"lastPeerOk\":6,\"bftNetworked\":true,\"bftModeA\":true,\"bftCertificateAvailable\":true,\"bftPrevoteCount\":5,\"bftPrecommitCount\":5,\"bftVoted\":false}DAEMON_EXIT=0\nDAEMON_PROBE_BEGIN\n{\n  \"ok\": true,\n  \"command\": \"daemon\",\n  \"runtime\": \"nodejs\",\n  \"archiveUrl\": \"http://127.0.0.1:27101\",\n  \"health\": {\n    \"ok\": true,\n    \"command\": \"archive\",\n    \"runtime\": \"nodejs\",\n    \"producesBlocks\": false,\n    \"hasTipVm\": false,\n    \"l1Isolated\": true,\n    \"l1ChainIdForbidden\": 224422,\n    \"batchSupported\": true,\n    \"chainId\": 281669,\n    \"chainIdHex\": \"0x44c45\",\n    \"port\": 27101,\n    \"domainId\": \"fd-06-ionos-174\",\n    \"role\": \"standby\",\n    \"agent\": \"dle-30d-lab\",\n    \"isolatedFromElCl\": true,\n    \"uptimeMs\": 39964,\n    \"heartbeats\": 6,\n    \"lastQuorumOk\": true,\n    \"lastPeerOk\": 6,\n    \"bftNetworked\": true,\n    \"bftModeA\": true,\n    \"bftCertificateAvailable\": true,\n    \"bftPrevoteCount\": 5,\n    \"bftPrecommitCount\": 5,\n    \"bftVoted\": false\n  },\n  \"info\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": {\n      \"command\": \"archive\",\n      \"runtime\": \"nodejs\",\n      \"producesBlocks\": false,\n      \"hasTipVm\": false,\n      \"l1Isolated\": true,\n      \"l1ChainIdForbidden\": 224422,\n      \"batchSupported\": true,\n      \"chainId\": 281669,\n      \"chainIdHex\": \"0x44c45\",\n      \"port\": 27101,\n      \"domainId\": \"fd-06-ionos-174\",\n      \"role\": \"standby\"\n    }\n  },\n  \"chainId\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": \"0x44c45\"\n  },\n  \"netVersion\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": \"281669\"\n  },\n  \"tipBlock\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": {\n      \"number\": \"0x1\",\n      \"hash\": \"0x79e9732d1e6bce1432e38b62fc2e99c08ad1dacd8da0c3a8e4b84eef8b61625e\",\n      \"parentHash\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"nonce\": \"0x0000000000000000\",\n      \"sha3Uncles\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"logsBloom\": \"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\",\n      \"transactionsRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"stateRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"receiptsRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"miner\": \"0x0000000000000000000000000000000000000000\",\n      \"difficulty\": \"0x0\",\n      \"totalDifficulty\": \"0x0\",\n      \"extraData\": \"0x\",\n      \"size\": \"0x0\",\n      \"gasLimit\": \"0x0\",\n      \"gasUsed\": \"0x0\",\n      \"timestamp\": \"0x0\",\n      \"transactions\": [],\n      \"uncles\": [],\n      \"mixHash\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"dleFacade\": true,\n      \"dleNote\": \"Synthetic DLE tip placeholder. Archives do not produce blocks; this is not an L1 block.\"\n    }\n  },\n  \"ethCallRejected\": true,\n  \"ethGetBalanceRejected\": true,\n  \"batchOk\": true\n}\nDAEMON_PROBE_END\nCERT_BEGIN\n{\"schema\":\"DleExplorerCertificateV1\",\"available\":true,\"reason\":\"Lab networked PrecommitQC. Not a frozen EIP-712 L1 wrapper or corpus SSZ object.\",\"he"
+    },
+    {
+      "domainId": "fd-07-ionos-207",
+      "command": "archive",
+      "role": "standby",
+      "lastPeerOk": 6,
+      "lastQuorumOk": true,
+      "daemonOk": true,
+      "peerHits": 7,
+      "expectedPeers": 7,
+      "certificateAvailable": true,
+      "certificateHash": "0x79e9732d1e6bce1432e38b62fc2e99c08ad1dacd8da0c3a8e4b84eef8b61625e",
+      "certificateSigners": [
+        "fd-01-ionos-45",
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ],
+      "geth": "14945",
+      "beacon": "15236",
+      "validator": "",
+      "detail": "HOST=ubuntu\nUSER=peter\nMEM=3.8Gi 3.1Gi 649Mi\nARCHIVE_PIDS=791314\nAGENT_PIDS=\nGETH=14945\nBEACON=15236\nVALIDATOR=\n{\"ok\":true,\"command\":\"archive\",\"runtime\":\"nodejs\",\"producesBlocks\":false,\"hasTipVm\":false,\"l1Isolated\":true,\"l1ChainIdForbidden\":224422,\"batchSupported\":true,\"chainId\":281669,\"chainIdHex\":\"0x44c45\",\"port\":27101,\"domainId\":\"fd-07-ionos-207\",\"role\":\"standby\",\"agent\":\"dle-30d-lab\",\"isolatedFromElCl\":true,\"uptimeMs\":28229,\"heartbeats\":4,\"lastQuorumOk\":true,\"lastPeerOk\":6,\"bftNetworked\":true,\"bftModeA\":true,\"bftCertificateAvailable\":true,\"bftPrevoteCount\":5,\"bftPrecommitCount\":5,\"bftVoted\":false}DAEMON_EXIT=0\nDAEMON_PROBE_BEGIN\n{\n  \"ok\": true,\n  \"command\": \"daemon\",\n  \"runtime\": \"nodejs\",\n  \"archiveUrl\": \"http://127.0.0.1:27101\",\n  \"health\": {\n    \"ok\": true,\n    \"command\": \"archive\",\n    \"runtime\": \"nodejs\",\n    \"producesBlocks\": false,\n    \"hasTipVm\": false,\n    \"l1Isolated\": true,\n    \"l1ChainIdForbidden\": 224422,\n    \"batchSupported\": true,\n    \"chainId\": 281669,\n    \"chainIdHex\": \"0x44c45\",\n    \"port\": 27101,\n    \"domainId\": \"fd-07-ionos-207\",\n    \"role\": \"standby\",\n    \"agent\": \"dle-30d-lab\",\n    \"isolatedFromElCl\": true,\n    \"uptimeMs\": 28331,\n    \"heartbeats\": 4,\n    \"lastQuorumOk\": true,\n    \"lastPeerOk\": 6,\n    \"bftNetworked\": true,\n    \"bftModeA\": true,\n    \"bftCertificateAvailable\": true,\n    \"bftPrevoteCount\": 5,\n    \"bftPrecommitCount\": 5,\n    \"bftVoted\": false\n  },\n  \"info\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": {\n      \"command\": \"archive\",\n      \"runtime\": \"nodejs\",\n      \"producesBlocks\": false,\n      \"hasTipVm\": false,\n      \"l1Isolated\": true,\n      \"l1ChainIdForbidden\": 224422,\n      \"batchSupported\": true,\n      \"chainId\": 281669,\n      \"chainIdHex\": \"0x44c45\",\n      \"port\": 27101,\n      \"domainId\": \"fd-07-ionos-207\",\n      \"role\": \"standby\"\n    }\n  },\n  \"chainId\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": \"0x44c45\"\n  },\n  \"netVersion\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": \"281669\"\n  },\n  \"tipBlock\": {\n    \"jsonrpc\": \"2.0\",\n    \"id\": 1,\n    \"result\": {\n      \"number\": \"0x1\",\n      \"hash\": \"0x79e9732d1e6bce1432e38b62fc2e99c08ad1dacd8da0c3a8e4b84eef8b61625e\",\n      \"parentHash\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"nonce\": \"0x0000000000000000\",\n      \"sha3Uncles\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"logsBloom\": \"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\",\n      \"transactionsRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"stateRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"receiptsRoot\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"miner\": \"0x0000000000000000000000000000000000000000\",\n      \"difficulty\": \"0x0\",\n      \"totalDifficulty\": \"0x0\",\n      \"extraData\": \"0x\",\n      \"size\": \"0x0\",\n      \"gasLimit\": \"0x0\",\n      \"gasUsed\": \"0x0\",\n      \"timestamp\": \"0x0\",\n      \"transactions\": [],\n      \"uncles\": [],\n      \"mixHash\": \"0x0000000000000000000000000000000000000000000000000000000000000000\",\n      \"dleFacade\": true,\n      \"dleNote\": \"Synthetic DLE tip placeholder. Archives do not produce blocks; this is not an L1 block.\"\n    }\n  },\n  \"ethCallRejected\": true,\n  \"ethGetBalanceRejected\": true,\n  \"batchOk\": true\n}\nDAEMON_PROBE_END\nCERT_BEGIN\n{\"schema\":\"DleExplorerCertificateV1\",\"available\":true,\"reason\":\"Lab networked PrecommitQC. Not a frozen EIP-712 L1 wrapper or corpus SSZ object.\",\"height\":\"0x1\",\"hash\":\"0x79e9732d1e6bce14"
+    }
+  ]
+}

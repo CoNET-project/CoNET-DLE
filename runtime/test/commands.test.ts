@@ -4,8 +4,17 @@ import { join } from 'node:path'
 import { after, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { startArchiveNode } from '../src/archive/node.js'
-import { callArchive, detectDaemonRuntime, probeArchive } from '../src/daemon/core.js'
-import { DLE_COMMAND, DLE_LAB_CHAIN_ID, DLE_RUNTIME, chainIdHex } from '../src/shared/protocol.js'
+import { callArchive, callArchiveBatch, detectDaemonRuntime, probeArchive } from '../src/daemon/core.js'
+import {
+  CONET_L1_CHAIN_ID,
+  CONET_L1_CHAIN_ID_HEX,
+  DLE_ARCHIVE_CLIENT_VERSION,
+  DLE_COMMAND,
+  DLE_LAB_CHAIN_ID,
+  DLE_RUNTIME,
+  DLE_ZERO_HASH,
+  chainIdHex,
+} from '../src/shared/protocol.js'
 
 const dataDir = await mkdtemp(join(tmpdir(), 'dle-archive-'))
 const archive = await startArchiveNode({ port: 0, dataDir })
@@ -24,15 +33,63 @@ test('archive command identifies as a Node.js archive that does not produce bloc
   assert.equal(body.runtime, DLE_RUNTIME.nodejs)
   assert.equal(body.producesBlocks, false)
   assert.equal(body.hasTipVm, false)
+  assert.equal(body.l1Isolated, true)
+  assert.equal(body.batchSupported, true)
   assert.equal(body.chainId, DLE_LAB_CHAIN_ID)
 })
 
 test('archive JSON-RPC returns a DLE chain id and rejects tip VM calls', async () => {
   const chainId = await callArchive(archiveUrl, 'eth_chainId')
   assert.equal('result' in chainId && chainId.result, chainIdHex(DLE_LAB_CHAIN_ID))
+  assert.notEqual(chainIdHex(DLE_LAB_CHAIN_ID), CONET_L1_CHAIN_ID_HEX)
   const call = await callArchive(archiveUrl, 'eth_call', [])
   assert.equal('error' in call, true)
   if ('error' in call) assert.match(call.error.message, /no tip VM/)
+})
+
+test('P2 facade is isolated from CoNET L1 and supports JSON-RPC 2.0 batch', async () => {
+  const info = await callArchive(archiveUrl, 'dle_info')
+  assert.equal('result' in info, true)
+  if (!('result' in info) || info.result === null || typeof info.result !== 'object') {
+    throw new Error('dle_info missing result')
+  }
+  const body = info.result as Record<string, unknown>
+  assert.equal(body.l1Isolated, true)
+  assert.equal(body.batchSupported, true)
+  assert.equal(body.l1ChainIdForbidden, CONET_L1_CHAIN_ID)
+  assert.notEqual(body.chainId, CONET_L1_CHAIN_ID)
+  assert.notEqual(body.chainIdHex, CONET_L1_CHAIN_ID_HEX)
+
+  const netVersion = await callArchive(archiveUrl, 'net_version')
+  assert.equal('result' in netVersion && netVersion.result, String(DLE_LAB_CHAIN_ID))
+  const client = await callArchive(archiveUrl, 'web3_clientVersion')
+  assert.equal('result' in client && client.result, DLE_ARCHIVE_CLIENT_VERSION)
+  const block = await callArchive(archiveUrl, 'eth_getBlockByNumber', ['latest', false])
+  assert.equal('result' in block, true)
+  if ('result' in block && block.result !== null && typeof block.result === 'object') {
+    const tip = block.result as Record<string, unknown>
+    assert.equal(tip.number, '0x0')
+    assert.equal(tip.hash, DLE_ZERO_HASH)
+    assert.equal(tip.dleFacade, true)
+  }
+  const missing = await callArchive(archiveUrl, 'eth_getBlockByNumber', ['0x1', false])
+  assert.equal('result' in missing && missing.result, null)
+  const balance = await callArchive(archiveUrl, 'eth_getBalance', [
+    '0x0000000000000000000000000000000000000000',
+    'latest',
+  ])
+  assert.equal('error' in balance, true)
+  if ('error' in balance) assert.match(balance.error.message, /no EVM account model/)
+
+  const batch = await callArchiveBatch(archiveUrl, [
+    { method: 'eth_chainId' },
+    { method: 'eth_getBalance', params: ['0x0000000000000000000000000000000000000000', 'latest'] },
+    { method: 'eth_blockNumber' },
+  ])
+  assert.equal(batch.length, 3)
+  assert.equal('result' in batch[0] && batch[0].result, chainIdHex(DLE_LAB_CHAIN_ID))
+  assert.equal('error' in batch[1], true)
+  assert.equal('result' in batch[2] && batch[2].result, '0x0')
 })
 
 test('archive exposes a read-only /api/v2/dle explorer surface', async () => {
@@ -42,6 +99,7 @@ test('archive exposes a read-only /api/v2/dle explorer surface', async () => {
   assert.equal(body.schema, 'DleExplorerApiV1')
   assert.equal(body.producesBlocks, false)
   assert.equal(body.hasTipVm, false)
+  assert.equal(body.l1Isolated, true)
   assert.equal(body.chainId, DLE_LAB_CHAIN_ID)
   const events = await fetch(`${archiveUrl}/api/v2/dle/events`)
   assert.equal(events.status, 200)

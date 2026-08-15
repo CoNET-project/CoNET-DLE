@@ -4,7 +4,7 @@
 
 **作者：** Peter Xie  
 **初稿：** 2023  
-**修订：** 2026-08-13（每组 5 名活跃归档 + 2 名专属有序备选、严格 4/5 quorum、可执行 Archive Tendermint v2 语料/Archive A MVP、五槽 AdaptiveRotationV1、OperatorDomainRegistryV1、L1QueueAccumulatorV1、线级 Tendermint/SSZ/WAL 规则、确定性 `dle.rs.v1` 正确编码证明、带挑战期强制退出、Treasury V3 规范 ERC-20 burn/remint 网关、**P1 实测证据边界：100-USDC 安全封顶已冻结，10-USDC 下限与 1.2× coverage 仍属临时参数**、L1 锚定卖方订单、x402 v2 AI pay-per-use / API gateway 目标 profile、协议费/执行准备金/可用性预算三账本、Treasury 规范资产 L1 pool/TWAP 准入；归档无出块权）
+**修订：** 2026-08-14（全局 DLE RPC 真相面：任一活跃归档均可作为 RPC 入口；非本组查询 **必须** 代理到该组 `historyProviders` — §5.2.0d；DLE Chain ID ≡ 归档 `groupId` + L1 Global 归档路由注册表：归档钱包 + 所托管链 NFT id，链路由 / 历史提供者 — §5.2.0d；每组 5 名活跃归档 + 2 名专属有序备选、严格 4/5 quorum、可执行 Archive Tendermint v2 语料/Archive A MVP、五槽 AdaptiveRotationV1、OperatorDomainRegistryV1、L1QueueAccumulatorV1、线级 Tendermint/SSZ/WAL 规则、确定性 `dle.rs.v1` 正确编码证明、带挑战期强制退出、Treasury V3 规范 ERC-20 burn/remint 网关、**P1 实测证据边界：100-USDC 安全封顶已冻结，10-USDC 下限与 1.2× coverage 仍属临时参数**、L1 锚定卖方订单、x402 v2 AI pay-per-use / API gateway 目标 profile、协议费/执行准备金/可用性预算三账本、Treasury 规范资产 L1 pool/TWAP 准入；归档无出块权）
 
 **成对译本（必须同步更新）：** [`Decentralization Cluster multi-chain.md`](./Decentralization%20Cluster%20multi-chain.md)
 **同步守则：** `.cursor/rules/conet-layer2-whitepaper-bilingual-sync.mdc`
@@ -34,7 +34,9 @@
 - **存储类创作者经济 / 私密版权交付：** 与 Beamio `CopyrightContentModule` 同一论题：所有者碎片化并以授权 DePIN miner 封存私密组装 index；tip/L1 仅存 hash；买方付 **conet-GB**、绑定买方 PGP；**最先完成者** miner 交付买方绑定密文；短期访问 URL + 周期存储费；明文永不上链（§4.8）。
 - **版权 ZERO / 版本树：** 存储 tip 形成 **谱系树**（原创 + 修改者）；每个分支点是可经交易类挂牌的 **独立 L1 NFT**；tip 记录 **社交历史**（点赞、评论、引用）作为拍卖估值的 **Web of Trust** 信号（§4.9）。
 - **存储销售账本：** 每条存储 tip 维护仅追加的 **销售收入流水**，并 **引用** 实际发生价值转移的并行 **资产类** tip 交易（§4.10）。
-- **归档平面裂变 + BFT 终局：** \(G_e\) 表示 L1 已注册活跃组数，\(N_e=5G_e\) 表示唯一活跃投票归档数，\(U_e\) 表示 `UnassignedPool` 中合格未分配归档数；仅当 \(U_e\ge7\) 才消耗七个全新、互不重叠身份，组成 **5 名活跃 + 2 名专属有序备选**。`maxGroupsPerArchive=1`，跨组名册交集为零。`OperatorDomainRegistryV1` 以可挑战的规范运营者、基础设施与角色域约束成组及归档/验证人隔离。既有组保留当前归属，只见证新组形成或为其它组提供带证明的只读数据；`groupId` 单调且不复用。增长不重映射已有 tip，MigrationCertificate 仅用于解散/re-home。每组以 \(N_A=5,f=1,Q_A=4\) 的 **PrevoteQC → PrecommitQC（= AC）** 终局验证人产生的事件块；`AdaptiveRotationV1` 即使无故障也必须逐槽轮换，并在期限内完成五槽 churn。共识使用规范 SSZ sign-bytes、正确 nil/锁规则与 crash-consistent WAL；静态二项数值仅是初始抽签基线，长期风险须计入自适应腐化与相关故障（§5.2、§5.2.1a、§12.3.1a）。
+- **归档平面裂变 + BFT 终局：** \(G_e\) 表示 L1 已注册活跃组数，\(N_e=5G_e\) 表示唯一活跃投票归档数，\(U_e\) 表示 `UnassignedPool` 中合格未分配归档数；仅当 \(U_e\ge7\) 才消耗七个全新、互不重叠身份，组成 **5 名活跃 + 2 名专属有序备选**。`maxGroupsPerArchive=1`，跨组名册交集为零。`OperatorDomainRegistryV1` 以可挑战的规范运营者、基础设施与角色域约束成组及归档/验证人隔离。既有组保留当前归属，只见证新组形成或经 **全局 RPC 代理** 为其它组提供带证明的只读数据（§5.2.0d）；`groupId` 单调且不复用。增长不重映射已有 tip，MigrationCertificate 仅用于解散/re-home。每组以 \(N_A=5,f=1,Q_A=4\) 的 **PrevoteQC → PrecommitQC（= AC）** 终局验证人产生的事件块；`AdaptiveRotationV1` 即使无故障也必须逐槽轮换，并在期限内完成五槽 churn。共识使用规范 SSZ sign-bytes、正确 nil/锁规则与 crash-consistent WAL；静态二项数值仅是初始抽签基线，长期风险须计入自适应腐化与相关故障（§5.2、§5.2.1a、§12.3.1a）。
+- **DLE Chain ID = 归档组 id：** 协议 **Chain ID** 是托管该 tip 的归档 **`groupId`**，不是 CoNET L1 EVM `224422`，也不是 tip 的 NFT id。创世时只有 **一个** 活跃组；裂变后形成第二个唯一组、第三个唯一组，以此类推。CoNET L1 **Global 归档路由注册表** 登记每个参与归档的 **钱包地址** 以及该组托管的全部链 **NFT id**，客户端据此获得 **链路由** 与 **可提供该链历史的归档节点**（§5.2.0d）。
+- **全局 RPC 真相 + 跨组代理：** 每个活跃归档 **必须** 暴露同一套全局 DLE RPC 面，客户端可向 **任一** 归档发起查询。若请求 **不是** 该节点自身 `groupId`（L1 `route(chainNftId)`），节点 **必须** 代理到 `historyProviders(chainNftId)`——托管组的归档钱包——**不得** 用本地副本冒充该外组的 RPC 真相（§5.2.0d）。
 - **归档成员退出与罚没：** 归档身份按 `ACTIVE → EXIT_REQUESTED → DRAINING → STANDBY_SYNCING → HANDOVER_READY → MEMBERSHIP_SWITCHED → UNBONDING → EXITED` 退出；L1 `membershipRoot` 原子切换前仍承担全部职责。可验证不参与、交接前强行关机、DA 欺诈与双签按递增等级处罚；归档退出 **不同于** 用户 `AssetBurnMintGateway` 的 request → challenge → finalize 强制退出 claim（§5.2.1）。
 - **DA：** v1 固定字节精确的 **`dle.rs.v1`** 系统型 Reed–Solomon \((n,k)=(7,4)\)。每个 precommit 签署者必须先取得规范完整 body、独立重放、确定性重编码全部七份 chunk，并重新计算 `bodyCommitment` 与 `daRoot`；仅证明 Merkle 成员关系或持有四份 chunk 不足。错误码字由 `BadEncodingEvidence / BadEncodingProof` 处理（§5.2.1）。
 - **经济层（三个独立账本）：** **存储类** 按内容计费并以 **conet-GB** 结算；**资产类** 转账在 L1 pool/TWAP 估值后以规范 **conet-USDC** 支付 1 bp 协议价值费；**交易类** 成交以同一 `quoteAsset` 支付 1 bp，且不使用 NFT 价格 oracle。付款人封顶的规范 conet-USDC **执行准备金**仅偿付可客观验证的 L1 gas 与 `FeeScheduleV1` 冻结资源单位；每 epoch 独立 **可用性预算**以链租金、创建准备金或显式封顶 bootstrap 补贴承保固定 5+2 归档、备选就绪、验证人与历史服务容量。1 bp 协议费按 **50% 托管归档 / 50% \(Q_V\) 接受验证人** 拆分，且不得宣称其足以覆盖执行或固定可用性成本（§13）。
@@ -173,6 +175,7 @@ CoNET-DLE 走另一条路：按 **账本分片**，而不只是在一条账本�
 | L4 | **块 / tip 高度** | tip 上一次被接受的事件步进（提案 → \(Q_V\) → AC）。**无事件 ⇒ 不出块。** |
 | L5 | **归档分片** | 无出块权；独立重放验证人候选并签发 PrevoteQC / PrecommitQC（=AC）的 BFT 委员会。 |
 | L6 | **验证人委员会** | 每块 \(N_V=7,Q_V=5/7\) 的唯一出块 / 提案层——不是 tip 终局。 |
+| **DLE Chain ID** | **归档 `groupId`** | DLE 平面的协议 Chain ID 是当前托管该 tip 的 **归档组 id**（`archiveGroupId[tokenId]`）。它 **不是** CoNET L1 EVM `chainId` `224422`，**不是** 实验室/隔离 EVM id，也 **不是** tip NFT id。见 §5.2.0d。 |
 
 ### 4.1 创链门闸（强制 L1 NFT）
 
@@ -183,7 +186,7 @@ CoNET-DLE 走另一条路：按 **账本分片**，而不只是在一条账本�
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | **唯一性**        | 一个 NFT id ↔ 一条 DLE 链；无 L1 mint 则无匿名创世。                                                                                           |
 | **类别（三选一）**    | mint / 配置时固定为 **恰好一种**：**资产类**、**存储类** 或 **交易类**。                                                                                |
-| **所有权 / 归档归属** | 所有者与付费方钩子绑定 NFT id。**新链托管** 为 NewChainQueue + **UniformPlacementV1** 进入具备完整 **5 活跃 + 2 ready 备选** 的归档组，再写 L1 **`archiveGroupId[tokenId]`**（§5.2）——**不是** `tokenId mod S`，也 **不是** 哈希残类。后续事件跟随 L1 指针。任一 DLE 链的 **权威所有者** 为 CoNET L1 **`ownerOf(nftId)`**。 |
+| **所有权 / 归档归属** | 所有者与付费方钩子绑定 NFT id。**新链托管** 为 NewChainQueue + **UniformPlacementV1** 进入具备完整 **5 活跃 + 2 ready 备选** 的归档组，再写 L1 **`archiveGroupId[tokenId]`**（§5.2）——**不是** `tokenId mod S`，也 **不是** 哈希残类。后续事件跟随 L1 指针。该 `groupId` **即** DLE Chain ID；权威归档钱包与所托管 NFT 清单见 L1 **Global 归档路由注册表**（§5.2.0d）。任一 DLE 链的 **权威所有者** 为 CoNET L1 **`ownerOf(nftId)`**。 |
 | **资产 burn 流入（仅资产类）** | 资产须在 L1 `AssetAdmissionRegistry` 为 `ACTIVE`，且必须是被规范 `TreasuryBridgeV3` 代理识别的 CoNET L1 `TreasuryCanonicalERC20V3` 代理。**包括 conet-USDC 在内的每种规范资产** 仍须有经批准的 CoNET L1 去中心化池 / 路由 + TWAP adapter + 最低流动性。每笔激活流入必须由 gateway 自身的新鲜 L1 TWAP 报价——而非客户端报价——证明处于该 policy 的**证据批准 `minIngressUsdc6` 至 100 USDC 等值**之间；10 USDC 只是当前预生产种子。Treasury V3 执行物理 burn/remint；`AssetBurnMintGateway` 证明并记账 DLE 状态转换。未先成为 Treasury V3 规范资产的外部或任意 ERC-20 不得进入资产类 L2（§4.6、§13.3）。 |
 | **交易标的（仅交易类）** | 创世绑定已生效的 L1 `escrowOrderHash`；该摘要覆盖 **标的** collection + 资产/存储 NFT id 及卖方条款；由 **L1 Settlement Contract** 原子支付卖方并转移 **该标的** 的 L1 所有权（§4.7）。 |
 
@@ -871,7 +874,7 @@ flowchart TB
 - 复制全局 `QUEUED / NewChainQueue`；检出分配给本组的请求；抽选 on-demand 验证人；向其提供认证历史查询；接收验证人签字 / DepositBundle；独立重放与质检。
 - 归档节点 **无出块权**。仅对验证人产生的候选执行 Tendermint 式 prevote / precommit；可拒绝自己的票并提交 `CandidateRejectCertificate` 证据，但单个归档无否决权。
 - 归档节点之间的对等网络主要用于 **归档发现与归档共识**；不随意把其它角色节点当对等 gossip 对象。
-- **RPC** 仅对授权参与者与链所有者开放。客户端仅在持有可验证 **归档证书** 时视 tip 为终局——**不** 以单一归档 RPC 成功为准。
+- 向授权参与者与链所有者暴露 **全局 DLE RPC** 面：任一活跃归档都是全平面合法入口。本组查询可本地应答；**非本组** 查询 **必须** 代理到该组归档（`historyProviders` / `archivesOf`，§5.2.0d）。客户端仅在持有可验证 **归档证书** 时视 tip 为终局——**不** 以单一归档 RPC（本地或代理）HTTP 成功为准。
 - **本地**运行 **Proof of History（PoH）** 序列，作为可验证节拍 / 防回拨时钟（见 §7.9）。等待池与 tip 事件的 **规范顺序不能** 仅靠 PoH 建立——须有 **归档法定人数证书**（§5.2.1）。
 
 ### 5.2 归档节点组（集群）— 每组 5 名活跃 + 2 名专属有序备选
@@ -925,7 +928,7 @@ A_g\cap S_g=\varnothing,\qquad
 
 **无缝裂变历史规则（产品冻结）：** 在裂变检查点，所有现有组都保留裂变前历史的只读、可验证副本，但每条链的写入 / 终局权仍归该链记录的历史维护组。新产生的组 **无权维护裂变前历史**，只能提供副本、DA 恢复和审计证明；不得签发竞争性 AC、修改旧状态，或自行迁移旧历史。
 
-**跨组只读副本规则（产品冻结）：** 任一归档可以保留旧库存，并持续镜像 L1 `archiveGroupId` 指向其它组之链的**已终局**数据。只有响应携带可验证证明包（例如 `{chainNftId,archiveGroupId,height,AC,stateRoot,membershipRoot}`）时，才可提供历史 RPC、当前已终局状态、DA fragment 与审计证明。该只读角色：
+**跨组只读副本规则（产品冻结）：** 任一归档可以保留旧库存，并持续镜像 L1 `archiveGroupId` 指向其它组之链的**已终局**数据。副本用于 **DA 恢复、追赶与审计**（须先验证托管组 AC）。它 **不是** 全局 RPC 真相源。对该外组链的公开 RPC **必须** 遵循 §5.2.0d **代理** 规则（转发至 `historyProviders`）。即使本地已有证明包，副本也 **不得** 绕过代理、把本地字节当作 RPC 应答。允许在代理成功并验证 AC 之后缓存托管组响应。该只读角色：
 
 - 不计入目标组 \(A_g\)、\(S_g\)、\(N_e\)、\(Q_A\)，也不领取目标组共识席位奖励；
 - 不获得目标组提案、prevote、precommit、证书聚合、拒绝、迁移或状态修改权限；
@@ -1116,6 +1119,73 @@ RESERVED | GENESIS_AC --deadline--> EXPIRED
 ```
 
 **Tip AC vs 归属投票（勿混淆）：** tip 终局与 Placement 均使用固定 \(Q_A=4/5\)，但签名域和状态机不同：AC 证明候选终局；PlacementCertificate 只授权 L1 `RESERVED→BOUND`。两者都不要求 5/5。
+
+#### 5.2.0d DLE Chain ID = 归档组 id 与 L1 Global 路由注册表（产品冻结）
+
+**标识冻结。** 在 CoNET-DLE 中，协议与用户可见的 **Chain ID** 是 **归档组 id**（`groupId`，绑定后存为 `archiveGroupId[tokenId]`）。客户端、探索器、RPC 路由器与证书 **必须** 用该整数作为 DLE Chain ID。
+
+| 标识 | 含义 | **不得**当作 DLE Chain ID |
+| --- | --- | --- |
+| **归档 `groupId`** | L1 单调组号；一组实时 5 活跃 + 2 备选名册 | —（这 **就是** DLE Chain ID） |
+| CoNET L1 EVM `chainId` | 结算 L1 `224422` / `0x36ca6` | 探索器「哪条 DLE 平面」、tip 路由、AC `archiveShardId` |
+| 实验室 / 隔离 EVM id | 例如实验室 `eth_chainId` `0x44c45` | 生产 DLE Chain ID 或组成员资格 |
+| Tip / 链 NFT id | 一条原子账本的 L1 ERC-1155 `tokenId` | 组名册或「哪些归档投票」 |
+| 归档 NFT id | 单个归档节点的登记 NFT | DLE Chain ID 或 tip 身份 |
+
+**创世与裂变。** 归档平面启动时 **恰好一个** 活跃组（\(G_e=1\)）；L1 `nextGroupId` 发放第一个未用 `groupId`，**永不复用** 已解散编号。当 \(U_e\ge7\) 时，裂变登记 **第二个唯一组**，再第三个，以此类推——每个组拥有自己的 DLE Chain ID。既有组保留当前已绑定 tip；新组只接收成组之后的分配，除非 **MigrationCertificate** 再安置某条 tip（§5.2）。
+
+**L1 Global 合约（产品冻结）。** 每个活跃组、每个参与归档的 **钱包地址**，以及该组托管的每条链 **NFT id**，**必须** 写入 CoNET L1 **Global 归档路由注册表**。Gossip 自广告、`tokenId` 哈希、以及本地假定的「默认 chain id」**都不是** 路由真相。
+
+```text
+GlobalGroupRecord = {
+  groupId,                          // DLE Chain ID
+  live, assignmentEligible,
+  membershipEpoch, keyEpoch,
+  groupKeyHash, membershipRoot, standbyRoot,
+  activeWallets[5],                 // 投票归档 EOA
+  standbyWallets[2],                // 专属备选 EOA
+  hostedChainNftIds[]               // 绑定到本组的 L1 1155 token id
+}
+```
+
+规范视图。实现可以是单一 UUPS 门面，或 `ArchiveGroupRegistryV1`（名册 / 钱包）与 `DLEChainRegistry1155V1`（NFT → `groupId`）的组合。无论何种形状，**必须** 暴露：
+
+| 视图 | 返回 | 用途 |
+| --- | --- | --- |
+| `liveGroupIds()` | 升序的活跃 `groupId` | 枚举 DLE Chain ID |
+| `archivesOf(groupId)` | 当前 membership epoch 下五名活跃 + 两名备选 **EOA 钱包** | 谁投票；谁是专属历史委员会 |
+| `chainsOf(groupId)` | 所托管链的 **NFT id** | 该 DLE Chain ID 托管哪些 tip |
+| `route(chainNftId)` | `groupId`（= DLE Chain ID） | **链路由** |
+| `historyProviders(chainNftId)` | `archivesOf(route(chainNftId))` | 哪些归档可提供该 tip 的 **权威** 历史 |
+
+**路由规则。** 定位一条 tip：`groupId = route(nftId)`，再联系 `historyProviders(nftId)`。只有在相关 L1 membership epoch 列入该 `groupId` 的钱包才是 **权威** 历史提供者。**未** 列入该组的钱包 **不得** 被当作规范托管方。客户端仍可直接拨打 `historyProviders`；也可拨打 **任一** 活跃归档并依赖下述代理规则。
+
+**全局 RPC 真相面与跨组代理（产品冻结）。** 每个活跃归档 **必须** 暴露 **同一套全局 DLE RPC 面**。客户端可将 **任一** 活跃归档视为整个归档平面的单一 RPC 入口。该便利 **不** 使非托管副本成为真相源。
+
+| 查询类别 | 判定 | 规范行为 |
+| --- | --- | --- |
+| **本组** | `route(chainNftId) = self.groupId`，或方法严格限于本组（本组 WAL / AC 链 / 已分配 QUEUED 切片） | 可从本地权威存储应答。响应 **仍须** 携带或允许验证 AC / `membershipRoot`。客户端终局仍是 AC，不是 HTTP 200。 |
+| **非本组** | `route(chainNftId) ≠ self.groupId`，或请求点名另一 `groupId` / DLE Chain ID | **必须** 代理到 `archivesOf(targetGroupId)` = `historyProviders(chainNftId)` 中的一个或多个钱包，再返回 **托管组** 响应（含证明包）。**不得** 发明、合成或把本地副本字节当作该外组的 RPC 真相。 |
+
+代理义务：
+
+1. **目标** 仅为查询所指名册 epoch（未指定则为当前 live epoch）下 L1 `archivesOf(groupId)`。Gossip 自广告主机 **不是** 路由表。
+2. **传输** 仍走 CoNET DePIN（钱包寻址、OpenPGP）。接收节点是 **中继**： **不得** 改写 AC / `stateRoot` / `daRoot` / `membershipRoot`，也 **不得** 解密自己并非收件人的载荷。
+3. **失败即关闭：** 若托管组归档均无应答，代理 **必须** 返回 unavailable / timeout —— **不得** 把本地拼凑的「尽力而为」外组 tip 当作成功。
+4. **副本 ≠ RPC 真相：** 跨组只读副本 **不得** 在公开 RPC 路径上绕过本代理（§5.2）。允许缓存已代理且 AC 已验证的托管组响应。
+5. **不额外赋权：** 代理不授予外组成员资格、\(Q_A\) 计数、提案或写/终局权。
+6. **等价：** 直连托管组 RPC 与经代理的 RPC 在 AC 验证后 **必须** 一致；冲突 → 以托管组 AC 与 L1 `route()` 为准。
+
+**写入（必须留在 L1）。**
+
+| 事件 | Global 注册表效果 |
+| --- | --- |
+| 组成组 | 分配下一个 `groupId`；写入 `activeWallets[5]` + `standbyWallets[2]` |
+| 名册轮换 | 在新 `membershipEpoch` 下替换钱包；旧 epoch 仍可审计 |
+| `finalizeArchiveGroup` | 把 `tokenId` 追加到该 `groupId` 的 `hostedChainNftIds`；设置 `archiveGroupId[tokenId]` |
+| 再安置 / 解散 | 移动或删除 NFT id；**永不** 把旧 `groupId` 当作新的 DLE Chain ID 复用 |
+
+**不得** 把公开探索器主机名写入 Solidity 常量。Global 注册表只存 **钱包、`groupId` 与 NFT id**。
 
 ### 5.2.1 归档分片 BFT 与归档证书（产品冻结）
 
@@ -2236,6 +2306,8 @@ L2Envelope {
 - [ ] listen 会话密钥用 AES-GCM（或 CBC+HMAC）；禁止裸 CBC。
 - [ ] 生产 roulette = \(R_e = H(\texttt{"dle.roulette.v1"}\,\|\,\mathrm{L1BeaconFinalizedRandomness}_e\,\|\,e\,\|\,\mathrm{shardId}\,\|\,\mathrm{poolRoot}_e)\)；`poolRoot_e` 在 beacon 已知前冻结；commit–reveal 仅 MVP；无可选 VRF 拼接（§7.8）。
 - [ ] 新链托管 = `UniformPlacementV1`；队列检查点与合格组根须在 beacon 揭示前冻结；v1 无动态负载或自报计数（§5.2.0a）。
+- [ ] DLE Chain ID = L1 归档 `groupId`；Global 归档路由注册表登记归档 **钱包** + 所托管链 **NFT id**；客户端经 `route(nftId)` → `historyProviders` 取历史——不得用 EVM `224422`、实验室 `eth_chainId` 或 `tokenId` 哈希（§5.2.0d）。
+- [ ] 每个活跃归档暴露 **全局 DLE RPC** 面；**非本组** 查询 **必须** 代理到 `historyProviders` / `archivesOf(targetGroupId)`，**不得** 用本地副本充当 RPC 真相（§5.2.0d）。
 - [ ] 出块提案接受 = 对 `blockHash` 的 **≥ Q_V** 份 secp256k1 接受票（§6.5）。
 - [ ] 日志不含私钥；中继不做明文镜像。
 
@@ -3175,7 +3247,7 @@ CoNET-DLE 精神上最接近 **「许多微账本 + 随机委员会 + 归档终�
 
 ## 15. 开放设计问题 / 实现备注
 
-**2026-08-13 规范补充：** 归档节点明确**无出块权**。验证人委员会是唯一出块 / 提案层；归档仅接收候选、确定性重放、质量检查，并以 Tendermint 式 PrevoteQC → PrecommitQC（=AC）认证。归档扩容变量冻结为 \(G_e\)、\(N_e=5G_e\) 与 \(U_e\)；仅 \(U_e\ge7\) 时由五名全新活跃成员与两名专属有序备选形成新组。`OperatorDomainRegistryV1` 绑定可挑战的运营者/基础设施/角色域；`AdaptiveRotationV1` 强制轮换全部五个活跃槽与 key epochs。其它组库存只能提供带证明的只读服务。`L1QueueAccumulatorV1` 在无 \(Q_G\) 的情况下提供规范队列顺序/区间冻结；随后以 \(Q_A=4/5\)、nonce reservation 与任意 relayer 完成 placement。DA precommit 意味完整规范重放和字节精确 `dle.rs.v1` 重编码，而非只持有 chunk。共识使用规范 SSZ sign-bytes、nil-safe lock、crash-consistent WAL 与确定性 membership activation。资产类仅接收 Treasury V3 认可的 CoNET L1 规范 ERC-20：`AssetBurnMintGateway` 协调 DLE proof/accounting，Treasury V3 执行精确 burn 及终局退款/退出 remint。缺少被冻结的 Treasury proxy/token/policy/DLE-authority tuple 与精确 supply 语义的资产不得准入。经济层明确拆分 1 bp 协议价值费、客观且由付款人封顶的执行准备金，以及固定 epoch 可用性预算；普通退出使用 `ExitFeeQuoteV1`，强制退出由紧急准备金承保。以上规则取代全部旧冲突表述。
+**2026-08-13 规范补充：** 归档节点明确**无出块权**。验证人委员会是唯一出块 / 提案层；归档仅接收候选、确定性重放、质量检查，并以 Tendermint 式 PrevoteQC → PrecommitQC（=AC）认证。归档扩容变量冻结为 \(G_e\)、\(N_e=5G_e\) 与 \(U_e\)；仅 \(U_e\ge7\) 时由五名全新活跃成员与两名专属有序备选形成新组。`OperatorDomainRegistryV1` 绑定可挑战的运营者/基础设施/角色域；`AdaptiveRotationV1` 强制轮换全部五个活跃槽与 key epochs。其它组库存只能提供带证明的只读服务；公开 RPC 询问非本组内容时 **必须** 代理到该组归档（§5.2.0d）。`L1QueueAccumulatorV1` 在无 \(Q_G\) 的情况下提供规范队列顺序/区间冻结；随后以 \(Q_A=4/5\)、nonce reservation 与任意 relayer 完成 placement。DA precommit 意味完整规范重放和字节精确 `dle.rs.v1` 重编码，而非只持有 chunk。共识使用规范 SSZ sign-bytes、nil-safe lock、crash-consistent WAL 与确定性 membership activation。资产类仅接收 Treasury V3 认可的 CoNET L1 规范 ERC-20：`AssetBurnMintGateway` 协调 DLE proof/accounting，Treasury V3 执行精确 burn 及终局退款/退出 remint。缺少被冻结的 Treasury proxy/token/policy/DLE-authority tuple 与精确 supply 语义的资产不得准入。经济层明确拆分 1 bp 协议价值费、客观且由付款人封顶的执行准备金，以及固定 epoch 可用性预算；普通退出使用 `ExitFeeQuoteV1`，强制退出由紧急准备金承保。以上规则取代全部旧冲突表述。
 
 **经济证据边界：** 100-USDC 单 tip 安全封顶已冻结；10-USDC 候选下限与 1.2× 执行/可用性目标仍是未激活的预生产校准门槛，必须由 §13.6 的已接受实测 `costEpoch` 闭环后才可启用。下文“要求 1.2×”只描述实测后的准入条件，不代表当前已有经济证明的运行比率。
 
@@ -3253,8 +3325,11 @@ CoNET-DLE 以去中心化集群维护大量并行、事件驱动的原子链：�
 | **On-demand miner 等待队列**                  | 可被单块抽选的轻量 miner 队列（§8.1）。                                                                                                                                               |
 | **归档节点** | 无出块权；共同维护 QUEUED，重放验证人候选、质量检查、Prevote/Precommit、聚合 AC、提供历史与 DA。 |
 | **归档平面裂变** | \(U_e\ge7\) 时由五名全新活跃成员 + 两名专属有序备选形成不重叠新组；旧组只见证，已有 tip 不重映射。 |
+| **DLE Chain ID** | DLE 平面的协议 Chain ID = 托管归档 **`groupId`**。不是 CoNET L1 EVM `224422`，不是实验室 EVM id，也不是 tip NFT id（§5.2.0d）。 |
+| **Global 归档路由注册表** | CoNET L1 合约（或门面）：登记每个活跃组的归档 **钱包** 与所托管链 **NFT id**。客户端据此获得 **链路由** 与 **权威历史提供者**（§5.2.0d）。 |
+| **全局 RPC 真相 / 跨组代理** | 每个活跃归档暴露全平面 DLE RPC 入口。询问其它组时 **必须** 代理到该组 `historyProviders`；本地副本不是 RPC 真相（§5.2.0d）。 |
 | **G_e / N_e / U_e** | L1 注册活跃组数 / 唯一活跃投票归档身份数 / UnassignedPool 中合格未分配身份数。五人名册完全不重叠时 \(N_e=5G_e\)；仅 \(U_e\ge7\) 才可形成一个完整组。 |
-| **跨组只读副本** | 保留旧库存或镜像其它组已终局 AC 链的归档；可提供带证明的历史、当前已终局状态及 DA 读取，但不属于目标组，也无目标组共识或写权限（§5.2）。 |
+| **跨组只读副本** | 保留旧库存或镜像其它组已终局 AC 链的归档；用于 DA 恢复 / 追赶 / 审计（须先验证托管组 AC）；**不得** 代替跨组 RPC 代理；无外组共识或写权限（§5.2、§5.2.0d）。 |
 | **归属盐 \(R_e^{\mathrm{place}}\)** | 域隔离的新链托管随机种子，绑定 L1 已终局 beacon、L1 queue range hash、epoch 与 eligible-group registry root（§5.2.0a）。 |
 | **L1BeaconFinalizedRandomness** | CoNET CL 已终局随机信标字段（RANDAO 或等价），写入生产 \(R_e\)；**非** execution `block.hash`（§7.8.1）。 |
 | **MigrationCertificate（MC）** | 解散 / 再安置时由源组和目标组按 EIP-712 签署、任意 relayer 提交的 tip 交接证书；增长不触发批量迁移。 |

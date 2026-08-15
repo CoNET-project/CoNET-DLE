@@ -1,6 +1,22 @@
 /** Lab DLE chain id for the ethers-shaped facade. Must never equal CoNET L1 224422. */
 export const DLE_LAB_CHAIN_ID = 0x44c45
 
+/** CoNET L1 chain id. DLE `/rpc` must never return this or proxy its public RPC. */
+export const CONET_L1_CHAIN_ID = 224422
+export const CONET_L1_CHAIN_ID_HEX = '0x36ca6'
+
+export const DLE_FORBIDDEN_L1_RPC_HOSTS = [
+  'publicrpc.conet.network',
+  'rpc1.conet.network',
+  'rpc.conet.network',
+  'base-rpc.conet.network',
+] as const
+
+export const DLE_ZERO_HASH = `0x${'0'.repeat(64)}`
+export const DLE_ZERO_ADDRESS = `0x${'0'.repeat(40)}`
+export const DLE_JSONRPC_BATCH_MAX = 32
+export const DLE_ARCHIVE_CLIENT_VERSION = 'conet-dle-archive/0.2.0'
+
 export const DLE_COMMAND = {
   archive: 'archive',
   daemon: 'daemon',
@@ -23,15 +39,38 @@ export const DLE_ARCHIVE_METHODS = [
   'dle_getArchiveCertificate',
   'eth_chainId',
   'eth_blockNumber',
+  'net_version',
+  'web3_clientVersion',
+  'eth_getBlockByNumber',
+  'eth_getBlockByHash',
+  'eth_syncing',
+  'eth_accounts',
+  'eth_protocolVersion',
 ] as const
 
 export type DleArchiveMethod = (typeof DLE_ARCHIVE_METHODS)[number]
+
+export const DLE_REJECTED_METHODS = [
+  'eth_call',
+  'eth_estimateGas',
+  'eth_sendRawTransaction',
+  'eth_sendTransaction',
+  'eth_getBalance',
+  'eth_getCode',
+  'eth_getStorageAt',
+  'eth_getTransactionCount',
+] as const
+
+export type DleRejectedMethod = (typeof DLE_REJECTED_METHODS)[number]
 
 export interface DleArchiveInfo {
   command: typeof DLE_COMMAND.archive
   runtime: typeof DLE_RUNTIME.nodejs
   producesBlocks: false
   hasTipVm: false
+  l1Isolated: true
+  l1ChainIdForbidden: typeof CONET_L1_CHAIN_ID
+  batchSupported: true
   chainId: number
   chainIdHex: string
   port: number
@@ -40,8 +79,23 @@ export interface DleArchiveInfo {
 export interface DleTipView {
   height: string
   hash: string
-  finalized: false
+  finalized: boolean
   note: string
+}
+
+export interface DleCertificateView {
+  available: boolean
+  reason: string
+  height?: string
+  hash?: string
+  quorum?: number
+  networked?: boolean
+  modeA?: boolean
+  signers?: string[]
+  kind?: number
+  round?: number
+  prevoteQCRef?: string
+  labOnly?: boolean
 }
 
 export interface DleDaemonInfo {

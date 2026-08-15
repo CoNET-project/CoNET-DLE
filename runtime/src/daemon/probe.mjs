@@ -22,16 +22,43 @@ const rpc = async (method, params = []) => {
 }
 const info = await rpc('dle_info')
 const chainId = await rpc('eth_chainId')
+const netVersion = await rpc('net_version')
+const tipBlock = await rpc('eth_getBlockByNumber', ['latest', false])
 const forbidden = await rpc('eth_call', [])
+const balance = await rpc('eth_getBalance', ['0x0000000000000000000000000000000000000000', 'latest'])
+const batchRes = await fetch(`${endpoint}/rpc`, {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify([
+    { jsonrpc: '2.0', id: 10, method: 'eth_chainId', params: [] },
+    { jsonrpc: '2.0', id: 11, method: 'eth_getBalance', params: ['0x0000000000000000000000000000000000000000', 'latest'] },
+  ]),
+})
+if (!batchRes.ok) throw new Error(`archive batch HTTP ${batchRes.status}`)
+const batch = await batchRes.json()
+const infoResult = info.result ?? {}
+const tip = tipBlock.result ?? {}
 const ok =
   health.ok === true &&
   health.command === 'archive' &&
   health.runtime === 'nodejs' &&
   health.producesBlocks === false &&
-  info.result?.command === 'archive' &&
+  health.l1Isolated === true &&
+  infoResult.command === 'archive' &&
+  infoResult.l1Isolated === true &&
+  infoResult.batchSupported === true &&
+  infoResult.l1ChainIdForbidden === 224422 &&
   typeof chainId.result === 'string' &&
   chainId.result !== '0x36ca6' &&
-  Boolean(forbidden.error)
+  netVersion.result === '281669' &&
+  (tip.number === '0x0' || tip.number === '0x1') &&
+  tip.dleFacade === true &&
+  Boolean(forbidden.error) &&
+  Boolean(balance.error) &&
+  Array.isArray(batch) &&
+  batch.length === 2 &&
+  batch[0]?.result === chainId.result &&
+  Boolean(batch[1]?.error)
 
 process.stdout.write(
   `${JSON.stringify(
@@ -43,7 +70,11 @@ process.stdout.write(
       health,
       info,
       chainId,
+      netVersion,
+      tipBlock,
       ethCallRejected: Boolean(forbidden.error),
+      ethGetBalanceRejected: Boolean(balance.error),
+      batchOk: Array.isArray(batch) && batch.length === 2,
     },
     null,
     2,

@@ -12,6 +12,24 @@ export function isJsonRpcRequest(value: unknown): value is JsonRpcRequest {
   return record.jsonrpc === DLE_JSONRPC_VERSION && typeof record.method === 'string'
 }
 
+export function isJsonRpcBatch(value: unknown): value is unknown[] {
+  return Array.isArray(value)
+}
+
+export function requestIdOf(value: unknown): JsonRpcRequest['id'] {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null
+  const id = (value as Record<string, unknown>).id
+  if (id === null || typeof id === 'string' || typeof id === 'number') return id
+  return null
+}
+
+export function parseJsonRpcBatchResponse(value: unknown): JsonRpcResponse[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error('invalid JSON-RPC batch response')
+  }
+  return value.map((item) => parseJsonRpcResponse(item))
+}
+
 export function jsonRpcSuccess(id: JsonRpcRequest['id'], result: unknown): JsonRpcSuccess {
   return { jsonrpc: DLE_JSONRPC_VERSION, id, result }
 }

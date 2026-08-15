@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { DetailPageShell } from '../components/DetailPageShell'
 import { JsonBlock } from '../components/JsonBlock'
+import { ParticipantWallet } from '../components/ParticipantWallet'
 import { StatusPill } from '../components/StatusPill'
 import { formatInteger } from '../lib/format'
 import { useExplorer } from '../providers/ExplorerProvider'
@@ -36,6 +37,16 @@ export function ArchiveDetailPage() {
       {row ? (
         <div className="space-y-4">
           <dl className="dle-glass grid gap-3 rounded-2xl p-4 text-sm sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <dt className="text-xs uppercase tracking-wide text-cyan-200/60">Participant wallet</dt>
+              <dd className="mt-2">
+                <ParticipantWallet address={row.participantWallet} />
+              </dd>
+              <p className="mt-2 text-xs leading-5 text-slate-400">
+                Unique archive EOA on the CoNET L1 Global Archive Routing Registry. This is the identity used to
+                distinguish this node from the other six archives. It is not a 30-day qualification claim.
+              </p>
+            </div>
             <div>
               <dt className="text-xs uppercase tracking-wide text-cyan-200/60">Last quorum</dt>
               <dd className="mt-1 font-medium text-white">

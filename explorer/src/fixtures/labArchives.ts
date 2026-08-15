@@ -1,4 +1,9 @@
+import { LAB_ARCHIVE_WALLETS } from './labArchiveWallets'
 import type { LabArchiveRow } from '../types'
+
+function walletFor(domainId: string): string {
+  return LAB_ARCHIVE_WALLETS[domainId] ?? ''
+}
 
 /** Lab 5+2 roster copied into this subproject. Not a 30-day qualification claim. */
 export const LAB_ARCHIVE_FIXTURES: LabArchiveRow[] = [
@@ -13,6 +18,7 @@ export const LAB_ARCHIVE_FIXTURES: LabArchiveRow[] = [
     lastQuorumOk: null,
     lastPeerOk: null,
     heartbeats: null,
+    participantWallet: walletFor('fd-01-ionos-45'),
     source: 'fixture',
   },
   {
@@ -26,6 +32,7 @@ export const LAB_ARCHIVE_FIXTURES: LabArchiveRow[] = [
     lastQuorumOk: null,
     lastPeerOk: null,
     heartbeats: null,
+    participantWallet: walletFor('fd-02-ionos-189'),
     source: 'fixture',
   },
   {
@@ -39,6 +46,7 @@ export const LAB_ARCHIVE_FIXTURES: LabArchiveRow[] = [
     lastQuorumOk: null,
     lastPeerOk: null,
     heartbeats: null,
+    participantWallet: walletFor('fd-03-ionos-98'),
     source: 'fixture',
   },
   {
@@ -52,6 +60,7 @@ export const LAB_ARCHIVE_FIXTURES: LabArchiveRow[] = [
     lastQuorumOk: null,
     lastPeerOk: null,
     heartbeats: null,
+    participantWallet: walletFor('fd-04-hosthatch-tokyo1'),
     source: 'fixture',
   },
   {
@@ -65,6 +74,7 @@ export const LAB_ARCHIVE_FIXTURES: LabArchiveRow[] = [
     lastQuorumOk: null,
     lastPeerOk: null,
     heartbeats: null,
+    participantWallet: walletFor('fd-05-hosthatch-tokyo2'),
     source: 'fixture',
   },
   {
@@ -78,6 +88,7 @@ export const LAB_ARCHIVE_FIXTURES: LabArchiveRow[] = [
     lastQuorumOk: null,
     lastPeerOk: null,
     heartbeats: null,
+    participantWallet: walletFor('fd-06-ionos-174'),
     source: 'fixture',
   },
   {
@@ -91,6 +102,7 @@ export const LAB_ARCHIVE_FIXTURES: LabArchiveRow[] = [
     lastQuorumOk: null,
     lastPeerOk: null,
     heartbeats: null,
+    participantWallet: walletFor('fd-07-ionos-207'),
     source: 'fixture',
   },
 ]

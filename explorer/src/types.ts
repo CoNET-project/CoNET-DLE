@@ -5,6 +5,9 @@ export interface DleArchiveInfo {
   runtime: 'nodejs'
   producesBlocks: false
   hasTipVm: false
+  l1Isolated?: true
+  l1ChainIdForbidden?: number
+  batchSupported?: true
   chainId: number
   chainIdHex: string
   port: number
@@ -24,6 +27,14 @@ export interface DleCertificateView {
   reason: string
   height?: string
   hash?: string
+  quorum?: number
+  networked?: boolean
+  modeA?: boolean
+  signers?: string[]
+  kind?: number
+  round?: number
+  prevoteQCRef?: string
+  labOnly?: boolean
 }
 
 export interface JsonRpcError {
@@ -71,6 +82,7 @@ export interface LabArchiveRow {
   lastQuorumOk: boolean | null
   lastPeerOk: number | null
   heartbeats: number | null
+  participantWallet: string
   source: 'live' | 'fixture'
 }
 

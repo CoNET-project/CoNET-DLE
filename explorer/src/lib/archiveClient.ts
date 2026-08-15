@@ -89,11 +89,9 @@ export async function fetchExplorerCertificate(archiveUrl: string): Promise<DleC
     const body = await getJson(`${endpoint(archiveUrl)}/api/v2/dle/certificate`)
     if (!isRecord(body)) return null
     if (typeof body.available !== 'boolean' || typeof body.reason !== 'string') return null
-    return {
+    return parseCertificate(body) ?? {
       available: body.available,
       reason: body.reason,
-      height: typeof body.height === 'string' ? body.height : undefined,
-      hash: typeof body.hash === 'string' ? body.hash : undefined,
     }
   } catch {
     return null
@@ -111,6 +109,11 @@ export function parseArchiveInfo(value: unknown): DleArchiveInfo | null {
     runtime: 'nodejs',
     producesBlocks: false,
     hasTipVm: false,
+    ...(value.l1Isolated === true ? { l1Isolated: true as const } : {}),
+    ...(typeof value.l1ChainIdForbidden === 'number'
+      ? { l1ChainIdForbidden: value.l1ChainIdForbidden }
+      : {}),
+    ...(value.batchSupported === true ? { batchSupported: true as const } : {}),
     chainId: value.chainId,
     chainIdHex: value.chainIdHex,
     port: typeof value.port === 'number' ? value.port : 27101,
@@ -139,6 +142,16 @@ export function parseCertificate(value: unknown): DleCertificateView | null {
     reason: typeof value.reason === 'string' ? value.reason : 'Archive Certificate is not available.',
     height: typeof value.height === 'string' ? value.height : undefined,
     hash: typeof value.hash === 'string' ? value.hash : undefined,
+    quorum: typeof value.quorum === 'number' ? value.quorum : undefined,
+    networked: value.networked === true ? true : undefined,
+    modeA: value.modeA === true ? true : undefined,
+    signers: Array.isArray(value.signers)
+      ? value.signers.filter((item): item is string => typeof item === 'string')
+      : undefined,
+    kind: typeof value.kind === 'number' ? value.kind : undefined,
+    round: typeof value.round === 'number' ? value.round : undefined,
+    prevoteQCRef: typeof value.prevoteQCRef === 'string' ? value.prevoteQCRef : undefined,
+    labOnly: value.labOnly === true ? true : undefined,
   }
 }
 
@@ -226,6 +239,9 @@ export const EMPTY_INFO: DleArchiveInfo = {
   runtime: 'nodejs',
   producesBlocks: false,
   hasTipVm: false,
+  l1Isolated: true,
+  l1ChainIdForbidden: 224422,
+  batchSupported: true,
   chainId: DLE_LAB_CHAIN_ID,
   chainIdHex: DLE_LAB_CHAIN_ID_HEX,
   port: 27101,

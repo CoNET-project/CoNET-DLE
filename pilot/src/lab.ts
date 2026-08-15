@@ -309,6 +309,7 @@ const STOP_LAB_ONLY = [
 const START_ARCHIVE = [
   'set -euo pipefail',
   `mkdir -p '${LAB_DIR}/app' '${LAB_DIR}/data' '${LAB_DIR}/daemon' '${LAB_DIR}/wal'`,
+  `rm -f '${LAB_DIR}/data/bft-state.json'`,
   `cd '${LAB_DIR}'`,
   `if [ -x '${LAB_DIR}/runtime/bin/node' ]; then NODE='${LAB_DIR}/runtime/bin/node'; else NODE=$(command -v node); fi`,
   `nohup "$NODE" '${REMOTE_ARCHIVE_ENTRY}' --config '${LAB_DIR}/config.json' --data-dir '${LAB_DIR}/data' >> '${LAB_DIR}/archive.log' 2>&1 &`,
@@ -406,6 +407,7 @@ export async function acceptArchiveRuntime(): Promise<{
   meshOk: boolean
   daemonOk: boolean
   protectedOk: boolean
+  bftOk: boolean
   rows: Array<{
     domainId: string
     command?: string
@@ -415,6 +417,9 @@ export async function acceptArchiveRuntime(): Promise<{
     daemonOk: boolean
     peerHits: number
     expectedPeers: number
+    certificateAvailable?: boolean
+    certificateHash?: string
+    certificateSigners?: string[]
     geth?: string
     beacon?: string
     validator?: string
@@ -422,6 +427,9 @@ export async function acceptArchiveRuntime(): Promise<{
   }>
 }> {
   const hosts = await loadLabHosts()
+  const inventory = await loadOfficialLabInventory()
+  const activeIds = inventory.domains.filter((domain) => domain.role === 'active').map((domain) => domain.domainId)
+  const standbyIds = inventory.domains.filter((domain) => domain.role === 'standby').map((domain) => domain.domainId)
   const expectedPeers = hosts.hosts.length
   const peerCurl = hosts.hosts
     .map(
@@ -438,6 +446,11 @@ export async function acceptArchiveRuntime(): Promise<{
     'echo DAEMON_PROBE_BEGIN',
     'cat /tmp/dle-daemon-probe.json 2>/dev/null',
     'echo DAEMON_PROBE_END',
+    'echo CERT_BEGIN',
+    `for i in 1 2 3 4 5 6 7 8 9 10 11 12; do curl -fsS --max-time 4 http://127.0.0.1:${LAB_PORT}/api/v2/dle/certificate > /tmp/dle-cert.json && grep -q '"available":true' /tmp/dle-cert.json && break; sleep 3; done`,
+    'cat /tmp/dle-cert.json 2>/dev/null',
+    'echo',
+    'echo CERT_END',
     peerCurl,
   ].join('\n')
   const rows: Array<{
@@ -449,6 +462,9 @@ export async function acceptArchiveRuntime(): Promise<{
     daemonOk: boolean
     peerHits: number
     expectedPeers: number
+    certificateAvailable?: boolean
+    certificateHash?: string
+    certificateSigners?: string[]
     geth?: string
     beacon?: string
     validator?: string
@@ -466,11 +482,23 @@ export async function acceptArchiveRuntime(): Promise<{
         health = {}
       }
     }
+    let certificate: Record<string, unknown> = {}
+    const certMatch = stdout.match(/CERT_BEGIN\n([\s\S]*?)\nCERT_END/)
+    if (certMatch?.[1]) {
+      try {
+        certificate = JSON.parse(certMatch[1].trim()) as Record<string, unknown>
+      } catch {
+        certificate = {}
+      }
+    }
     const daemonOk = stdout.includes('"command": "daemon"') && stdout.includes('"ok": true')
     const peerHits = [...stdout.matchAll(/PEER_[^=]+=ok/g)].length
     const geth = stdout.match(/^GETH=(.*)$/m)?.[1]?.trim()
     const beacon = stdout.match(/^BEACON=(.*)$/m)?.[1]?.trim()
     const validator = stdout.match(/^VALIDATOR=(.*)$/m)?.[1]?.trim()
+    const signers = Array.isArray(certificate.signers)
+      ? certificate.signers.filter((item): item is string => typeof item === 'string')
+      : undefined
     rows.push({
       domainId: host.domainId,
       ...(typeof health.command === 'string' ? { command: health.command } : {}),
@@ -480,6 +508,9 @@ export async function acceptArchiveRuntime(): Promise<{
       daemonOk,
       peerHits,
       expectedPeers,
+      ...(typeof certificate.available === 'boolean' ? { certificateAvailable: certificate.available } : {}),
+      ...(typeof certificate.hash === 'string' ? { certificateHash: certificate.hash } : {}),
+      ...(signers !== undefined ? { certificateSigners: signers } : {}),
       ...(geth !== undefined ? { geth } : {}),
       ...(beacon !== undefined ? { beacon } : {}),
       ...(validator !== undefined ? { validator } : {}),
@@ -494,7 +525,45 @@ export async function acceptArchiveRuntime(): Promise<{
     if (leftover.leftoverElCl) return true
     return (row.geth ?? '') === '' && (row.beacon ?? '') === '' && (row.validator ?? '') === ''
   })
-  return { ok: meshOk && daemonOk && protectedOk, meshOk, daemonOk, protectedOk, rows }
+  const hashes = rows.map((row) => row.certificateHash).filter((hash): hash is string => typeof hash === 'string')
+  const sameHash = hashes.length === rows.length && hashes.every((hash) => hash === hashes[0])
+  const signersOk = rows.every((row) => {
+    const next = row.certificateSigners ?? []
+    if (next.length < 4) return false
+    if (next.some((id) => !activeIds.includes(id))) return false
+    if (next.some((id) => standbyIds.includes(id))) return false
+    return true
+  })
+  const bftOk = rows.every((row) => row.certificateAvailable === true) && sameHash && signersOk
+  const summary = {
+    ok: meshOk && daemonOk && protectedOk && bftOk,
+    meshOk,
+    daemonOk,
+    protectedOk,
+    bftOk,
+    rows,
+  }
+  await mkdir(DEFAULT_EVIDENCE_DIR, { recursive: true })
+  await writeFile(
+    join(DEFAULT_EVIDENCE_DIR, 'bft-p1-accept.json'),
+    `${JSON.stringify(
+      {
+        schema: 'BftP1AcceptV1',
+        pilotId: PILOT_LAB_ID,
+        acceptedAt: new Date().toISOString(),
+        port: LAB_PORT,
+        note: 'Lab networked PrecommitQC on TCP 27101. HMAC-SHA256 lab MAC derived from public domainId — forgeable, not a frozen EIP-712 L1 wrapper or corpus SSZ object. Not 30-day qualification.',
+        valueHash: hashes[0] ?? null,
+        activeArchives: activeIds,
+        standbyArchives: standbyIds,
+        ...summary,
+      },
+      null,
+      2,
+    )}\n`,
+    'utf8',
+  )
+  return summary
 }
 
 export async function statusIsolatedLab(): Promise<

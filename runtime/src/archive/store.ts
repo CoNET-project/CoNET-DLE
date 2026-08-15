@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const WAL_RING_MAX = 256
@@ -7,12 +7,15 @@ export interface ArchiveStore {
   readonly dataDir: string
   appendWal(record: Record<string, unknown>): void
   recentWal(limit?: number): Array<Record<string, unknown>>
+  persistBftState(state: unknown): void
+  loadBftState(): unknown | null
 }
 
 export function openArchiveStore(dataDir: string): ArchiveStore {
   mkdirSync(dataDir, { recursive: true })
   const walPath = join(dataDir, 'archive.wal.ndjson')
   const identityPath = join(dataDir, 'archive-identity.json')
+  const bftPath = join(dataDir, 'bft-state.json')
   const ring: Array<Record<string, unknown>> = []
   writeFileSync(
     identityPath,
@@ -39,6 +42,17 @@ export function openArchiveStore(dataDir: string): ArchiveStore {
     recentWal(limit = 100) {
       const take = Number.isInteger(limit) && limit > 0 ? Math.min(limit, WAL_RING_MAX) : 100
       return ring.slice(-take)
+    },
+    persistBftState(state) {
+      writeFileSync(bftPath, `${JSON.stringify(state)}\n`, 'utf8')
+    },
+    loadBftState() {
+      if (!existsSync(bftPath)) return null
+      try {
+        return JSON.parse(readFileSync(bftPath, 'utf8')) as unknown
+      } catch {
+        return null
+      }
     },
   }
 }

@@ -1,4 +1,4 @@
-import { parseJsonRpcResponse } from '../shared/jsonrpc.js'
+import { parseJsonRpcBatchResponse, parseJsonRpcResponse } from '../shared/jsonrpc.js'
 import {
   DLE_COMMAND,
   DLE_JSONRPC_VERSION,
@@ -61,6 +61,28 @@ export async function callArchive(
   rpcId += 1
   if (!response.ok) throw new Error(`archive HTTP ${response.status}`)
   return parseJsonRpcResponse(await response.json())
+}
+
+export async function callArchiveBatch(
+  archiveUrl: string,
+  calls: Array<{ method: string; params?: unknown }>,
+): Promise<JsonRpcResponse[]> {
+  const endpoint = archiveUrl.replace(/\/$/, '')
+  const response = await fetch(`${endpoint}/rpc`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(
+      calls.map((call, index) => ({
+        jsonrpc: DLE_JSONRPC_VERSION,
+        id: rpcId + index,
+        method: call.method,
+        params: call.params ?? [],
+      })),
+    ),
+  })
+  rpcId += calls.length
+  if (!response.ok) throw new Error(`archive HTTP ${response.status}`)
+  return parseJsonRpcBatchResponse(await response.json())
 }
 
 export async function fetchArchiveHealth(archiveUrl: string): Promise<Record<string, unknown>> {

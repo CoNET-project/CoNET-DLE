@@ -38,10 +38,6 @@ export function HomePage() {
       <section className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300/70">CoNET-DLE</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Explore the DLE Network</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-          Archive events and certificates only. This is not an L1 Blockscout and not an{' '}
-          <span className="dle-mono">eth_call</span> browser. Tip finality is an Archive Certificate (PrecommitQC).
-        </p>
         <form className="dle-glass mt-5 flex flex-col gap-2 rounded-full p-1.5 sm:flex-row sm:items-center" onSubmit={onSearch}>
           <label htmlFor="dle-event-search" className="sr-only">
             Search events
@@ -73,6 +69,7 @@ export function HomePage() {
         <StatusPill label={snapshot.live ? 'Archive reachable' : 'Showing last trusted / fixture'} tone={snapshot.live ? 'ok' : 'warn'} />
         <StatusPill label="producesBlocks=false" tone="neutral" />
         <StatusPill label="No tip VM" tone="warn" />
+        <StatusPill label={info?.l1Isolated === true ? 'L1 isolated' : 'L1 isolation unknown'} tone={info?.l1Isolated === true ? 'ok' : 'warn'} />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -122,9 +119,9 @@ export function HomePage() {
             />
             <ClusterGauge
               label="Quorum"
-              value={quorumOk ? 100 : 0}
-              hint={quorumOk ? 'Heartbeat ok' : 'Not proven'}
-              healthy={Boolean(quorumOk)}
+              value={snapshot.certificate?.available || quorumOk ? 100 : 0}
+              hint={snapshot.certificate?.available ? 'BFT 4-of-5' : quorumOk ? 'Heartbeat ok' : 'Not proven'}
+              healthy={Boolean(snapshot.certificate?.available || quorumOk)}
             />
             <ClusterGauge
               label="Certificate"
@@ -150,10 +147,6 @@ export function HomePage() {
         <h2 className="text-sm font-semibold text-white">
           <label htmlFor="archive-url">Archive endpoint</label>
         </h2>
-        <p className="mt-1 text-xs leading-5 text-slate-400">
-          Public explorer uses same-origin HTTPS on dle.conet.network (nginx proxies /health, /rpc, and /api/v2/dle to a
-          lab archive on TCP 27101). Local default remains http://127.0.0.1:27101.
-        </p>
         <form
           className="mt-3 flex flex-col gap-2 sm:flex-row"
           onSubmit={(event) => {

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { FOOTER_RESERVE_STYLE } from './Footer'
 import { useScrollCapsuleOpacity } from '../hooks/useScrollCapsuleOpacity'
 import { DleLogo } from './DleLogo'
 
@@ -6,7 +7,7 @@ const capsuleChrome =
   'rounded-full border border-cyan-400/25 bg-[#07111f]/80 shadow-[0_0_24px_rgba(0,180,255,0.22)] backdrop-blur-md'
 
 export const CAPSULE_SPACER_STYLE = {
-  minHeight: 'calc(max(1rem, env(safe-area-inset-top, 0px)) + 5rem)',
+  paddingTop: 'calc(max(1rem, env(safe-area-inset-top, 0px)) + 5rem)',
 } as const
 
 export function MainPageShell({
@@ -33,7 +34,7 @@ export function MainPageShell({
         </div>
         {trailing ? <div style={{ pointerEvents: pointer }}>{trailing}</div> : null}
       </div>
-      <div className="mx-auto max-w-6xl px-4 pb-8" style={CAPSULE_SPACER_STYLE}>
+      <div className="mx-auto max-w-6xl px-4" style={{ ...CAPSULE_SPACER_STYLE, ...FOOTER_RESERVE_STYLE }}>
         {children}
       </div>
     </div>

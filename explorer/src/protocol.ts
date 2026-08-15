@@ -10,9 +10,25 @@ export const DLE_ARCHIVE_METHODS = [
   'dle_getArchiveCertificate',
   'eth_chainId',
   'eth_blockNumber',
+  'net_version',
+  'web3_clientVersion',
+  'eth_getBlockByNumber',
+  'eth_getBlockByHash',
+  'eth_syncing',
+  'eth_accounts',
+  'eth_protocolVersion',
 ] as const
 
-export const DLE_REJECTED_METHODS = ['eth_call', 'eth_estimateGas', 'eth_sendRawTransaction'] as const
+export const DLE_REJECTED_METHODS = [
+  'eth_call',
+  'eth_estimateGas',
+  'eth_sendRawTransaction',
+  'eth_sendTransaction',
+  'eth_getBalance',
+  'eth_getCode',
+  'eth_getStorageAt',
+  'eth_getTransactionCount',
+] as const
 
 export const DEFAULT_ARCHIVE_URL = 'http://127.0.0.1:27101'
 export const DEFAULT_ARCHIVE_PORT = 27101

@@ -9,9 +9,10 @@ export function RpcPage() {
   return (
     <MainPageShell title="JSON-RPC">
       <p className="mb-4 text-sm leading-6 text-slate-400">
-        Read-only DLE facade. <span className="dle-mono text-cyan-300">eth_call</span>,{' '}
-        <span className="dle-mono text-cyan-300">eth_estimateGas</span>, and{' '}
-        <span className="dle-mono text-cyan-300">eth_sendRawTransaction</span> are rejected because there is no tip VM.
+        Read-only DLE facade, isolated from CoNET L1 <span className="dle-mono text-cyan-300">publicrpc</span>.{' '}
+        <span className="dle-mono text-cyan-300">eth_call</span>,{' '}
+        <span className="dle-mono text-cyan-300">eth_getBalance</span>, and write methods are rejected because there is
+        no tip VM and no EVM account model. JSON-RPC 2.0 batches are accepted on <span className="dle-mono">/rpc</span>.
       </p>
       <div className="space-y-3">
         {snapshot.rpc.map((row) => (

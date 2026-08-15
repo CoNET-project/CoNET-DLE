@@ -48,15 +48,15 @@ The public UI defaults to `https://dle.conet.network` (same origin). Local defau
 
 The seven-domain roster (5 active + 2 standby) is bundled as a **fixture**. Point the Home endpoint at `http://<lab-host>:27101` to merge live `/health` fields (`lastQuorumOk`, `lastPeerOk`, `heartbeats`) onto the matching `domainId`.
 
-This explorer does **not** claim 30-day qualification. Heartbeat quorum on 27101 is not networked BFT / AC.
+This explorer does **not** claim 30-day qualification. Heartbeat quorum on 27101 is not BFT. A lab networked 4-of-5 AC (HMAC-SHA256) may appear on Certificates; it is **not** a frozen EIP-712 L1 wrapper or corpus SSZ object.
 
 ## What it shows
 
 1. **Home** — chain id, tip height, archive count, 5+2 roles, AC / finalized, `producesBlocks=false`, no tip VM.
 2. **Events** — WAL / heartbeat / rpc / lab-start rows from `/api/v2/dle/events`, or last trusted / demo fixture.
 3. **Archives** — seven-domain identity and live health overlay.
-4. **Certificates** — honest empty `dle_getArchiveCertificate` until a networked AC exists.
-5. **JSON-RPC** — `eth_chainId`, `eth_blockNumber`, `dle_info`, `dle_tip`; explicit `eth_call` rejection.
+4. **Certificates** — lab networked 4-of-5 PrecommitQC when archives have formed one; otherwise honest empty. Not production SSZ / EIP-712.
+5. **JSON-RPC** — ethers-shaped read facade (`eth_chainId`, `net_version`, synthetic tip block) plus `dle_*`; explicit rejection of `eth_call` / `eth_getBalance` / writes. Isolated from L1 `publicrpc`.
 
 Refresh uses a `setTimeout` chain. Failed fetches keep the last trusted snapshot and never treat an untrusted empty body as “no data”.
 

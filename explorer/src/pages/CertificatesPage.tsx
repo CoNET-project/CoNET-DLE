@@ -17,8 +17,9 @@ export function CertificatesPage() {
         />
       </div>
       <p className="mb-4 text-sm leading-6 text-slate-400">
-        DLE tip finality is an Archive Certificate (PrecommitQC), not an L1 block. This scaffold has not produced a
-        networked AC yet — the empty state is honest.
+        {cert?.available
+          ? 'This is a lab networked Archive Certificate (PrecommitQC) on TCP 27101. It is not a frozen EIP-712 L1 wrapper or corpus SSZ object, and it does not claim 30-day qualification.'
+          : 'DLE tip finality is an Archive Certificate (PrecommitQC), not an L1 block. The empty state is honest until a lab networked AC is available.'}
       </p>
       <div className="dle-glass rounded-2xl p-4">
         <JsonBlock

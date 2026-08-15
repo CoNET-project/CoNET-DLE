@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { ParticipantWallet } from '../components/ParticipantWallet'
 import { StatusPill } from '../components/StatusPill'
 import { MainPageShell } from '../components/TitleCapsule'
 import { formatInteger } from '../lib/format'
@@ -10,8 +11,9 @@ export function ArchivesPage() {
   return (
     <MainPageShell title="Archives">
       <p className="mb-4 text-sm leading-6 text-slate-400">
-        Seven-domain lab roster (5 active + 2 standby). Health fields merge only from a trusted live archive response.
-        This list is not a 30-day qualification claim.
+        Seven-domain lab roster (5 active + 2 standby). Each archive has a unique participant wallet on the CoNET L1
+        Global Archive Routing Registry. Health fields merge only from a trusted live archive response. This list is
+        not a 30-day qualification claim.
       </p>
       <div className="space-y-3">
         {snapshot.archives.map((row) => (
@@ -29,6 +31,12 @@ export function ArchivesPage() {
                   tone={row.health === 'live' ? 'ok' : row.health === 'unreachable' ? 'bad' : 'neutral'}
                 />
               </div>
+            </div>
+            <div className="mt-3">
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-cyan-200/60">
+                Participant wallet
+              </p>
+              <ParticipantWallet address={row.participantWallet} />
             </div>
             <p className="mt-2 text-xs text-slate-400">
               {row.provider} · {row.region}

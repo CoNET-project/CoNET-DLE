@@ -1,5 +1,5 @@
 import { DEFAULT_ARCHIVE_URL } from '../protocol'
-import type { TrustedExplorerSnapshot } from '../types'
+import type { LabArchiveRow, TrustedExplorerSnapshot } from '../types'
 import { DEMO_EVENT_FIXTURES } from '../fixtures/demoEvents'
 import { LAB_ARCHIVE_FIXTURES } from '../fixtures/labArchives'
 import { EMPTY_CERTIFICATE, EMPTY_INFO, EMPTY_TIP, emptyRpcRows } from './archiveClient'
@@ -8,6 +8,27 @@ import { isRecord } from './jsonrpc'
 
 const SNAPSHOT_KEY = 'dle-explorer:trusted-snapshot:v1'
 const URL_KEY = 'dle-explorer:archive-url:v1'
+
+function isParticipantWallet(value: unknown): value is string {
+  return typeof value === 'string' && /^0x[0-9a-fA-F]{40}$/.test(value)
+}
+
+function hydrateArchiveWallets(rows: unknown): LabArchiveRow[] {
+  if (!Array.isArray(rows)) return LAB_ARCHIVE_FIXTURES
+  const fixtureWallet = new Map(LAB_ARCHIVE_FIXTURES.map((row) => [row.domainId, row.participantWallet]))
+  return rows.map((row) => {
+    if (!isRecord(row) || typeof row.domainId !== 'string') return null
+    const fixture = LAB_ARCHIVE_FIXTURES.find((item) => item.domainId === row.domainId)
+    const cachedWallet = isParticipantWallet(row.participantWallet) ? row.participantWallet : ''
+    const wallet = cachedWallet || fixtureWallet.get(row.domainId) || ''
+    return {
+      ...(fixture ?? LAB_ARCHIVE_FIXTURES[0]),
+      ...row,
+      domainId: row.domainId,
+      participantWallet: wallet,
+    } as LabArchiveRow
+  }).filter((row): row is LabArchiveRow => row !== null)
+}
 
 export function defaultSnapshot(archiveUrl: string): TrustedExplorerSnapshot {
   return {
@@ -66,7 +87,7 @@ export function loadTrustedSnapshot(archiveUrl: string): TrustedExplorerSnapshot
       ...parsed,
       archiveUrl,
       events: sortEventsNewestFirst(parsed.events as TrustedExplorerSnapshot['events']),
-      archives: parsed.archives as TrustedExplorerSnapshot['archives'],
+      archives: hydrateArchiveWallets(parsed.archives),
       rpc: parsed.rpc as TrustedExplorerSnapshot['rpc'],
     }
   } catch {

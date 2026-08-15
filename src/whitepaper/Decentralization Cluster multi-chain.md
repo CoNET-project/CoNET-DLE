@@ -4,7 +4,7 @@
 
 **Author:** Peter Xie  
 **First draft:** 2023  
-**Revision:** 2026-08-13 (5-active + 2-standby archive groups + strict 4/5 quorum + executable Archive Tendermint v2 corpus/Archive A MVP + line-level Tendermint/WAL rules + AdaptiveRotationV1 + OperatorDomainRegistryV1 + L1QueueAccumulatorV1 scale profile + deterministic `dle.rs.v1` correct-encoding proof + challenged force exit + Treasury V3 canonical ERC-20 burn/remint gateway + **measured P1 economic evidence boundary: 100-USDC safety cap frozen, 10-USDC floor and 1.2× coverage still provisional** + L1-anchored seller orders + x402 v2 AI pay-per-use / API-gateway target profile + three-ledger protocol/execution/availability economics + Treasury-canonical L1 pool/TWAP asset admission; archives have no block-production right)
+**Revision:** 2026-08-14 (global DLE RPC truth surface: any live archive is a valid RPC entry; foreign-group queries **MUST proxy** to that group’s `historyProviders` — §5.2.0d; DLE Chain ID ≡ archive `groupId` + L1 Global Archive Routing Registry: archive wallets + hosted chain NFT ids, chain routing / history providers — §5.2.0d; 5-active + 2-standby archive groups + strict 4/5 quorum + executable Archive Tendermint v2 corpus/Archive A MVP + line-level Tendermint/WAL rules + AdaptiveRotationV1 + OperatorDomainRegistryV1 + L1QueueAccumulatorV1 scale profile + deterministic `dle.rs.v1` correct-encoding proof + challenged force exit + Treasury V3 canonical ERC-20 burn/remint gateway + **measured P1 economic evidence boundary: 100-USDC safety cap frozen, 10-USDC floor and 1.2× coverage still provisional** + L1-anchored seller orders + x402 v2 AI pay-per-use / API-gateway target profile + three-ledger protocol/execution/availability economics + Treasury-canonical L1 pool/TWAP asset admission; archives have no block-production right)
 
 **Paired translation (must stay in sync):** [`Decentralization Cluster multi-chain.zh-CN.md`](./Decentralization%20Cluster%20multi-chain.zh-CN.md)
 **Sync rule:** `.cursor/rules/conet-layer2-whitepaper-bilingual-sync.mdc`
@@ -34,7 +34,9 @@
 - **Storage-class creator economy / private copyright delivery:** same thesis as Beamio **`CopyrightContentModule`**: owner fragments + seals a private assembly index to authorized DePIN miners; tip/L1 holds only hashes; buyers pay **conet-GB**, bind buyer PGP; **first-completer** miners deliver buyer-bound ciphertext; short-lived access URLs + periodic storage fees; plaintext never on-chain (§4.8).
 - **Copyright ZERO / version tree:** storage tips form a **lineage tree** (original + modifiers); each branch point is an **independent L1 NFT** listable via trade-class; the tip stores **social history** (likes, comments, citations) as a **Web of Trust** signal for auction valuation (§4.9).
 - **Storage sales ledger:** each storage tip keeps an append-only **sales-revenue journal** and **references** the parallel **asset-class** tip txs that actually move value (§4.10).
-- **Archive-plane fission + BFT finality:** let \(G_e\) be the L1-registered live-group count, \(N_e=5G_e\) the unique active-voter count, and \(U_e\) the eligible `UnassignedPool` count; a serviceable new group may form iff **\(U_e\ge7\)**. Every group receives **five newly assigned, non-overlapping active voters plus two dedicated ordered standbys** selected with public randomness; `maxGroupsPerArchive=1` and cross-group roster overlap is zero. Identity exclusivity is strengthened by **OperatorDomainRegistryV1**: challengeable canonical operator, infrastructure, and role-domain commitments govern group formation and archive/validator separation. Existing groups keep their assignments and only witness formation / serve proof-carrying read-only data for foreign groups. `groupId` is monotonic and never reused. New chains are roulette-assigned then bound on L1 1155; existing tips stay on `archiveGroupId`; **MigrationCertificate** is only for dissolve/re-home (§5.2). Each group finalizes validator-produced event blocks with the line-level Tendermint-style **PrevoteQC → PrecommitQC (= AC)** rule at \(N_A=5\Rightarrow f=1,\,Q_A=4\). **AdaptiveRotationV1** replaces one active slot on a mandatory schedule and completes a five-slot churn cycle even without failure; static binomial figures are only the initial-draw baseline (§5.2.1a, §12.3.1a).
+- **Archive-plane fission + BFT finality:** let \(G_e\) be the L1-registered live-group count, \(N_e=5G_e\) the unique active-voter count, and \(U_e\) the eligible `UnassignedPool` count; a serviceable new group may form iff **\(U_e\ge7\)**. Every group receives **five newly assigned, non-overlapping active voters plus two dedicated ordered standbys** selected with public randomness; `maxGroupsPerArchive=1` and cross-group roster overlap is zero. Identity exclusivity is strengthened by **OperatorDomainRegistryV1**: challengeable canonical operator, infrastructure, and role-domain commitments govern group formation and archive/validator separation. Existing groups keep their assignments and only witness formation / serve proof-carrying read-only data for foreign groups **via the global RPC proxy** (§5.2.0d). `groupId` is monotonic and never reused. New chains are roulette-assigned then bound on L1 1155; existing tips stay on `archiveGroupId`; **MigrationCertificate** is only for dissolve/re-home (§5.2). Each group finalizes validator-produced event blocks with the line-level Tendermint-style **PrevoteQC → PrecommitQC (= AC)** rule at \(N_A=5\Rightarrow f=1,\,Q_A=4\). **AdaptiveRotationV1** replaces one active slot on a mandatory schedule and completes a five-slot churn cycle even without failure; static binomial figures are only the initial-draw baseline (§5.2.1a, §12.3.1a).
+- **DLE Chain ID = archive group id:** the protocol **Chain ID** is the hosting archive **`groupId`**, not CoNET L1 EVM `224422` and not the tip’s NFT id. Bootstrap is **one** live group; fission yields a second unique group, then a third, and so on. CoNET L1 **Global Archive Routing Registry** records every participating archive **wallet address** and every hosted chain **NFT id**, so clients obtain **chain routing** and **which archives may serve that tip’s history** from L1 (§5.2.0d).
+- **Global RPC truth + foreign-group proxy:** every live archive **MUST** expose the same global DLE RPC surface, so a client MAY query **any** archive as a single entry. If the request is **not** for that node’s own `groupId` (L1 `route(chainNftId)`), the node **MUST proxy** to `historyProviders(chainNftId)` — the hosting group’s archive wallets — and **MUST NOT** answer foreign-group state from a local replica as RPC truth (§5.2.0d).
 - **Archive-member exit and slashing:** archive identities exit through `ACTIVE → EXIT_REQUESTED → DRAINING → STANDBY_SYNCING → HANDOVER_READY → MEMBERSHIP_SWITCHED → UNBONDING → EXITED`; duties remain until the L1 `membershipRoot` atomically switches. Provable inactivity, pre-handover shutdown, DA fraud, and equivocation receive graduated penalties. Archive-member exit is distinct from a user’s challenged `AssetBurnMintGateway` `request → challenge → finalize` forced-exit claim (§5.2.1).
 - **DA:** v1 freezes a byte-exact **`dle.rs.v1`** systematic Reed–Solomon \((n,k)=(7,4)\) codec. Before precommit, every archive signer must obtain the canonical full body, replay it, deterministically re-encode all seven chunks, and recompute both `bodyCommitment` and `daRoot`; Merkle membership or possession of four chunks alone is insufficient. `BadEncodingEvidence` / `BadEncodingProof` covers inconsistent codewords (§5.2.1).
 - **Economics (three separate ledgers):** the **variable protocol value fee** remains 1 bp—asset transfers pay canonical conet-USDC after L1 pool/TWAP valuation and trade settlement pays the same `quoteAsset`; storage content/retention stays in **conet-GB**. A payer-capped canonical-conet-USDC **execution reserve** reimburses only objective L1 gas and frozen `FeeScheduleV1` resource units for oracle, proof, DA ingress, cross-domain legs, and bounded retries. A distinct per-epoch **availability budget** funds fixed 5+2 archive, standby-readiness, validator, and history-service capacity through chain rent / creation reserves or an explicit capped bootstrap subsidy. The 1 bp protocol fee splits **50% hosting archive / 50% \(Q_V\) validators** and is never represented as sufficient execution or availability funding (§13).
@@ -169,6 +171,7 @@ Use these layers **strictly**—do not treat them as synonyms:
 | L4 | **Block / tip height** | One accepted event step on a tip (proposal → \(Q_V\) → AC). **No event ⇒ no block.** |
 | L5 | **Archive shard** | The non-block-producing BFT committee that independently replays validator candidates and issues PrevoteQC / PrecommitQC (= AC). |
 | L6 | **Validator committee** | Per-block \(N_V=7\), \(Q_V=5/7\) **block-production / proposal** layer—**not** tip finality. |
+| **DLE Chain ID** | **Archive `groupId`** | The protocol Chain ID of the DLE plane is the **archive group id** that currently hosts a tip (`archiveGroupId[tokenId]`). It is **not** CoNET L1 EVM `chainId` `224422`, **not** a lab/isolated EVM id, and **not** the tip NFT id. See §5.2.0d. |
 
 ### 4.1 Chain creation gate (mandatory L1 NFT)
 
@@ -178,7 +181,7 @@ Creating a new DLE chain is **not** a free L2-only act. The creator **must first
 | --- | --- |
 | **Uniqueness** | One NFT id ↔ one DLE chain; no anonymous genesis without L1 mint. |
 | **Class (ternary)** | At mint / configure time the chain is fixed as **exactly one** of: **asset-class**, **storage-class**, or **trade-class**. |
-| **Ownership / archive placement** | Owner and fee payer hooks bind to the NFT id. **New-chain host** is NewChainQueue + **UniformPlacementV1** into a live 5-active + 2-standby group, then L1 **`archiveGroupId[tokenId]`** (§5.2)—**not** `tokenId mod S` and **not** hash residue. Later events follow the L1 pointer. **Canonical owner** of any DLE chain is **CoNET L1 `ownerOf(nftId)`**. |
+| **Ownership / archive placement** | Owner and fee payer hooks bind to the NFT id. **New-chain host** is NewChainQueue + **UniformPlacementV1** into a live 5-active + 2-standby group, then L1 **`archiveGroupId[tokenId]`** (§5.2)—**not** `tokenId mod S` and **not** hash residue. Later events follow the L1 pointer. That `groupId` **is** the DLE Chain ID; authoritative archive wallets and hosted NFT ids live on the L1 **Global Archive Routing Registry** (§5.2.0d). **Canonical owner** of any DLE chain is **CoNET L1 `ownerOf(nftId)`**. |
 | **Asset burn ingress (asset-class only)** | Asset must be `ACTIVE` in the L1 `AssetAdmissionRegistry` **and** be a CoNET-L1 `TreasuryCanonicalERC20V3` proxy recognized by the canonical `TreasuryBridgeV3` proxy. **Every canonical asset, including conet-USDC**, still requires an approved decentralized CoNET L1 pool / route + TWAP adapter + minimum liquidity. The gateway’s own fresh L1 TWAP quote—not a client quote—must place each activated ingress within the cited policy’s **evidence-approved `minIngressUsdc6` through 100 USDC-equivalent**; 10 USDC is only the current pre-production seed. Treasury V3 executes the physical burn/remint; `AssetBurnMintGateway` proves and accounts the DLE state transition. A foreign or arbitrary ERC-20 that has not first become a Treasury V3 canonical asset cannot enter asset-class L2 (§4.6, §13.3). |
 | **Trade subject (trade-class only)** | Genesis binds an already-live L1 `escrowOrderHash` covering the **subject** collection + asset/storage NFT id and seller terms; **L1 Settlement Contract** atomically pays seller and transfers **that subject’s** L1 ownership (§4.7). |
 
@@ -844,7 +847,7 @@ Classical public ledgers leak **who owns how much** because a user’s economic 
 - Replicate the global **QUEUED / NewChainQueue** admission pool; detect assignments for their own `groupId`; select the on-demand validator committee; serve authenticated history/state proofs to that committee; receive its signature / DepositBundle pool; independently replay and quality-check the candidate (§5.2.0, §6.3).
 - Participate in **per-shard Tendermint-style BFT** without producing blocks: prevote / precommit only over validator-produced candidates. A single archive may withhold its own vote and propose a `CandidateRejectCertificate`, but **cannot unilaterally veto** a globally queued request or an already-finalized tip (§5.2.1).
 - Peer networking among archive nodes is primarily for **archive discovery and archive consensus**; they do not freely accept arbitrary role-node gossip as peers.
-- Expose **RPC** only to authorized participants and chain owners. Clients treat a tip as final **only** when they hold a verifiable **Archive Certificate**—not when a single archive RPC claims success.
+- Expose a **global DLE RPC** surface to authorized participants and chain owners: any live archive is a valid plane-wide entry. Own-group queries MAY be served locally; **foreign-group** queries **MUST** be proxied to that group’s archives (`historyProviders` / `archivesOf`, §5.2.0d). Clients treat a tip as final **only** when they hold a verifiable **Archive Certificate**—not when a single archive RPC (local or proxied) claims HTTP success.
 - Run **Proof of History (PoH)** sequences **locally** as a verifiable sequencing clock / anti-rollback aid (see §7.9). **Canonical** waiting-pool and tip event order is **not** established by PoH alone—it requires **archive quorum certificates** (§5.2.1).
 
 ### 5.2 Archive node groups (clusters) — 5 active + 2 dedicated standbys
@@ -903,7 +906,7 @@ An archive NFT may be assigned to at most one live group in either its active or
 
 **Seamless-fission history rule (product freeze):** at the fission checkpoint, every existing group keeps a read-only, verifiable copy of the pre-fission history, but write / finality authority for each chain remains with that chain’s recorded historical owner. The newly created group has **no authority to maintain pre-fission history**. It may serve copies, DA recovery, and audit proofs only; it may not issue a competing AC, alter the old state, or migrate the old history by itself.
 
-**Cross-group read-replica rule (product freeze):** any archive may retain old inventory and continuously mirror **finalized** data for a chain whose L1 `archiveGroupId` names another group. It may serve RPC history, current finalized state, DA fragments, and audit proofs only when the response carries a verifiable proof bundle such as `{chainNftId, archiveGroupId, height, AC, stateRoot, membershipRoot}`. This read role:
+**Cross-group read-replica rule (product freeze):** any archive may retain old inventory and continuously mirror **finalized** data for a chain whose L1 `archiveGroupId` names another group. A replica is for **DA recovery, catch-up, and audit** after a host-group AC is verified. It is **not** the global RPC truth origin. Public RPC for that foreign chain **MUST** follow the §5.2.0d **proxy** rule (forward to `historyProviders`). A replica **MUST NOT** short-circuit that proxy and present local bytes as the RPC answer, even with a cached proof bundle. Optional post-proxy caching of an already-verified host-group response is allowed. This read role:
 
 - does **not** count toward \(A_g\), \(S_g\), \(N_e\), \(Q_A\), or any reward reserved for that group’s consensus seats;
 - grants no proposal, prevote, precommit, certificate-aggregation, rejection, migration, or state-mutation authority for the foreign group;
@@ -1095,6 +1098,73 @@ RESERVED | GENESIS_AC --deadline--> EXPIRED
 ```
 
 **Tip AC vs placement votes (do not confuse):** both use the current archive quorum \(Q_A=4/5\), but they certify different objects. Tip finality uses PrevoteQC → PrecommitQC; PlacementCertificate binds one genesis AC to one current L1 assignment. Neither requires 5/5 unanimity.
+
+#### 5.2.0d DLE Chain ID = archive group id & L1 Global routing registry (product freeze)
+
+**Identifier freeze.** In CoNET-DLE, the protocol and user-visible **Chain ID** is the **archive group id** (`groupId`, stored as `archiveGroupId[tokenId]` after bind). Clients, explorers, RPC routers, and certificates **MUST** use this integer as the DLE Chain ID.
+
+| Identifier | Meaning | Must **not** be used as DLE Chain ID |
+| --- | --- | --- |
+| **Archive `groupId`** | Monotonic L1 group number; one live 5-active + 2-standby roster | — (this **is** the DLE Chain ID) |
+| CoNET L1 EVM `chainId` | Settlement L1 `224422` / `0x36ca6` | Explorer “which DLE plane”, tip routing, AC `archiveShardId` |
+| Lab / isolated EVM id | e.g. a lab `eth_chainId` such as `0x44c45` | Production DLE Chain ID or group membership |
+| Tip / chain NFT id | L1 ERC-1155 `tokenId` of one atomic ledger | Group roster or “which archives vote” |
+| Archive NFT id | One archive node’s registration NFT | DLE Chain ID or tip identity |
+
+**Bootstrap and fission.** The archive plane starts with **exactly one** live group (\(G_e=1\)); L1 `nextGroupId` issues the first unused `groupId` and **never reuses** a dissolved number. When \(U_e\ge7\), fission registers a **second unique group**, then a third, and so on—each with its own DLE Chain ID. Existing groups keep currently bound tips; a new group receives only post-formation assignments unless a **MigrationCertificate** re-homes a tip (§5.2).
+
+**L1 Global contract (product freeze).** Every live group, every participating archive **wallet address**, and every hosted chain **NFT id** **MUST** be written to a CoNET L1 **Global Archive Routing Registry**. Gossip self-advertisement, `tokenId` hash, and a locally assumed “default chain id” are **not** routing truth.
+
+```text
+GlobalGroupRecord = {
+  groupId,                          // DLE Chain ID
+  live, assignmentEligible,
+  membershipEpoch, keyEpoch,
+  groupKeyHash, membershipRoot, standbyRoot,
+  activeWallets[5],                 // voting archive EOAs
+  standbyWallets[2],                // dedicated standby EOAs
+  hostedChainNftIds[]               // L1 1155 token ids bound to this group
+}
+```
+
+Required views (normative). Implementation MAY be one UUPS facade or the composition of `ArchiveGroupRegistryV1` (rosters / wallets) and `DLEChainRegistry1155V1` (NFT → `groupId`). Either shape **MUST** expose:
+
+| View | Returns | Use |
+| --- | --- | --- |
+| `liveGroupIds()` | Live `groupId`s in ascending order | Enumerate DLE Chain IDs |
+| `archivesOf(groupId)` | Five active + two standby **EOA wallets** at the current membership epoch | Who votes; who is the dedicated history committee |
+| `chainsOf(groupId)` | Hosted chain **NFT ids** | Which tips this DLE Chain ID hosts |
+| `route(chainNftId)` | `groupId` (= DLE Chain ID) | **Chain routing** |
+| `historyProviders(chainNftId)` | `archivesOf(route(chainNftId))` | Which archives may serve **authoritative** history for that tip |
+
+**Routing rule.** To locate a tip: `groupId = route(nftId)`, then contact `historyProviders(nftId)`. Only wallets listed for that `groupId` at the relevant L1 membership epoch are **authoritative** history providers. A wallet **not** listed for that group **MUST NOT** be treated as the canonical host. Clients MAY still dial `historyProviders` directly; they MAY also dial **any** live archive and rely on the proxy rule below.
+
+**Global RPC truth surface and foreign-group proxy (product freeze).** Every live archive **MUST** expose the **same global DLE RPC surface**. A client MAY treat **any** live archive as a single RPC entry for the entire archive plane. That convenience does **not** make a non-host replica the origin of truth.
+
+| Query class | Test | Normative behaviour |
+| --- | --- | --- |
+| **Own group** | `route(chainNftId) = self.groupId`, or the method is strictly group-local (this group’s WAL / AC chain / assigned QUEUED slice) | MAY answer from the local authoritative store. The response **MUST** still carry or allow verification of AC / `membershipRoot`. Client finality remains the AC, not HTTP 200. |
+| **Foreign group** | `route(chainNftId) ≠ self.groupId`, or the request names another `groupId` / DLE Chain ID | **MUST proxy** to one or more wallets in `archivesOf(targetGroupId)` = `historyProviders(chainNftId)`, then return the **host-group** response (including proof bundle). **MUST NOT** invent, synthesize, or present local replica bytes as RPC truth for that foreign group. |
+
+Proxy obligations:
+
+1. **Targets** are only L1 `archivesOf(groupId)` at the membership epoch named by the query (current live epoch if unspecified). Gossip self-advertised hosts are **not** the routing table.
+2. **Transport** remains CoNET DePIN (wallet-addressed, OpenPGP). The receiving node is a **relayer**: it **MUST NOT** rewrite AC / `stateRoot` / `daRoot` / `membershipRoot`, and **MUST NOT** decrypt payloads for which it is not the intended recipient.
+3. **Fail closed:** if no host-group archive answers, the proxy **MUST** return unavailable / timeout — **not** a locally reconstructed “best effort” foreign tip as success.
+4. **Replica ≠ RPC truth:** a cross-group read replica **MUST NOT** short-circuit this proxy on the public RPC path (§5.2). Caching an already-proxied, AC-verified host-group response is allowed.
+5. **No extra authority:** proxying grants no membership, \(Q_A\) credit, proposal, or write/finality rights over the foreign group.
+6. **Equivalence:** direct host-group RPC and proxied RPC **MUST** agree once AC-verified; conflict → prefer the host-group AC and L1 `route()`.
+
+**Writes (must stay on L1).**
+
+| Event | Global registry effect |
+| --- | --- |
+| Group formation | Allocate next `groupId`; write `activeWallets[5]` + `standbyWallets[2]` |
+| Membership rotation | Replace wallets under a new `membershipEpoch`; old epoch remains auditable |
+| `finalizeArchiveGroup` | Append `tokenId` to `hostedChainNftIds` of that `groupId`; set `archiveGroupId[tokenId]` |
+| Re-home / dissolve | Move or drop the NFT id; **never** reuse the old `groupId` as a new DLE Chain ID |
+
+Do **not** write public explorer hostnames into Solidity constants. The Global registry stores **wallets, `groupId`s, and NFT ids** only.
 
 ### 5.2.1 Archive-shard BFT & Archive Certificate (product freeze)
 
@@ -2181,6 +2251,8 @@ L2Envelope {
 - [ ] AES-GCM (or CBC+HMAC) for listen session keys; ban bare CBC.
 - [ ] Production roulette = \(R_e = H(\texttt{"dle.roulette.v1"}\,\|\,\mathrm{L1BeaconFinalizedRandomness}_e\,\|\,e\,\|\,\mathrm{shardId}\,\|\,\mathrm{poolRoot}_e)\); `poolRoot_e` frozen before beacon known; commit–reveal only for MVP; no optional-VRF concatenation (§7.8).
 - [ ] New-chain host placement = `UniformPlacementV1` with L1-frozen `L1QueueRangeCheckpoint` + eligible-group root before beacon reveal; no \(Q_G\), dynamic load, or self-reported counters in v1 (§5.2.0a).
+- [ ] DLE Chain ID = L1 archive `groupId`; Global Archive Routing Registry stores archive **wallets** + hosted chain **NFT ids**; clients route history via `route(nftId)` → `historyProviders`—never EVM `224422`, lab `eth_chainId`, or `tokenId` hash (§5.2.0d).
+- [ ] Every live archive exposes the **global DLE RPC** surface; **foreign-group** queries **MUST proxy** to `historyProviders` / `archivesOf(targetGroupId)` and **MUST NOT** answer from a local replica as RPC truth (§5.2.0d).
 - [ ] Block acceptance = full set of secp256k1 votes on `blockHash`.
 - [ ] No private keys in logs; no plaintext mirroring on relays.
 
@@ -3108,7 +3180,7 @@ CoNET-DLE is closest in spirit to **“many tiny ledgers + random committees + a
 
 ## 15. Open Design Questions / Implementation Notes
 
-**2026-08-13 normative addendum:** Archive nodes have **no block-production right**. Validators alone produce event blocks; archives independently replay and finalize them through Tendermint-style PrevoteQC → PrecommitQC. Fission uses \(G_e\), \(N_e=5G_e\), and \(U_e\): one disjoint group of five active voters plus two dedicated ordered standbys may form iff \(U_e\ge7\). `OperatorDomainRegistryV1` binds challengeable operator/infrastructure/role domains; `AdaptiveRotationV1` mandatorily churns all five active slots and key epochs. Foreign-group inventory is proof-carrying read-only service, never consensus membership. `L1QueueAccumulatorV1` supplies canonical queue order/range freezing without \(Q_G\); placement then uses \(Q_A=4/5\), nonce-bound reservation, and any relayer. DA precommit means full canonical replay plus byte-exact `dle.rs.v1` re-encoding, not chunk possession alone. Consensus uses canonical SSZ sign-bytes, nil-safe lock rules, crash-consistent WAL, and deterministic membership activation. Asset-class ingress uses only Treasury V3-recognized CoNET-L1 canonical ERC-20s: `AssetBurnMintGateway` coordinates DLE proofs/accounting, while Treasury V3 performs exact burn and finalized refund/exit remint. Assets lacking the frozen Treasury proxy/token/policy/DLE-authority tuple and exact supply semantics are ineligible. Economics separates the 1 bp protocol value fee, objective payer-capped execution reserve, and fixed epoch availability budget; ordinary exit uses `ExitFeeQuoteV1`, while forced exit remains funded by the emergency reserve. These rules supersede every older conflicting sentence.
+**2026-08-13 normative addendum:** Archive nodes have **no block-production right**. Validators alone produce event blocks; archives independently replay and finalize them through Tendermint-style PrevoteQC → PrecommitQC. Fission uses \(G_e\), \(N_e=5G_e\), and \(U_e\): one disjoint group of five active voters plus two dedicated ordered standbys may form iff \(U_e\ge7\). `OperatorDomainRegistryV1` binds challengeable operator/infrastructure/role domains; `AdaptiveRotationV1` mandatorily churns all five active slots and key epochs. Foreign-group inventory is proof-carrying read-only service, never consensus membership; public RPC for another group **MUST proxy** to that group’s archives (§5.2.0d). `L1QueueAccumulatorV1` supplies canonical queue order/range freezing without \(Q_G\); placement then uses \(Q_A=4/5\), nonce-bound reservation, and any relayer. DA precommit means full canonical replay plus byte-exact `dle.rs.v1` re-encoding, not chunk possession alone. Consensus uses canonical SSZ sign-bytes, nil-safe lock rules, crash-consistent WAL, and deterministic membership activation. Asset-class ingress uses only Treasury V3-recognized CoNET-L1 canonical ERC-20s: `AssetBurnMintGateway` coordinates DLE proofs/accounting, while Treasury V3 performs exact burn and finalized refund/exit remint. Assets lacking the frozen Treasury proxy/token/policy/DLE-authority tuple and exact supply semantics are ineligible. Economics separates the 1 bp protocol value fee, objective payer-capped execution reserve, and fixed epoch availability budget; ordinary exit uses `ExitFeeQuoteV1`, while forced exit remains funded by the emergency reserve. These rules supersede every older conflicting sentence.
 
 **Economic evidence boundary:** the 100-USDC per-tip safety cap is frozen, while the 10-USDC candidate floor and 1.2× execution/availability targets remain inactive pre-production calibration gates until §13.6 is closed by an accepted measured `costEpoch`. Any “requires 1.2×” wording below describes the post-measurement admission condition, not a currently proven operating ratio.
 
@@ -3186,7 +3258,10 @@ Security remains conditional. The ≤100 USDC-equivalent asset-tip cap limits di
 | **Archive node** | Non-block-producing full-state replayer, quality checker, DA/history server, QUEUED replica, validator selector, and BFT voter. |
 | **\(G_e\) / \(N_e\) / \(U_e\)** | Registered live-group count / unique active voting archive count / eligible unassigned count. With disjoint five-voter rosters, \(N_e=5G_e\); one fully serviceable group may form iff \(U_e\ge7\). |
 | **Archive-plane fission** | L2 archive groups of five newly assigned active voters plus two dedicated ordered standbys; assigned identities do not overlap; no existing-tip remap (§5.2). |
-| **Cross-group read replica** | An archive retaining old inventory or mirroring another group’s finalized AC chain. It may serve proof-carrying history/current-finalized-state/DA reads, but is not a member and has no foreign-group consensus or write authority (§5.2). |
+| **DLE Chain ID** | Protocol Chain ID of the DLE plane = hosting archive **`groupId`**. Not CoNET L1 EVM `224422`, not a lab EVM id, and not the tip NFT id (§5.2.0d). |
+| **Global Archive Routing Registry** | CoNET L1 contract (or facade) that records every live group’s archive **wallets** and hosted chain **NFT ids**. Clients obtain **chain routing** and **authoritative history providers** from it (§5.2.0d). |
+| **Global RPC truth / foreign-group proxy** | Every live archive exposes one plane-wide DLE RPC entry. Queries for another group **MUST** be proxied to that group’s `historyProviders`; a local replica is not RPC truth (§5.2.0d). |
+| **Cross-group read replica** | An archive retaining old inventory or mirroring another group’s finalized AC chain. Used for DA recovery / catch-up / audit after host-group AC verification; **not** a substitute for the foreign-group RPC proxy; no foreign-group consensus or write authority (§5.2, §5.2.0d). |
 | **Placement salt \(R_e^{\mathrm{place}}\)** | Domain-separated host-placement seed over L1 finalized beacon randomness, L1 queue range hash, epoch, and eligible-group registry root (§5.2.0a). |
 | **L1BeaconFinalizedRandomness** | CoNET CL finalized random beacon field (RANDAO or equivalent) bound into production \(R_e\); **not** execution `block.hash` (§7.8.1). |
 | **MigrationCertificate (MC)** | Dual-\(Q_A\) EIP-712 certificate for a tip handoff during dissolve/re-home; binds membership roots and nonce; forbids silent remapping (§5.2.2). |

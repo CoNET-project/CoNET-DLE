@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import process from 'node:process'
+import { createArchiveBftEngine } from './bft/engine.js'
 import { listenArchiveHttp } from './http.js'
 import { openArchiveStore } from './store.js'
 
@@ -97,11 +98,20 @@ function persistState(): void {
 persistState()
 store.appendWal({ type: 'lab-start', domainId: state.domainId, role: state.role })
 
+const engine = createArchiveBftEngine({
+  domainId: config.domainId,
+  role: config.role,
+  peers: Array.isArray(config.peers) ? config.peers : [],
+  store,
+})
+
 const server = await listenArchiveHttp({
   port,
   store,
   identity: { domainId: config.domainId, role: config.role },
+  facadeViews: () => engine.facadeViews(),
   extraHealth() {
+    const bft = engine.status()
     return {
       agent: LAB_AGENT_COMPAT,
       isolatedFromElCl: true,
@@ -110,13 +120,27 @@ const server = await listenArchiveHttp({
       heartbeats: state.heartbeats,
       lastQuorumOk: state.lastQuorumOk,
       lastPeerOk: state.lastPeerOk,
+      bftNetworked: bft.networked,
+      bftModeA: bft.modeAAccepted,
+      bftCertificateAvailable: bft.certificateAvailable,
+      bftPrevoteCount: bft.prevoteCount,
+      bftPrecommitCount: bft.precommitCount,
+      bftVoted: bft.voted,
     }
   },
   extraGet(pathname) {
     if (pathname === '/state') return { ...state, uptimeMs: Date.now() - startedAt }
+    if (pathname === '/bft/status') return { ...engine.status() }
     return undefined
   },
+  onPost(pathname, body) {
+    if (pathname !== '/bft/message') return undefined
+    const result = engine.ingest(body)
+    return { status: result.ok ? 200 : 400, body: result }
+  },
 })
+
+await engine.start()
 
 function scheduleHeartbeat(): void {
   setTimeout(() => {
@@ -156,6 +180,7 @@ process.stdout.write(
 )
 
 const shutdown = (): void => {
+  engine.stop()
   void server.close().then(() => process.exit(0))
 }
 process.on('SIGINT', shutdown)

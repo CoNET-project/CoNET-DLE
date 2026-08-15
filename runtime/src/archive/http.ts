@@ -1,14 +1,11 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { isJsonRpcRequest, jsonRpcError, jsonRpcSuccess } from '../shared/jsonrpc.js'
+import { jsonRpcError } from '../shared/jsonrpc.js'
+import type { DleArchiveInfo, DleCertificateView, DleTipView } from '../shared/protocol.js'
 import {
-  DLE_COMMAND,
-  DLE_LAB_CHAIN_ID,
-  DLE_RUNTIME,
-  chainIdHex,
-  type DleArchiveInfo,
-  type DleTipView,
-  type JsonRpcRequest,
-} from '../shared/protocol.js'
+  buildArchiveFacadeInfo,
+  defaultFacadeViews,
+  dispatchArchiveJsonRpcEnvelope,
+} from './jsonrpcFacade.js'
 import type { ArchiveStore } from './store.js'
 
 const CORS = {
@@ -26,6 +23,8 @@ export interface ArchiveHttpOptions {
   }
   extraHealth?: () => Record<string, unknown>
   extraGet?: (pathname: string) => Record<string, unknown> | undefined
+  facadeViews?: () => { tip: DleTipView; certificate: DleCertificateView }
+  onPost?: (pathname: string, body: unknown) => { status: number; body: unknown } | undefined
 }
 
 export interface ArchiveHttpServer {
@@ -56,49 +55,7 @@ function readBody(req: IncomingMessage): Promise<string> {
 }
 
 function archiveInfo(port: number, identity?: ArchiveHttpOptions['identity']): DleArchiveInfo & Record<string, unknown> {
-  return {
-    command: DLE_COMMAND.archive,
-    runtime: DLE_RUNTIME.nodejs,
-    producesBlocks: false,
-    hasTipVm: false,
-    chainId: DLE_LAB_CHAIN_ID,
-    chainIdHex: chainIdHex(DLE_LAB_CHAIN_ID),
-    port,
-    ...(identity ?? {}),
-  }
-}
-
-function tipView(): DleTipView {
-  return {
-    height: '0x0',
-    hash: '0x0000000000000000000000000000000000000000000000000000000000000000',
-    finalized: false,
-    note: 'Archive node does not produce blocks; tip finality is an Archive Certificate.',
-  }
-}
-
-function dispatch(request: JsonRpcRequest, info: DleArchiveInfo): ReturnType<typeof jsonRpcSuccess> | ReturnType<typeof jsonRpcError> {
-  switch (request.method) {
-    case 'dle_info':
-      return jsonRpcSuccess(request.id, info)
-    case 'dle_tip':
-      return jsonRpcSuccess(request.id, tipView())
-    case 'dle_getArchiveCertificate':
-      return jsonRpcSuccess(request.id, {
-        available: false,
-        reason: 'Networked Archive Certificate is not produced in this scaffold.',
-      })
-    case 'eth_chainId':
-      return jsonRpcSuccess(request.id, info.chainIdHex)
-    case 'eth_blockNumber':
-      return jsonRpcSuccess(request.id, tipView().height)
-    case 'eth_call':
-    case 'eth_estimateGas':
-    case 'eth_sendRawTransaction':
-      return jsonRpcError(request.id, -32601, 'DLE has no tip VM; this archive node does not execute eth_call')
-    default:
-      return jsonRpcError(request.id, -32601, `method not found: ${request.method}`)
-  }
+  return buildArchiveFacadeInfo(port, identity)
 }
 
 export async function listenArchiveHttp(options: ArchiveHttpOptions): Promise<ArchiveHttpServer> {
@@ -126,17 +83,17 @@ export async function listenArchiveHttp(options: ArchiveHttpOptions): Promise<Ar
     }
     if (req.method === 'GET' && url.pathname === '/api/v2/dle') {
       const extra = options.extraHealth?.() ?? {}
+      const views = options.facadeViews?.() ?? defaultFacadeViews()
       sendJson(res, 200, {
         schema: 'DleExplorerApiV1',
         chainId: info.chainId,
         chainIdHex: info.chainIdHex,
         producesBlocks: false,
         hasTipVm: false,
-        tip: tipView(),
-        certificate: {
-          available: false,
-          reason: 'Networked Archive Certificate is not produced in this scaffold.',
-        },
+        l1Isolated: true,
+        batchSupported: true,
+        tip: views.tip,
+        certificate: views.certificate,
         archive: {
           ok: true,
           ...info,
@@ -154,10 +111,10 @@ export async function listenArchiveHttp(options: ArchiveHttpOptions): Promise<Ar
       return
     }
     if (req.method === 'GET' && url.pathname === '/api/v2/dle/certificate') {
+      const views = options.facadeViews?.() ?? defaultFacadeViews()
       sendJson(res, 200, {
         schema: 'DleExplorerCertificateV1',
-        available: false,
-        reason: 'Networked Archive Certificate is not produced in this scaffold.',
+        ...views.certificate,
       })
       return
     }
@@ -168,22 +125,41 @@ export async function listenArchiveHttp(options: ArchiveHttpOptions): Promise<Ar
         return
       }
     }
-    if (req.method === 'POST' && (url.pathname === '/' || url.pathname === '/rpc')) {
+    if (req.method === 'POST') {
       let parsed: unknown
       try {
-        parsed = JSON.parse(await readBody(req)) as unknown
+        const raw = await readBody(req)
+        parsed = raw === '' ? {} : (JSON.parse(raw) as unknown)
       } catch {
         sendJson(res, 400, jsonRpcError(null, -32700, 'parse error'))
         return
       }
-      if (!isJsonRpcRequest(parsed)) {
-        sendJson(res, 400, jsonRpcError(null, -32600, 'invalid request'))
+      if (options.onPost !== undefined) {
+        const handled = options.onPost(url.pathname, parsed)
+        if (handled !== undefined) {
+          sendJson(res, handled.status, handled.body)
+          return
+        }
+      }
+      if (url.pathname === '/' || url.pathname === '/rpc') {
+        const views = options.facadeViews?.() ?? defaultFacadeViews()
+        const dispatched = dispatchArchiveJsonRpcEnvelope(parsed, info, views)
+        if (!dispatched.ok) {
+          sendJson(res, dispatched.status, dispatched.body)
+          return
+        }
+        const method = Array.isArray(parsed)
+          ? 'batch'
+          : typeof parsed === 'object' && parsed !== null && 'method' in parsed
+            ? String((parsed as { method: unknown }).method)
+            : 'rpc'
+        const ok = Array.isArray(dispatched.body)
+          ? dispatched.body.every((row) => !('error' in row))
+          : !('error' in dispatched.body)
+        options.store.appendWal({ type: 'rpc', method, ok })
+        sendJson(res, 200, dispatched.body)
         return
       }
-      const response = dispatch(parsed, info)
-      options.store.appendWal({ type: 'rpc', method: parsed.method, ok: !('error' in response) })
-      sendJson(res, 200, response)
-      return
     }
     sendJson(res, 404, { ok: false, error: 'not found' })
   }
@@ -205,6 +181,9 @@ export async function listenArchiveHttp(options: ArchiveHttpOptions): Promise<Ar
     },
     close() {
       return new Promise((resolve, reject) => {
+        if (typeof server.closeAllConnections === 'function') {
+          server.closeAllConnections()
+        }
         server.close((error) => {
           if (error) reject(error)
           else resolve()

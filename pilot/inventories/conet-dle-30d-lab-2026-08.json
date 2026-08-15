@@ -12,7 +12,8 @@
       "region": "us-east-ny",
       "networkAsn": "AS8560",
       "role": "active",
-      "billingRef": "usd-4-unmetered-host-ionos-74-208-224-45"
+      "billingRef": "usd-4-unmetered-host-ionos-74-208-224-45",
+      "participantWallet": "0xB7D3541290b6Ca21C94427D738b1C250c1Cb9d14"
     },
     {
       "domainId": "fd-02-ionos-189",
@@ -23,7 +24,8 @@
       "region": "us-east-ny",
       "networkAsn": "AS8560",
       "role": "active",
-      "billingRef": "usd-4-unmetered-host-ionos-216-225-197-189"
+      "billingRef": "usd-4-unmetered-host-ionos-216-225-197-189",
+      "participantWallet": "0x6da445Bd5ffC8a68A09b132e0AD5Eb5416fBe9B9"
     },
     {
       "domainId": "fd-03-ionos-98",
@@ -34,7 +36,8 @@
       "region": "us-central-mo",
       "networkAsn": "AS8560",
       "role": "active",
-      "billingRef": "usd-4-unmetered-host-ionos-198-251-77-98"
+      "billingRef": "usd-4-unmetered-host-ionos-198-251-77-98",
+      "participantWallet": "0xf264D0EA6A78D3a35EDb1F6A6358088d02D0a626"
     },
     {
       "domainId": "fd-04-hosthatch-tokyo1",
@@ -45,7 +48,8 @@
       "region": "ap-northeast-tokyo",
       "networkAsn": "AS63473",
       "role": "active",
-      "billingRef": "usd-4-unmetered-host-hosthatch-tokyo1-167-254-243-38"
+      "billingRef": "usd-4-unmetered-host-hosthatch-tokyo1-167-254-243-38",
+      "participantWallet": "0x7C162b6A2e6d81f80163666ddAE3Cf368bDCA026"
     },
     {
       "domainId": "fd-05-hosthatch-tokyo2",
@@ -56,7 +60,8 @@
       "region": "ap-northeast-tokyo",
       "networkAsn": "AS63473",
       "role": "active",
-      "billingRef": "usd-4-unmetered-host-hosthatch-tokyo2-170-205-39-67"
+      "billingRef": "usd-4-unmetered-host-hosthatch-tokyo2-170-205-39-67",
+      "participantWallet": "0x02480639F3A87309a1EeC4BcC1A10B7AE13e7f7a"
     },
     {
       "domainId": "fd-06-ionos-174",
@@ -67,7 +72,8 @@
       "region": "us-east-ny",
       "networkAsn": "AS8560",
       "role": "standby",
-      "billingRef": "usd-4-unmetered-host-ionos-216-225-193-174"
+      "billingRef": "usd-4-unmetered-host-ionos-216-225-193-174",
+      "participantWallet": "0xb25932EBB7460B40741aA9431798b0f18331fE7a"
     },
     {
       "domainId": "fd-07-ionos-207",
@@ -78,7 +84,8 @@
       "region": "us-east-ny",
       "networkAsn": "AS8560",
       "role": "standby",
-      "billingRef": "usd-4-unmetered-host-ionos-212-227-242-207"
+      "billingRef": "usd-4-unmetered-host-ionos-212-227-242-207",
+      "participantWallet": "0xc97BBcF81C793e32d385337eccD1f211DF4757a5"
     }
   ]
 }

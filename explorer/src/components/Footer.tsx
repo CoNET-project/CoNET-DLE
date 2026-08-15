@@ -1,8 +1,13 @@
 import { Award, Braces, LayoutDashboard, ScrollText, Server } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
+import { useScrollFooterOpacity } from '../hooks/useScrollFooterOpacity'
+import { formatEventTime } from '../lib/format'
 import { DLE_LAB_CHAIN_ID_HEX } from '../protocol'
 import { useExplorer } from '../providers/ExplorerProvider'
-import { formatEventTime } from '../lib/format'
+
+export const FOOTER_RESERVE_STYLE = {
+  paddingBottom: 'calc(7.25rem + env(safe-area-inset-bottom, 0px))',
+} as const
 
 const tabs = [
   { to: '/', label: 'Home', icon: LayoutDashboard, end: true },
@@ -14,12 +19,19 @@ const tabs = [
 
 export function Footer() {
   const { snapshot } = useExplorer()
+  const opacity = useScrollFooterOpacity(true)
+  const pointer = opacity < 0.05 ? 'none' : 'auto'
   const updated = snapshot.fetchedAt && Date.parse(snapshot.fetchedAt) > 0 ? formatEventTime(snapshot.fetchedAt) : '—'
 
   return (
     <footer
-      className="shrink-0 border-t border-cyan-400/15 bg-[#060b14]/95 backdrop-blur-md"
-      style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0px))' }}
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-cyan-400/15 bg-[#060b14]/95 backdrop-blur-md transition-[opacity,transform] duration-300 ease-out"
+      style={{
+        paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0px))',
+        opacity,
+        transform: `translateY(${(1 - opacity) * 100}%)`,
+        pointerEvents: pointer,
+      }}
     >
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-2 text-[11px] text-slate-400">
         <p>

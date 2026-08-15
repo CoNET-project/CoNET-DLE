@@ -17,6 +17,7 @@ import {
   rpcRowFromResponse,
 } from '../lib/archiveClient'
 import { sortEventsNewestFirst } from '../lib/events'
+import { fetchArchiveWalletsFromL1, mergeArchivesWithL1Wallets } from '../lib/l1Routing'
 import { startTimeoutChain } from '../lib/scheduleRefresh'
 import {
   loadArchiveUrl,
@@ -56,7 +57,7 @@ export function useArchiveFeed() {
     const url = urlRef.current
     const previous = snapshotRef.current
     try {
-      const [healthResult, overview, liveEvents, liveCertificate] = await Promise.all([
+      const [healthResult, overview, liveEvents, liveCertificate, l1Wallets] = await Promise.all([
         fetchArchiveHealth(url).then(
           (value) => ({ ok: true as const, value }),
           () => ({ ok: false as const }),
@@ -64,6 +65,7 @@ export function useArchiveFeed() {
         fetchExplorerOverview(url),
         fetchExplorerEvents(url),
         fetchExplorerCertificate(url),
+        fetchArchiveWalletsFromL1(),
       ])
 
       const health = healthResult.ok ? healthResult.value : previous.health
@@ -106,12 +108,15 @@ export function useArchiveFeed() {
           parseCertificate(certFromRpc?.result) ??
           previous.certificate,
         events: sortEventsNewestFirst(liveEvents ?? previous.events),
-        archives: mergeArchivesWithHealth(previous.archives, health),
+        archives: mergeArchivesWithL1Wallets(
+          mergeArchivesWithHealth(previous.archives, health),
+          l1Wallets,
+        ),
         rpc: rpcSettled,
       }
       snapshotRef.current = next
       setSnapshot(next)
-      if (healthResult.ok || liveEvents !== null || overview !== null) {
+      if (healthResult.ok || liveEvents !== null || overview !== null || l1Wallets !== null) {
         saveTrustedSnapshot(next)
       }
       return healthResult.ok
