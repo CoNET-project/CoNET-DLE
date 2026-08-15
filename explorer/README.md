@@ -1,6 +1,6 @@
 # CoNET-DLE Explorer
 
-Read-only explorer for **CoNET-DLE** archive events, 5+2 node identity, and Archive Certificates.
+Read-only explorer for **CoNET-DLE** archive events, 5+2 node identity, Archive Certificates, and the lab on-demand waiting pool / 7+2 SelectionLog.
 
 This is **not** an L1 Blockscout clone and **not** an `eth_call` browser.
 
@@ -52,11 +52,13 @@ This explorer does **not** claim 30-day qualification. Heartbeat quorum on 27101
 
 ## What it shows
 
-1. **Home** — chain id, tip height, archive count, 5+2 roles, AC / finalized, `producesBlocks=false`, no tip VM.
-2. **Events** — WAL / heartbeat / rpc / lab-start rows from `/api/v2/dle/events`, or last trusted / demo fixture.
+1. **Home** — chain id, tip height, archive count, 5+2 roles, AC / finalized, waiting pool, 7+2 SelectionLog (`poolRoot` / committee / standbys / endorsed), `producesBlocks=false`, no tip VM.
+2. **Events** — WAL / heartbeat / rpc / lab-start / ondemand-* rows from `/api/v2/dle/events`, or last trusted / demo fixture.
 3. **Archives** — seven-domain identity and live health overlay.
-4. **Certificates** — lab networked 4-of-5 PrecommitQC when archives have formed one; otherwise honest empty. Not production SSZ / EIP-712.
-5. **JSON-RPC** — ethers-shaped read facade (`eth_chainId`, `net_version`, synthetic tip block) plus `dle_*`; explicit rejection of `eth_call` / `eth_getBalance` / writes. Isolated from L1 `publicrpc`.
+4. **Certificates** — lab networked 4-of-5 PrecommitQC **and** the on-demand SelectionLog. They are different objects. AC is tip finality; SelectionLog is the recomputable 7+2 draw. Not production SSZ / EIP-712.
+5. **JSON-RPC** — ethers-shaped read facade (`eth_chainId`, `net_version`, synthetic tip block) plus `dle_*` including `dle_getWaitingPool` / `dle_getSelectionLog`; explicit rejection of `eth_call` / `eth_getBalance` / writes. Isolated from L1 `publicrpc`.
+
+First paint seeds the 2026-08-15 lab accept (`poolRoot=0x1a0895b0…8def74`, 7+2, 5 active attests, `endorsed=true`). A trusted live `/ondemand/pool` + `/ondemand/selection` (or `/api/v2/dle`) overwrites that snapshot. Failed fetches keep the last trusted values. Lab beacon is keccak after freeze, **not** CoNET L1 CL RANDAO. HMAC attests are forgeable. SelectionLog is **not** an Archive Certificate and **not** 30-day qualification.
 
 Refresh uses a `setTimeout` chain. Failed fetches keep the last trusted snapshot and never treat an untrusted empty body as “no data”.
 

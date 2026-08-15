@@ -37,6 +37,48 @@ export interface DleCertificateView {
   labOnly?: boolean
 }
 
+export interface DleWaitingPoolView {
+  schema: 'DleWaitingPoolV1'
+  groupId: string
+  epoch: number
+  shardId: string
+  frozen: boolean
+  miners: string[]
+  poolRoot: string | null
+  minerCount: number
+  source: 'live' | 'fixture'
+}
+
+export interface DleSelectionLogAvailable {
+  schema: 'DleLabSelectionLogV1'
+  available: true
+  endorsed: boolean
+  epoch: number
+  shardId: string
+  groupId: string
+  poolRoot: string
+  beacon: string
+  roulette: string
+  committee: string[]
+  standbys: string[]
+  attestors: string[]
+  quorum: number
+  labBeacon: true
+  labOnly: true
+  note: string
+  acceptedAt?: string
+  source: 'live' | 'fixture'
+}
+
+export interface DleSelectionLogUnavailable {
+  schema: 'DleLabSelectionLogV1'
+  available: false
+  reason: string
+  source: 'live' | 'fixture'
+}
+
+export type DleSelectionLogView = DleSelectionLogAvailable | DleSelectionLogUnavailable
+
 export interface JsonRpcError {
   code: number
   message: string
@@ -100,6 +142,8 @@ export interface TrustedExplorerSnapshot {
   info: DleArchiveInfo | null
   tip: DleTipView | null
   certificate: DleCertificateView | null
+  waitingPool: DleWaitingPoolView | null
+  selection: DleSelectionLogView | null
   events: DleEventRow[]
   archives: LabArchiveRow[]
   rpc: RpcProbeRow[]

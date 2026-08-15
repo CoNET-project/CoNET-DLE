@@ -1,0 +1,270 @@
+{
+  "schema": "OnDemandP3AcceptV1",
+  "pilotId": "conet-dle-30d-lab-2026-08",
+  "acceptedAt": "2026-08-15T06:14:24.034Z",
+  "port": 27101,
+  "note": "Lab on-demand SelectionLog on TCP 27101. Beacon is keccak after freeze, not CoNET L1 CL RANDAO. HMAC-SHA256 attests are derived from public domainId — forgeable. SelectionLog is not an Archive Certificate and not 30-day qualification.",
+  "poolRoot": "0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74",
+  "committee": [
+    "0xa110000000000000000000000000000000000002",
+    "0xa110000000000000000000000000000000000001",
+    "0xa110000000000000000000000000000000000005",
+    "0xa110000000000000000000000000000000000008",
+    "0xa110000000000000000000000000000000000007",
+    "0xa110000000000000000000000000000000000004",
+    "0xa110000000000000000000000000000000000006"
+  ],
+  "standbys": [
+    "0xa110000000000000000000000000000000000009",
+    "0xa110000000000000000000000000000000000003"
+  ],
+  "activeArchives": [
+    "fd-01-ionos-45",
+    "fd-02-ionos-189",
+    "fd-03-ionos-98",
+    "fd-04-hosthatch-tokyo1",
+    "fd-05-hosthatch-tokyo2"
+  ],
+  "standbyArchives": [
+    "fd-06-ionos-174",
+    "fd-07-ionos-207"
+  ],
+  "ok": true,
+  "poolOk": true,
+  "selectionOk": true,
+  "endorsedOk": true,
+  "protectedOk": true,
+  "rows": [
+    {
+      "domainId": "fd-01-ionos-45",
+      "role": "active",
+      "frozen": true,
+      "poolRoot": "0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74",
+      "roulette": "0x821aa566186a1608f5238778cd5788e9d8c12d328486ae27291f6510b6e61584",
+      "committee": [
+        "0xa110000000000000000000000000000000000002",
+        "0xa110000000000000000000000000000000000001",
+        "0xa110000000000000000000000000000000000005",
+        "0xa110000000000000000000000000000000000008",
+        "0xa110000000000000000000000000000000000007",
+        "0xa110000000000000000000000000000000000004",
+        "0xa110000000000000000000000000000000000006"
+      ],
+      "standbys": [
+        "0xa110000000000000000000000000000000000009",
+        "0xa110000000000000000000000000000000000003"
+      ],
+      "attestors": [
+        "fd-01-ionos-45",
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ],
+      "endorsed": true,
+      "attestCount": 5,
+      "geth": "",
+      "beacon": "",
+      "validator": "",
+      "detail": "HOST=ubuntu\nUSER=peter\nMEM=3.8Gi 611Mi 3.2Gi\nARCHIVE_PIDS=814554\nAGENT_PIDS=\nGETH=\nBEACON=\nVALIDATOR=\n{\"ok\":true,\"command\":\"archive\",\"runtime\":\"nodejs\",\"producesBlocks\":false,\"hasTipVm\":false,\"l1Isolated\":true,\"l1ChainIdForbidden\":224422,\"batchSupported\":true,\"chainId\":281669,\"chainIdHex\":\"0x44c45\",\"port\":27101,\"domainId\":\"fd-01-ionos-45\",\"role\":\"active\",\"agent\":\"dle-30d-lab\",\"isolatedFromElCl\":true,\"uptimeMs\":113482,\"heartbeats\":18,\"lastQuorumOk\":true,\"lastPeerOk\":6,\"bftNetworked\":true,\"bftModeA\":true,\"bftCertificateAvailable\":true,\"bftPrevoteCount\":5,\"bftPrecommitCount\":5,\"bftVoted\":true,\"ondemandFrozen\":true,\"ondemandMinerCount\":9,\"ondemandCommitteeCount\":7,\"ondemandStandbyCount\":2,\"ondemandAttestCount\":5,\"ondemandEndorsed\":true,\"ondemandPoolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\"}SEL_BEGIN\n{\"schema\":\"DleLabSelectionLogV1\",\"available\":true,\"endorsed\":true,\"epoch\":1,\"shardId\":\"dle.lab.shard.v1\",\"groupId\":\"dle.lab.group.v1\",\"poolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\",\"beacon\":\"0x64b1ce4661950ebbb3cb8dfac57418e40e13103d216f45a209ee81bca7afe494\",\"roulette\":\"0x821aa566186a1608f5238778cd5788e9d8c12d328486ae27291f6510b6e61584\",\"committee\":[\"0xa110000000000000000000000000000000000002\",\"0xa110000000000000000000000000000000000001\",\"0xa110000000000000000000000000000000000005\",\"0xa110000000000000000000000000000000000008\",\"0xa110000000000000000000000000000000000007\",\"0xa110000000000000000000000000000000000004\",\"0xa110000000000000000000000000000000000006\"],\"standbys\":[\"0xa110000000000000000000000000000000000009\",\"0xa110000000000000000000000000000000000003\"],\"attestors\":[\"fd-01-ionos-45\",\"fd-02-ionos-189\",\"fd-03-ionos-98\",\"fd-04-hosthatch-tokyo1\",\"fd-05-hosthatch-tokyo2\"],\"quorum\":4,\"labBeacon\":true,\"labOnly\":true,\"note\":\"Lab SelectionLog. Beacon is keccak after freeze, not CoNET L1 CL RANDAO. HMAC attests are forgeable. Not an Archive Certificate. Not 30-day qualification.\"}\nSEL_END\nPOOL_BEGIN\n{\"schema\":\"DleWaitingPoolV1\",\"groupId\":\"dle.lab.group.v1\",\"epoch\":1,\"shardId\":\"dle.lab.shard.v1\",\"frozen\":true,\"miners\":[\"0xa110000000000000000000000000000000000001\",\"0xa110000000000000000000000000000000000002\",\"0xa110000000000000000000000000000000000003\",\"0xa110000000000000000000000000000000000004\",\"0xa110000000000000000000000000000000000005\",\"0xa110000000000000000000000000000000000006\",\"0xa110000000000000000000000000000000000007\",\"0xa110000000000000000000000000000000000008\",\"0xa110000000000000000000000000000000000009\"],\"poolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\",\"minerCount\":9}\nPOOL_END\n"
+    },
+    {
+      "domainId": "fd-02-ionos-189",
+      "role": "active",
+      "frozen": true,
+      "poolRoot": "0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74",
+      "roulette": "0x821aa566186a1608f5238778cd5788e9d8c12d328486ae27291f6510b6e61584",
+      "committee": [
+        "0xa110000000000000000000000000000000000002",
+        "0xa110000000000000000000000000000000000001",
+        "0xa110000000000000000000000000000000000005",
+        "0xa110000000000000000000000000000000000008",
+        "0xa110000000000000000000000000000000000007",
+        "0xa110000000000000000000000000000000000004",
+        "0xa110000000000000000000000000000000000006"
+      ],
+      "standbys": [
+        "0xa110000000000000000000000000000000000009",
+        "0xa110000000000000000000000000000000000003"
+      ],
+      "attestors": [
+        "fd-01-ionos-45",
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ],
+      "endorsed": true,
+      "attestCount": 5,
+      "geth": "",
+      "beacon": "2818",
+      "validator": "",
+      "detail": "HOST=ubuntu\nUSER=peter\nMEM=3.8Gi 1.1Gi 2.6Gi\nARCHIVE_PIDS=187837\nAGENT_PIDS=\nGETH=\nBEACON=2818\nVALIDATOR=\n{\"ok\":true,\"command\":\"archive\",\"runtime\":\"nodejs\",\"producesBlocks\":false,\"hasTipVm\":false,\"l1Isolated\":true,\"l1ChainIdForbidden\":224422,\"batchSupported\":true,\"chainId\":281669,\"chainIdHex\":\"0x44c45\",\"port\":27101,\"domainId\":\"fd-02-ionos-189\",\"role\":\"active\",\"agent\":\"dle-30d-lab\",\"isolatedFromElCl\":true,\"uptimeMs\":100915,\"heartbeats\":16,\"lastQuorumOk\":true,\"lastPeerOk\":6,\"bftNetworked\":true,\"bftModeA\":true,\"bftCertificateAvailable\":true,\"bftPrevoteCount\":5,\"bftPrecommitCount\":5,\"bftVoted\":true,\"ondemandFrozen\":true,\"ondemandMinerCount\":9,\"ondemandCommitteeCount\":7,\"ondemandStandbyCount\":2,\"ondemandAttestCount\":5,\"ondemandEndorsed\":true,\"ondemandPoolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\"}SEL_BEGIN\n{\"schema\":\"DleLabSelectionLogV1\",\"available\":true,\"endorsed\":true,\"epoch\":1,\"shardId\":\"dle.lab.shard.v1\",\"groupId\":\"dle.lab.group.v1\",\"poolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\",\"beacon\":\"0x64b1ce4661950ebbb3cb8dfac57418e40e13103d216f45a209ee81bca7afe494\",\"roulette\":\"0x821aa566186a1608f5238778cd5788e9d8c12d328486ae27291f6510b6e61584\",\"committee\":[\"0xa110000000000000000000000000000000000002\",\"0xa110000000000000000000000000000000000001\",\"0xa110000000000000000000000000000000000005\",\"0xa110000000000000000000000000000000000008\",\"0xa110000000000000000000000000000000000007\",\"0xa110000000000000000000000000000000000004\",\"0xa110000000000000000000000000000000000006\"],\"standbys\":[\"0xa110000000000000000000000000000000000009\",\"0xa110000000000000000000000000000000000003\"],\"attestors\":[\"fd-01-ionos-45\",\"fd-02-ionos-189\",\"fd-03-ionos-98\",\"fd-04-hosthatch-tokyo1\",\"fd-05-hosthatch-tokyo2\"],\"quorum\":4,\"labBeacon\":true,\"labOnly\":true,\"note\":\"Lab SelectionLog. Beacon is keccak after freeze, not CoNET L1 CL RANDAO. HMAC attests are forgeable. Not an Archive Certificate. Not 30-day qualification.\"}\nSEL_END\nPOOL_BEGIN\n{\"schema\":\"DleWaitingPoolV1\",\"groupId\":\"dle.lab.group.v1\",\"epoch\":1,\"shardId\":\"dle.lab.shard.v1\",\"frozen\":true,\"miners\":[\"0xa110000000000000000000000000000000000001\",\"0xa110000000000000000000000000000000000002\",\"0xa110000000000000000000000000000000000003\",\"0xa110000000000000000000000000000000000004\",\"0xa110000000000000000000000000000000000005\",\"0xa110000000000000000000000000000000000006\",\"0xa110000000000000000000000000000000000007\",\"0xa110000000000000000000000000000000000008\",\"0xa110000000000000000000000000000000000009\"],\"poolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\",\"minerCount\":9}\nPOOL_END\n"
+    },
+    {
+      "domainId": "fd-03-ionos-98",
+      "role": "active",
+      "frozen": true,
+      "poolRoot": "0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74",
+      "roulette": "0x821aa566186a1608f5238778cd5788e9d8c12d328486ae27291f6510b6e61584",
+      "committee": [
+        "0xa110000000000000000000000000000000000002",
+        "0xa110000000000000000000000000000000000001",
+        "0xa110000000000000000000000000000000000005",
+        "0xa110000000000000000000000000000000000008",
+        "0xa110000000000000000000000000000000000007",
+        "0xa110000000000000000000000000000000000004",
+        "0xa110000000000000000000000000000000000006"
+      ],
+      "standbys": [
+        "0xa110000000000000000000000000000000000009",
+        "0xa110000000000000000000000000000000000003"
+      ],
+      "attestors": [
+        "fd-01-ionos-45",
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ],
+      "endorsed": true,
+      "attestCount": 5,
+      "geth": "1254206",
+      "beacon": "1219175",
+      "validator": "",
+      "detail": "HOST=ubuntu\nUSER=peter\nMEM=3.8Gi 2.5Gi 1.3Gi\nARCHIVE_PIDS=2142470\nAGENT_PIDS=\nGETH=1254206\nBEACON=1219175\nVALIDATOR=\n{\"ok\":true,\"command\":\"archive\",\"runtime\":\"nodejs\",\"producesBlocks\":false,\"hasTipVm\":false,\"l1Isolated\":true,\"l1ChainIdForbidden\":224422,\"batchSupported\":true,\"chainId\":281669,\"chainIdHex\":\"0x44c45\",\"port\":27101,\"domainId\":\"fd-03-ionos-98\",\"role\":\"active\",\"agent\":\"dle-30d-lab\",\"isolatedFromElCl\":true,\"uptimeMs\":88986,\"heartbeats\":14,\"lastQuorumOk\":true,\"lastPeerOk\":6,\"bftNetworked\":true,\"bftModeA\":true,\"bftCertificateAvailable\":true,\"bftPrevoteCount\":5,\"bftPrecommitCount\":5,\"bftVoted\":true,\"ondemandFrozen\":true,\"ondemandMinerCount\":9,\"ondemandCommitteeCount\":7,\"ondemandStandbyCount\":2,\"ondemandAttestCount\":5,\"ondemandEndorsed\":true,\"ondemandPoolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\"}SEL_BEGIN\n{\"schema\":\"DleLabSelectionLogV1\",\"available\":true,\"endorsed\":true,\"epoch\":1,\"shardId\":\"dle.lab.shard.v1\",\"groupId\":\"dle.lab.group.v1\",\"poolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\",\"beacon\":\"0x64b1ce4661950ebbb3cb8dfac57418e40e13103d216f45a209ee81bca7afe494\",\"roulette\":\"0x821aa566186a1608f5238778cd5788e9d8c12d328486ae27291f6510b6e61584\",\"committee\":[\"0xa110000000000000000000000000000000000002\",\"0xa110000000000000000000000000000000000001\",\"0xa110000000000000000000000000000000000005\",\"0xa110000000000000000000000000000000000008\",\"0xa110000000000000000000000000000000000007\",\"0xa110000000000000000000000000000000000004\",\"0xa110000000000000000000000000000000000006\"],\"standbys\":[\"0xa110000000000000000000000000000000000009\",\"0xa110000000000000000000000000000000000003\"],\"attestors\":[\"fd-01-ionos-45\",\"fd-02-ionos-189\",\"fd-03-ionos-98\",\"fd-04-hosthatch-tokyo1\",\"fd-05-hosthatch-tokyo2\"],\"quorum\":4,\"labBeacon\":true,\"labOnly\":true,\"note\":\"Lab SelectionLog. Beacon is keccak after freeze, not CoNET L1 CL RANDAO. HMAC attests are forgeable. Not an Archive Certificate. Not 30-day qualification.\"}\nSEL_END\nPOOL_BEGIN\n{\"schema\":\"DleWaitingPoolV1\",\"groupId\":\"dle.lab.group.v1\",\"epoch\":1,\"shardId\":\"dle.lab.shard.v1\",\"frozen\":true,\"miners\":[\"0xa110000000000000000000000000000000000001\",\"0xa110000000000000000000000000000000000002\",\"0xa110000000000000000000000000000000000003\",\"0xa110000000000000000000000000000000000004\",\"0xa110000000000000000000000000000000000005\",\"0xa110000000000000000000000000000000000006\",\"0xa110000000000000000000000000000000000007\",\"0xa110000000000000000000000000000000000008\",\"0xa110000000000000000000000000000000000009\"],\"poolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\",\"minerCount\":9}\nPOOL_END\n"
+    },
+    {
+      "domainId": "fd-04-hosthatch-tokyo1",
+      "role": "active",
+      "frozen": true,
+      "poolRoot": "0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74",
+      "roulette": "0x821aa566186a1608f5238778cd5788e9d8c12d328486ae27291f6510b6e61584",
+      "committee": [
+        "0xa110000000000000000000000000000000000002",
+        "0xa110000000000000000000000000000000000001",
+        "0xa110000000000000000000000000000000000005",
+        "0xa110000000000000000000000000000000000008",
+        "0xa110000000000000000000000000000000000007",
+        "0xa110000000000000000000000000000000000004",
+        "0xa110000000000000000000000000000000000006"
+      ],
+      "standbys": [
+        "0xa110000000000000000000000000000000000009",
+        "0xa110000000000000000000000000000000000003"
+      ],
+      "attestors": [
+        "fd-01-ionos-45",
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ],
+      "endorsed": true,
+      "attestCount": 5,
+      "geth": "",
+      "beacon": "",
+      "validator": "",
+      "detail": "HOST=tokyo1\nUSER=peter\nMEM=1.9Gi 429Mi 1.5Gi\nARCHIVE_PIDS=7913\nAGENT_PIDS=\nGETH=\nBEACON=\nVALIDATOR=\n{\"ok\":true,\"command\":\"archive\",\"runtime\":\"nodejs\",\"producesBlocks\":false,\"hasTipVm\":false,\"l1Isolated\":true,\"l1ChainIdForbidden\":224422,\"batchSupported\":true,\"chainId\":281669,\"chainIdHex\":\"0x44c45\",\"port\":27101,\"domainId\":\"fd-04-hosthatch-tokyo1\",\"role\":\"active\",\"agent\":\"dle-30d-lab\",\"isolatedFromElCl\":true,\"uptimeMs\":73907,\"heartbeats\":11,\"lastQuorumOk\":true,\"lastPeerOk\":6,\"bftNetworked\":true,\"bftModeA\":true,\"bftCertificateAvailable\":true,\"bftPrevoteCount\":5,\"bftPrecommitCount\":5,\"bftVoted\":true,\"ondemandFrozen\":true,\"ondemandMinerCount\":9,\"ondemandCommitteeCount\":7,\"ondemandStandbyCount\":2,\"ondemandAttestCount\":5,\"ondemandEndorsed\":true,\"ondemandPoolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\"}SEL_BEGIN\n{\"schema\":\"DleLabSelectionLogV1\",\"available\":true,\"endorsed\":true,\"epoch\":1,\"shardId\":\"dle.lab.shard.v1\",\"groupId\":\"dle.lab.group.v1\",\"poolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\",\"beacon\":\"0x64b1ce4661950ebbb3cb8dfac57418e40e13103d216f45a209ee81bca7afe494\",\"roulette\":\"0x821aa566186a1608f5238778cd5788e9d8c12d328486ae27291f6510b6e61584\",\"committee\":[\"0xa110000000000000000000000000000000000002\",\"0xa110000000000000000000000000000000000001\",\"0xa110000000000000000000000000000000000005\",\"0xa110000000000000000000000000000000000008\",\"0xa110000000000000000000000000000000000007\",\"0xa110000000000000000000000000000000000004\",\"0xa110000000000000000000000000000000000006\"],\"standbys\":[\"0xa110000000000000000000000000000000000009\",\"0xa110000000000000000000000000000000000003\"],\"attestors\":[\"fd-01-ionos-45\",\"fd-02-ionos-189\",\"fd-03-ionos-98\",\"fd-04-hosthatch-tokyo1\",\"fd-05-hosthatch-tokyo2\"],\"quorum\":4,\"labBeacon\":true,\"labOnly\":true,\"note\":\"Lab SelectionLog. Beacon is keccak after freeze, not CoNET L1 CL RANDAO. HMAC attests are forgeable. Not an Archive Certificate. Not 30-day qualification.\"}\nSEL_END\nPOOL_BEGIN\n{\"schema\":\"DleWaitingPoolV1\",\"groupId\":\"dle.lab.group.v1\",\"epoch\":1,\"shardId\":\"dle.lab.shard.v1\",\"frozen\":true,\"miners\":[\"0xa110000000000000000000000000000000000001\",\"0xa110000000000000000000000000000000000002\",\"0xa110000000000000000000000000000000000003\",\"0xa110000000000000000000000000000000000004\",\"0xa110000000000000000000000000000000000005\",\"0xa110000000000000000000000000000000000006\",\"0xa110000000000000000000000000000000000007\",\"0xa110000000000000000000000000000000000008\",\"0xa110000000000000000000000000000000000009\"],\"poolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\",\"minerCount\":9}\nPOOL_END\n"
+    },
+    {
+      "domainId": "fd-05-hosthatch-tokyo2",
+      "role": "active",
+      "frozen": true,
+      "poolRoot": "0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74",
+      "roulette": "0x821aa566186a1608f5238778cd5788e9d8c12d328486ae27291f6510b6e61584",
+      "committee": [
+        "0xa110000000000000000000000000000000000002",
+        "0xa110000000000000000000000000000000000001",
+        "0xa110000000000000000000000000000000000005",
+        "0xa110000000000000000000000000000000000008",
+        "0xa110000000000000000000000000000000000007",
+        "0xa110000000000000000000000000000000000004",
+        "0xa110000000000000000000000000000000000006"
+      ],
+      "standbys": [
+        "0xa110000000000000000000000000000000000009",
+        "0xa110000000000000000000000000000000000003"
+      ],
+      "attestors": [
+        "fd-01-ionos-45",
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ],
+      "endorsed": true,
+      "attestCount": 5,
+      "geth": "",
+      "beacon": "",
+      "validator": "",
+      "detail": "HOST=tokyo2\nUSER=peter\nMEM=1.9Gi 429Mi 1.5Gi\nARCHIVE_PIDS=13837\nAGENT_PIDS=\nGETH=\nBEACON=\nVALIDATOR=\n{\"ok\":true,\"command\":\"archive\",\"runtime\":\"nodejs\",\"producesBlocks\":false,\"hasTipVm\":false,\"l1Isolated\":true,\"l1ChainIdForbidden\":224422,\"batchSupported\":true,\"chainId\":281669,\"chainIdHex\":\"0x44c45\",\"port\":27101,\"domainId\":\"fd-05-hosthatch-tokyo2\",\"role\":\"active\",\"agent\":\"dle-30d-lab\",\"isolatedFromElCl\":true,\"uptimeMs\":58869,\"heartbeats\":9,\"lastQuorumOk\":true,\"lastPeerOk\":6,\"bftNetworked\":true,\"bftModeA\":true,\"bftCertificateAvailable\":true,\"bftPrevoteCount\":5,\"bftPrecommitCount\":5,\"bftVoted\":true,\"ondemandFrozen\":true,\"ondemandMinerCount\":9,\"ondemandCommitteeCount\":7,\"ondemandStandbyCount\":2,\"ondemandAttestCount\":5,\"ondemandEndorsed\":true,\"ondemandPoolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\"}SEL_BEGIN\n{\"schema\":\"DleLabSelectionLogV1\",\"available\":true,\"endorsed\":true,\"epoch\":1,\"shardId\":\"dle.lab.shard.v1\",\"groupId\":\"dle.lab.group.v1\",\"poolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\",\"beacon\":\"0x64b1ce4661950ebbb3cb8dfac57418e40e13103d216f45a209ee81bca7afe494\",\"roulette\":\"0x821aa566186a1608f5238778cd5788e9d8c12d328486ae27291f6510b6e61584\",\"committee\":[\"0xa110000000000000000000000000000000000002\",\"0xa110000000000000000000000000000000000001\",\"0xa110000000000000000000000000000000000005\",\"0xa110000000000000000000000000000000000008\",\"0xa110000000000000000000000000000000000007\",\"0xa110000000000000000000000000000000000004\",\"0xa110000000000000000000000000000000000006\"],\"standbys\":[\"0xa110000000000000000000000000000000000009\",\"0xa110000000000000000000000000000000000003\"],\"attestors\":[\"fd-01-ionos-45\",\"fd-02-ionos-189\",\"fd-03-ionos-98\",\"fd-04-hosthatch-tokyo1\",\"fd-05-hosthatch-tokyo2\"],\"quorum\":4,\"labBeacon\":true,\"labOnly\":true,\"note\":\"Lab SelectionLog. Beacon is keccak after freeze, not CoNET L1 CL RANDAO. HMAC attests are forgeable. Not an Archive Certificate. Not 30-day qualification.\"}\nSEL_END\nPOOL_BEGIN\n{\"schema\":\"DleWaitingPoolV1\",\"groupId\":\"dle.lab.group.v1\",\"epoch\":1,\"shardId\":\"dle.lab.shard.v1\",\"frozen\":true,\"miners\":[\"0xa110000000000000000000000000000000000001\",\"0xa110000000000000000000000000000000000002\",\"0xa110000000000000000000000000000000000003\",\"0xa110000000000000000000000000000000000004\",\"0xa110000000000000000000000000000000000005\",\"0xa110000000000000000000000000000000000006\",\"0xa110000000000000000000000000000000000007\",\"0xa110000000000000000000000000000000000008\",\"0xa110000000000000000000000000000000000009\"],\"poolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\",\"minerCount\":9}\nPOOL_END\n"
+    },
+    {
+      "domainId": "fd-06-ionos-174",
+      "role": "standby",
+      "frozen": true,
+      "poolRoot": "0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74",
+      "roulette": "0x821aa566186a1608f5238778cd5788e9d8c12d328486ae27291f6510b6e61584",
+      "committee": [
+        "0xa110000000000000000000000000000000000002",
+        "0xa110000000000000000000000000000000000001",
+        "0xa110000000000000000000000000000000000005",
+        "0xa110000000000000000000000000000000000008",
+        "0xa110000000000000000000000000000000000007",
+        "0xa110000000000000000000000000000000000004",
+        "0xa110000000000000000000000000000000000006"
+      ],
+      "standbys": [
+        "0xa110000000000000000000000000000000000009",
+        "0xa110000000000000000000000000000000000003"
+      ],
+      "attestors": [
+        "fd-01-ionos-45",
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ],
+      "endorsed": true,
+      "attestCount": 5,
+      "geth": "321215",
+      "beacon": "321318",
+      "validator": "",
+      "detail": "HOST=funny-aryabhata.216-225-194-180.plesk.page\nUSER=peter\nMEM=3.8Gi 3.3Gi 535Mi\nARCHIVE_PIDS=419987\nAGENT_PIDS=\nGETH=321215\nBEACON=321318\nVALIDATOR=\n{\"ok\":true,\"command\":\"archive\",\"runtime\":\"nodejs\",\"producesBlocks\":false,\"hasTipVm\":false,\"l1Isolated\":true,\"l1ChainIdForbidden\":224422,\"batchSupported\":true,\"chainId\":281669,\"chainIdHex\":\"0x44c45\",\"port\":27101,\"domainId\":\"fd-06-ionos-174\",\"role\":\"standby\",\"agent\":\"dle-30d-lab\",\"isolatedFromElCl\":true,\"uptimeMs\":45389,\"heartbeats\":7,\"lastQuorumOk\":true,\"lastPeerOk\":6,\"bftNetworked\":true,\"bftModeA\":true,\"bftCertificateAvailable\":true,\"bftPrevoteCount\":5,\"bftPrecommitCount\":5,\"bftVoted\":false,\"ondemandFrozen\":true,\"ondemandMinerCount\":9,\"ondemandCommitteeCount\":7,\"ondemandStandbyCount\":2,\"ondemandAttestCount\":5,\"ondemandEndorsed\":true,\"ondemandPoolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\"}SEL_BEGIN\n{\"schema\":\"DleLabSelectionLogV1\",\"available\":true,\"endorsed\":true,\"epoch\":1,\"shardId\":\"dle.lab.shard.v1\",\"groupId\":\"dle.lab.group.v1\",\"poolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\",\"beacon\":\"0x64b1ce4661950ebbb3cb8dfac57418e40e13103d216f45a209ee81bca7afe494\",\"roulette\":\"0x821aa566186a1608f5238778cd5788e9d8c12d328486ae27291f6510b6e61584\",\"committee\":[\"0xa110000000000000000000000000000000000002\",\"0xa110000000000000000000000000000000000001\",\"0xa110000000000000000000000000000000000005\",\"0xa110000000000000000000000000000000000008\",\"0xa110000000000000000000000000000000000007\",\"0xa110000000000000000000000000000000000004\",\"0xa110000000000000000000000000000000000006\"],\"standbys\":[\"0xa110000000000000000000000000000000000009\",\"0xa110000000000000000000000000000000000003\"],\"attestors\":[\"fd-01-ionos-45\",\"fd-02-ionos-189\",\"fd-03-ionos-98\",\"fd-04-hosthatch-tokyo1\",\"fd-05-hosthatch-tokyo2\"],\"quorum\":4,\"labBeacon\":true,\"labOnly\":true,\"note\":\"Lab SelectionLog. Beacon is keccak after freeze, not CoNET L1 CL RANDAO. HMAC attests are forgeable. Not an Archive Certificate. Not 30-day qualification.\"}\nSEL_END\nPOOL_BEGIN\n{\"schema\":\"DleWaitingPoolV1\",\"groupId\":\"dle.lab.group.v1\",\"epoch\":1,\"shardId\":\"dle.lab.shard.v1\",\"frozen\":true,\"miners\":[\"0xa110000000000000000000000000000000000001\",\"0xa110000000000000000000000000000000000002\",\"0xa110000000000000000000000000000000000003\",\"0xa110000000000000000000000000000000000004\",\"0xa110000000000000000000000000000000000005\",\"0xa110000000000000000000000000000000000006\",\"0xa110000000000000000000000000000000000007\",\"0xa110000000000000000000000000000000000008\",\"0xa110000000000000000000000000000000000009\"],\"poolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\",\"minerCount\":9}\nPOOL_END\n"
+    },
+    {
+      "domainId": "fd-07-ionos-207",
+      "role": "standby",
+      "frozen": true,
+      "poolRoot": "0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74",
+      "roulette": "0x821aa566186a1608f5238778cd5788e9d8c12d328486ae27291f6510b6e61584",
+      "committee": [
+        "0xa110000000000000000000000000000000000002",
+        "0xa110000000000000000000000000000000000001",
+        "0xa110000000000000000000000000000000000005",
+        "0xa110000000000000000000000000000000000008",
+        "0xa110000000000000000000000000000000000007",
+        "0xa110000000000000000000000000000000000004",
+        "0xa110000000000000000000000000000000000006"
+      ],
+      "standbys": [
+        "0xa110000000000000000000000000000000000009",
+        "0xa110000000000000000000000000000000000003"
+      ],
+      "attestors": [
+        "fd-01-ionos-45",
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ],
+      "endorsed": true,
+      "attestCount": 5,
+      "geth": "14945",
+      "beacon": "15236",
+      "validator": "",
+      "detail": "HOST=ubuntu\nUSER=peter\nMEM=3.8Gi 3.2Gi 599Mi\nARCHIVE_PIDS=791780\nAGENT_PIDS=\nGETH=14945\nBEACON=15236\nVALIDATOR=\n{\"ok\":true,\"command\":\"archive\",\"runtime\":\"nodejs\",\"producesBlocks\":false,\"hasTipVm\":false,\"l1Isolated\":true,\"l1ChainIdForbidden\":224422,\"batchSupported\":true,\"chainId\":281669,\"chainIdHex\":\"0x44c45\",\"port\":27101,\"domainId\":\"fd-07-ionos-207\",\"role\":\"standby\",\"agent\":\"dle-30d-lab\",\"isolatedFromElCl\":true,\"uptimeMs\":32726,\"heartbeats\":5,\"lastQuorumOk\":true,\"lastPeerOk\":6,\"bftNetworked\":true,\"bftModeA\":true,\"bftCertificateAvailable\":true,\"bftPrevoteCount\":5,\"bftPrecommitCount\":5,\"bftVoted\":false,\"ondemandFrozen\":true,\"ondemandMinerCount\":9,\"ondemandCommitteeCount\":7,\"ondemandStandbyCount\":2,\"ondemandAttestCount\":5,\"ondemandEndorsed\":true,\"ondemandPoolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\"}SEL_BEGIN\n{\"schema\":\"DleLabSelectionLogV1\",\"available\":true,\"endorsed\":true,\"epoch\":1,\"shardId\":\"dle.lab.shard.v1\",\"groupId\":\"dle.lab.group.v1\",\"poolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\",\"beacon\":\"0x64b1ce4661950ebbb3cb8dfac57418e40e13103d216f45a209ee81bca7afe494\",\"roulette\":\"0x821aa566186a1608f5238778cd5788e9d8c12d328486ae27291f6510b6e61584\",\"committee\":[\"0xa110000000000000000000000000000000000002\",\"0xa110000000000000000000000000000000000001\",\"0xa110000000000000000000000000000000000005\",\"0xa110000000000000000000000000000000000008\",\"0xa110000000000000000000000000000000000007\",\"0xa110000000000000000000000000000000000004\",\"0xa110000000000000000000000000000000000006\"],\"standbys\":[\"0xa110000000000000000000000000000000000009\",\"0xa110000000000000000000000000000000000003\"],\"attestors\":[\"fd-01-ionos-45\",\"fd-02-ionos-189\",\"fd-03-ionos-98\",\"fd-04-hosthatch-tokyo1\",\"fd-05-hosthatch-tokyo2\"],\"quorum\":4,\"labBeacon\":true,\"labOnly\":true,\"note\":\"Lab SelectionLog. Beacon is keccak after freeze, not CoNET L1 CL RANDAO. HMAC attests are forgeable. Not an Archive Certificate. Not 30-day qualification.\"}\nSEL_END\nPOOL_BEGIN\n{\"schema\":\"DleWaitingPoolV1\",\"groupId\":\"dle.lab.group.v1\",\"epoch\":1,\"shardId\":\"dle.lab.shard.v1\",\"frozen\":true,\"miners\":[\"0xa110000000000000000000000000000000000001\",\"0xa110000000000000000000000000000000000002\",\"0xa110000000000000000000000000000000000003\",\"0xa110000000000000000000000000000000000004\",\"0xa110000000000000000000000000000000000005\",\"0xa110000000000000000000000000000000000006\",\"0xa110000000000000000000000000000000000007\",\"0xa110000000000000000000000000000000000008\",\"0xa110000000000000000000000000000000000009\"],\"poolRoot\":\"0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74\",\"minerCount\":9}\nPOOL_END\n"
+    }
+  ]
+}

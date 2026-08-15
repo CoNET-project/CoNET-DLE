@@ -2,7 +2,15 @@ import { DEFAULT_ARCHIVE_URL } from '../protocol'
 import type { LabArchiveRow, TrustedExplorerSnapshot } from '../types'
 import { DEMO_EVENT_FIXTURES } from '../fixtures/demoEvents'
 import { LAB_ARCHIVE_FIXTURES } from '../fixtures/labArchives'
-import { EMPTY_CERTIFICATE, EMPTY_INFO, EMPTY_TIP, emptyRpcRows } from './archiveClient'
+import { LAB_SELECTION_FIXTURE, LAB_WAITING_POOL_FIXTURE } from '../fixtures/labOnDemand'
+import {
+  EMPTY_CERTIFICATE,
+  EMPTY_INFO,
+  EMPTY_TIP,
+  emptyRpcRows,
+  parseSelectionLog,
+  parseWaitingPool,
+} from './archiveClient'
 import { sortEventsNewestFirst } from './events'
 import { isRecord } from './jsonrpc'
 
@@ -39,6 +47,8 @@ export function defaultSnapshot(archiveUrl: string): TrustedExplorerSnapshot {
     info: EMPTY_INFO,
     tip: EMPTY_TIP,
     certificate: EMPTY_CERTIFICATE,
+    waitingPool: LAB_WAITING_POOL_FIXTURE,
+    selection: LAB_SELECTION_FIXTURE,
     events: sortEventsNewestFirst(DEMO_EVENT_FIXTURES),
     archives: LAB_ARCHIVE_FIXTURES,
     rpc: emptyRpcRows(),
@@ -86,6 +96,16 @@ export function loadTrustedSnapshot(archiveUrl: string): TrustedExplorerSnapshot
       ...fallback,
       ...parsed,
       archiveUrl,
+      waitingPool:
+        parseWaitingPool(
+          parsed.waitingPool,
+          isRecord(parsed.waitingPool) && parsed.waitingPool.source === 'live' ? 'live' : 'fixture',
+        ) ?? fallback.waitingPool,
+      selection:
+        parseSelectionLog(
+          parsed.selection,
+          isRecord(parsed.selection) && parsed.selection.source === 'live' ? 'live' : 'fixture',
+        ) ?? fallback.selection,
       events: sortEventsNewestFirst(parsed.events as TrustedExplorerSnapshot['events']),
       archives: hydrateArchiveWallets(parsed.archives),
       rpc: parsed.rpc as TrustedExplorerSnapshot['rpc'],

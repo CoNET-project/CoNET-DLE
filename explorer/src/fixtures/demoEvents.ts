@@ -7,6 +7,8 @@ const DEMO_AT = [
   '2026-08-14T17:48:30.000Z',
   '2026-08-14T17:49:00.000Z',
   '2026-08-14T17:49:06.000Z',
+  '2026-08-15T06:14:12.000Z',
+  '2026-08-15T06:14:24.000Z',
 ]
 
 export const DEMO_EVENT_FIXTURES: DleEventRow[] = [
@@ -62,6 +64,25 @@ export const DEMO_EVENT_FIXTURES: DleEventRow[] = [
     method: 'dle_tip',
     ok: true,
     detail: 'Tip height 0x0 until Archive Certificate',
+    source: 'fixture',
+  },
+  {
+    id: 'fixture-ondemand-freeze',
+    at: DEMO_AT[6] ?? '',
+    type: 'ondemand-freeze',
+    domainId: 'fd-01-ionos-45',
+    role: 'active',
+    detail: 'Waiting pool frozen · 9 miners · poolRoot 0x1a0895b0…8def74',
+    source: 'fixture',
+  },
+  {
+    id: 'fixture-ondemand-attest',
+    at: DEMO_AT[7] ?? '',
+    type: 'ondemand-attest',
+    domainId: 'fd-01-ionos-45',
+    role: 'active',
+    ok: true,
+    detail: '5 active HMAC attests · 7+2 endorsed (lab accept snapshot, not 30-day qualification)',
     source: 'fixture',
   },
 ]

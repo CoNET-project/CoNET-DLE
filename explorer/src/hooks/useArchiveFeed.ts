@@ -10,10 +10,14 @@ import {
   fetchExplorerCertificate,
   fetchExplorerEvents,
   fetchExplorerOverview,
+  fetchOnDemandPool,
+  fetchOnDemandSelection,
   mergeArchivesWithHealth,
   parseArchiveInfo,
   parseCertificate,
+  parseSelectionLog,
   parseTip,
+  parseWaitingPool,
   rpcRowFromResponse,
 } from '../lib/archiveClient'
 import { sortEventsNewestFirst } from '../lib/events'
@@ -57,7 +61,8 @@ export function useArchiveFeed() {
     const url = urlRef.current
     const previous = snapshotRef.current
     try {
-      const [healthResult, overview, liveEvents, liveCertificate, l1Wallets] = await Promise.all([
+      const [healthResult, overview, liveEvents, liveCertificate, livePool, liveSelection, l1Wallets] =
+        await Promise.all([
         fetchArchiveHealth(url).then(
           (value) => ({ ok: true as const, value }),
           () => ({ ok: false as const }),
@@ -65,6 +70,8 @@ export function useArchiveFeed() {
         fetchExplorerOverview(url),
         fetchExplorerEvents(url),
         fetchExplorerCertificate(url),
+        fetchOnDemandPool(url),
+        fetchOnDemandSelection(url),
         fetchArchiveWalletsFromL1(),
       ])
 
@@ -94,6 +101,12 @@ export function useArchiveFeed() {
       const certFromRpc = rpcSettled.find(
         (row) => row.method === 'dle_getArchiveCertificate' && row.status === 'ok',
       )
+      const poolFromOverview = overview ? parseWaitingPool(overview.waitingPool, 'live') : null
+      const selectionFromOverview = overview ? parseSelectionLog(overview.selection, 'live') : null
+      const poolFromRpc = rpcSettled.find((row) => row.method === 'dle_getWaitingPool' && row.status === 'ok')
+      const selectionFromRpc = rpcSettled.find(
+        (row) => row.method === 'dle_getSelectionLog' && row.status === 'ok',
+      )
 
       const next: TrustedExplorerSnapshot = {
         fetchedAt: new Date().toISOString(),
@@ -107,6 +120,13 @@ export function useArchiveFeed() {
           certFromOverview ??
           parseCertificate(certFromRpc?.result) ??
           previous.certificate,
+        waitingPool:
+          livePool ?? poolFromOverview ?? parseWaitingPool(poolFromRpc?.result, 'live') ?? previous.waitingPool,
+        selection:
+          liveSelection ??
+          selectionFromOverview ??
+          parseSelectionLog(selectionFromRpc?.result, 'live') ??
+          previous.selection,
         events: sortEventsNewestFirst(liveEvents ?? previous.events),
         archives: mergeArchivesWithL1Wallets(
           mergeArchivesWithHealth(previous.archives, health),
@@ -116,7 +136,14 @@ export function useArchiveFeed() {
       }
       snapshotRef.current = next
       setSnapshot(next)
-      if (healthResult.ok || liveEvents !== null || overview !== null || l1Wallets !== null) {
+      if (
+        healthResult.ok ||
+        liveEvents !== null ||
+        overview !== null ||
+        livePool !== null ||
+        liveSelection !== null ||
+        l1Wallets !== null
+      ) {
         saveTrustedSnapshot(next)
       }
       return healthResult.ok

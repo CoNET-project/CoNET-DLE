@@ -21,6 +21,8 @@ const rpc = async (method, params = []) => {
   return response.json()
 }
 const info = await rpc('dle_info')
+const waitingPool = await rpc('dle_getWaitingPool')
+const selectionLog = await rpc('dle_getSelectionLog')
 const chainId = await rpc('eth_chainId')
 const netVersion = await rpc('net_version')
 const tipBlock = await rpc('eth_getBlockByNumber', ['latest', false])
@@ -69,6 +71,8 @@ process.stdout.write(
       archiveUrl: endpoint,
       health,
       info,
+      waitingPool,
+      selectionLog,
       chainId,
       netVersion,
       tipBlock,

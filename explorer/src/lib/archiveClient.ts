@@ -9,7 +9,9 @@ import type {
   DleArchiveInfo,
   DleCertificateView,
   DleEventRow,
+  DleSelectionLogView,
   DleTipView,
+  DleWaitingPoolView,
   JsonRpcResponse,
   LabArchiveRow,
   RpcProbeRow,
@@ -84,6 +86,22 @@ export async function fetchExplorerEvents(archiveUrl: string): Promise<DleEventR
   }
 }
 
+export async function fetchOnDemandPool(archiveUrl: string): Promise<DleWaitingPoolView | null> {
+  try {
+    return parseWaitingPool(await getJson(`${endpoint(archiveUrl)}/ondemand/pool`), 'live')
+  } catch {
+    return null
+  }
+}
+
+export async function fetchOnDemandSelection(archiveUrl: string): Promise<DleSelectionLogView | null> {
+  try {
+    return parseSelectionLog(await getJson(`${endpoint(archiveUrl)}/ondemand/selection`), 'live')
+  } catch {
+    return null
+  }
+}
+
 export async function fetchExplorerCertificate(archiveUrl: string): Promise<DleCertificateView | null> {
   try {
     const body = await getJson(`${endpoint(archiveUrl)}/api/v2/dle/certificate`)
@@ -131,6 +149,89 @@ export function parseTip(value: unknown): DleTipView | null {
     hash: value.hash,
     finalized: value.finalized,
     note: value.note,
+  }
+}
+
+function isHexAddress(value: unknown): value is string {
+  return typeof value === 'string' && /^0x[0-9a-fA-F]{40}$/.test(value)
+}
+
+function isHex32(value: unknown): value is string {
+  return typeof value === 'string' && /^0x[0-9a-fA-F]{64}$/.test(value)
+}
+
+export function parseWaitingPool(
+  value: unknown,
+  source: 'live' | 'fixture' = 'live',
+): DleWaitingPoolView | null {
+  if (!isRecord(value) || value.schema !== 'DleWaitingPoolV1') return null
+  if (typeof value.groupId !== 'string' || typeof value.shardId !== 'string') return null
+  if (typeof value.epoch !== 'number' || typeof value.frozen !== 'boolean') return null
+  if (typeof value.minerCount !== 'number' || !Array.isArray(value.miners)) return null
+  const miners = value.miners.filter(isHexAddress)
+  if (miners.length !== value.miners.length) return null
+  const poolRoot = value.poolRoot === null ? null : isHex32(value.poolRoot) ? value.poolRoot : null
+  if (value.poolRoot !== null && poolRoot === null) return null
+  return {
+    schema: 'DleWaitingPoolV1',
+    groupId: value.groupId,
+    epoch: value.epoch,
+    shardId: value.shardId,
+    frozen: value.frozen,
+    miners,
+    poolRoot,
+    minerCount: value.minerCount,
+    source,
+  }
+}
+
+export function parseSelectionLog(
+  value: unknown,
+  source: 'live' | 'fixture' = 'live',
+): DleSelectionLogView | null {
+  if (!isRecord(value) || value.schema !== 'DleLabSelectionLogV1') return null
+  if (value.available === false) {
+    return {
+      schema: 'DleLabSelectionLogV1',
+      available: false,
+      reason: typeof value.reason === 'string' ? value.reason : 'Waiting pool is not frozen yet.',
+      source,
+    }
+  }
+  if (value.available !== true) return null
+  if (!isHex32(value.poolRoot) || !isHex32(value.beacon) || !isHex32(value.roulette)) return null
+  if (typeof value.epoch !== 'number' || typeof value.endorsed !== 'boolean') return null
+  if (typeof value.shardId !== 'string' || typeof value.groupId !== 'string') return null
+  if (!Array.isArray(value.committee) || !Array.isArray(value.standbys) || !Array.isArray(value.attestors)) {
+    return null
+  }
+  const committee = value.committee.filter(isHexAddress)
+  const standbys = value.standbys.filter(isHexAddress)
+  const attestors = value.attestors.filter((item): item is string => typeof item === 'string')
+  if (committee.length !== value.committee.length || standbys.length !== value.standbys.length) return null
+  if (attestors.length !== value.attestors.length) return null
+  return {
+    schema: 'DleLabSelectionLogV1',
+    available: true,
+    endorsed: value.endorsed,
+    epoch: value.epoch,
+    shardId: value.shardId,
+    groupId: value.groupId,
+    poolRoot: value.poolRoot,
+    beacon: value.beacon,
+    roulette: value.roulette,
+    committee,
+    standbys,
+    attestors,
+    quorum: typeof value.quorum === 'number' ? value.quorum : 4,
+    labBeacon: true,
+    labOnly: true,
+    note:
+      typeof value.note === 'string'
+        ? value.note
+        : 'Lab SelectionLog. Beacon is keccak after freeze, not CoNET L1 CL RANDAO. HMAC attests are forgeable. Not an Archive Certificate. Not 30-day qualification.',
+    ...(typeof value.acceptedAt === 'string' ? { acceptedAt: value.acceptedAt } : {}),
+    source,
   }
 }
 
@@ -225,6 +326,25 @@ export function emptyRpcRows(): RpcProbeRow[] {
 export const EMPTY_CERTIFICATE: DleCertificateView = {
   available: false,
   reason: 'Networked Archive Certificate is not produced in this scaffold.',
+}
+
+export const EMPTY_WAITING_POOL: DleWaitingPoolView = {
+  schema: 'DleWaitingPoolV1',
+  groupId: 'dle.lab.group.v1',
+  epoch: 1,
+  shardId: 'dle.lab.shard.v1',
+  frozen: false,
+  miners: [],
+  poolRoot: null,
+  minerCount: 0,
+  source: 'fixture',
+}
+
+export const EMPTY_SELECTION: DleSelectionLogView = {
+  schema: 'DleLabSelectionLogV1',
+  available: false,
+  reason: 'Waiting pool is not frozen yet.',
+  source: 'fixture',
 }
 
 export const EMPTY_TIP: DleTipView = {

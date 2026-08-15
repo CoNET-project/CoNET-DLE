@@ -113,5 +113,35 @@ test('daemon command is isomorphic and can probe the archive over fetch', async 
   const probed = await probeArchive(archiveUrl)
   assert.equal(probed.daemon.command, DLE_COMMAND.daemon)
   assert.equal(probed.health['command'], DLE_COMMAND.archive)
-  assert.equal(probed.wait.status, 'queued')
+  assert.equal(probed.wait.status, 'frozen')
+  assert.equal(probed.wait.recomputed, true)
+  assert.equal(probed.wait.committee.length, 7)
+  assert.equal(probed.wait.standbys.length, 2)
+  assert.equal(probed.wait.endorsed, false)
+  assert.equal(probed.health['ondemandFrozen'], true)
+})
+
+test('P3 facade exposes waiting pool and recomputable selection', async () => {
+  const pool = await callArchive(archiveUrl, 'dle_getWaitingPool')
+  assert.equal('result' in pool, true)
+  if (!('result' in pool) || pool.result === null || typeof pool.result !== 'object') {
+    throw new Error('dle_getWaitingPool missing result')
+  }
+  const poolBody = pool.result as Record<string, unknown>
+  assert.equal(poolBody.frozen, true)
+  assert.equal(poolBody.minerCount, 9)
+  const selection = await callArchive(archiveUrl, 'dle_getSelectionLog')
+  assert.equal('result' in selection, true)
+  if (!('result' in selection) || selection.result === null || typeof selection.result !== 'object') {
+    throw new Error('dle_getSelectionLog missing result')
+  }
+  const log = selection.result as Record<string, unknown>
+  assert.equal(log.available, true)
+  assert.equal(log.endorsed, false)
+  assert.equal(log.labBeacon, true)
+  assert.equal(Array.isArray(log.committee) && log.committee.length === 7, true)
+  const overview = await fetch(`${archiveUrl}/api/v2/dle`)
+  const body = (await overview.json()) as Record<string, unknown>
+  assert.equal(body.waitingPool !== null, true)
+  assert.equal(body.selection !== null, true)
 })

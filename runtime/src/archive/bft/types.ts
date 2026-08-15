@@ -82,6 +82,9 @@ export interface DepositBundle {
   validatorQuorum: number
   claimedTipStateRoot?: Hex
   claimedValueHash?: Hex
+  selectionLogRef?: Hex
+  committee?: Hex[]
+  standbys?: Hex[]
 }
 
 export type ModeAResult =

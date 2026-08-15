@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import process from 'node:process'
 import { createArchiveBftEngine } from './bft/engine.js'
 import { listenArchiveHttp } from './http.js'
+import { createOnDemandEngine } from './ondemand/engine.js'
 import { openArchiveStore } from './store.js'
 
 const HEARTBEAT_MS = 6_000
@@ -104,12 +105,29 @@ const engine = createArchiveBftEngine({
   peers: Array.isArray(config.peers) ? config.peers : [],
   store,
 })
+const ondemand = createOnDemandEngine({
+  domainId: config.domainId,
+  role: config.role,
+  peers: Array.isArray(config.peers) ? config.peers : [],
+  store,
+  autoSeedLabMiners: true,
+  autoFreeze: true,
+})
 
 const server = await listenArchiveHttp({
   port,
   store,
   identity: { domainId: config.domainId, role: config.role },
-  facadeViews: () => engine.facadeViews(),
+  facadeViews() {
+    const bft = engine.facadeViews()
+    const waiting = ondemand.facadeViews()
+    return {
+      tip: bft.tip,
+      certificate: bft.certificate,
+      waitingPool: waiting.waitingPool,
+      selectionLog: waiting.selectionLog,
+    }
+  },
   extraHealth() {
     const bft = engine.status()
     return {
@@ -126,21 +144,25 @@ const server = await listenArchiveHttp({
       bftPrevoteCount: bft.prevoteCount,
       bftPrecommitCount: bft.precommitCount,
       bftVoted: bft.voted,
+      ...ondemand.health(),
     }
   },
   extraGet(pathname) {
     if (pathname === '/state') return { ...state, uptimeMs: Date.now() - startedAt }
     if (pathname === '/bft/status') return { ...engine.status() }
-    return undefined
+    return ondemand.get(pathname)
   },
   onPost(pathname, body) {
-    if (pathname !== '/bft/message') return undefined
-    const result = engine.ingest(body)
-    return { status: result.ok ? 200 : 400, body: result }
+    if (pathname === '/bft/message') {
+      const result = engine.ingest(body)
+      return { status: result.ok ? 200 : 400, body: result }
+    }
+    return ondemand.post(pathname, body)
   },
 })
 
 await engine.start()
+await ondemand.start()
 
 function scheduleHeartbeat(): void {
   setTimeout(() => {
@@ -181,6 +203,7 @@ process.stdout.write(
 
 const shutdown = (): void => {
   engine.stop()
+  ondemand.stop()
   void server.close().then(() => process.exit(0))
 }
 process.on('SIGINT', shutdown)

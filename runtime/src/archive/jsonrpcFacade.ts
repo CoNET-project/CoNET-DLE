@@ -12,7 +12,9 @@ import {
   chainIdHex,
   type DleArchiveInfo,
   type DleCertificateView,
+  type DleSelectionLogView,
   type DleTipView,
+  type DleWaitingPoolView,
   type JsonRpcRequest,
   type JsonRpcResponse,
 } from '../shared/protocol.js'
@@ -20,6 +22,8 @@ import {
 export interface ArchiveFacadeViews {
   tip: DleTipView
   certificate: DleCertificateView
+  waitingPool?: DleWaitingPoolView
+  selectionLog?: DleSelectionLogView
 }
 
 const EMPTY_LOGS_BLOOM = `0x${'0'.repeat(512)}`
@@ -148,6 +152,29 @@ export function dispatchArchiveJsonRpc(
       return jsonRpcSuccess(request.id, views.tip)
     case 'dle_getArchiveCertificate':
       return jsonRpcSuccess(request.id, views.certificate)
+    case 'dle_getWaitingPool':
+      return jsonRpcSuccess(
+        request.id,
+        views.waitingPool ?? {
+          schema: 'DleWaitingPoolV1',
+          groupId: 'dle.lab.group.v1',
+          epoch: 1,
+          shardId: 'dle.lab.shard.v1',
+          frozen: false,
+          miners: [],
+          poolRoot: null,
+          minerCount: 0,
+        },
+      )
+    case 'dle_getSelectionLog':
+      return jsonRpcSuccess(
+        request.id,
+        views.selectionLog ?? {
+          schema: 'DleLabSelectionLogV1',
+          available: false,
+          reason: 'Waiting pool is not frozen yet.',
+        },
+      )
     case 'eth_chainId':
       return jsonRpcSuccess(request.id, info.chainIdHex)
     case 'eth_blockNumber':

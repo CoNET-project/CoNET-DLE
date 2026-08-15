@@ -1,6 +1,12 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { jsonRpcError } from '../shared/jsonrpc.js'
-import type { DleArchiveInfo, DleCertificateView, DleTipView } from '../shared/protocol.js'
+import type {
+  DleArchiveInfo,
+  DleCertificateView,
+  DleSelectionLogView,
+  DleTipView,
+  DleWaitingPoolView,
+} from '../shared/protocol.js'
 import {
   buildArchiveFacadeInfo,
   defaultFacadeViews,
@@ -23,7 +29,12 @@ export interface ArchiveHttpOptions {
   }
   extraHealth?: () => Record<string, unknown>
   extraGet?: (pathname: string) => Record<string, unknown> | undefined
-  facadeViews?: () => { tip: DleTipView; certificate: DleCertificateView }
+  facadeViews?: () => {
+    tip: DleTipView
+    certificate: DleCertificateView
+    waitingPool?: DleWaitingPoolView
+    selectionLog?: DleSelectionLogView
+  }
   onPost?: (pathname: string, body: unknown) => { status: number; body: unknown } | undefined
 }
 
@@ -94,6 +105,8 @@ export async function listenArchiveHttp(options: ArchiveHttpOptions): Promise<Ar
         batchSupported: true,
         tip: views.tip,
         certificate: views.certificate,
+        waitingPool: views.waitingPool ?? null,
+        selection: views.selectionLog ?? null,
         archive: {
           ok: true,
           ...info,

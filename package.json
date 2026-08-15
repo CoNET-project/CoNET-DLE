@@ -29,7 +29,8 @@
     "explorer:dev": "npm --prefix explorer run dev",
     "explorer:build": "npm --prefix explorer run build",
     "lab:deploy-archive": "npm run runtime:build && npm --prefix pilot run lab:deploy-archive",
-    "lab:accept-archive": "npm --prefix pilot run lab:accept-archive"
+    "lab:accept-archive": "npm --prefix pilot run lab:accept-archive",
+    "lab:accept-ondemand": "npm --prefix pilot run lab:accept-ondemand"
   },
   "dependencies": {
     "ethers": "^6.15.0"

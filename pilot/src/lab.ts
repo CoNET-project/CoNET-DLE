@@ -309,7 +309,7 @@ const STOP_LAB_ONLY = [
 const START_ARCHIVE = [
   'set -euo pipefail',
   `mkdir -p '${LAB_DIR}/app' '${LAB_DIR}/data' '${LAB_DIR}/daemon' '${LAB_DIR}/wal'`,
-  `rm -f '${LAB_DIR}/data/bft-state.json'`,
+  `rm -f '${LAB_DIR}/data/bft-state.json' '${LAB_DIR}/data/ondemand-state.json'`,
   `cd '${LAB_DIR}'`,
   `if [ -x '${LAB_DIR}/runtime/bin/node' ]; then NODE='${LAB_DIR}/runtime/bin/node'; else NODE=$(command -v node); fi`,
   `nohup "$NODE" '${REMOTE_ARCHIVE_ENTRY}' --config '${LAB_DIR}/config.json' --data-dir '${LAB_DIR}/data' >> '${LAB_DIR}/archive.log' 2>&1 &`,
@@ -554,6 +554,181 @@ export async function acceptArchiveRuntime(): Promise<{
         port: LAB_PORT,
         note: 'Lab networked PrecommitQC on TCP 27101. HMAC-SHA256 lab MAC derived from public domainId — forgeable, not a frozen EIP-712 L1 wrapper or corpus SSZ object. Not 30-day qualification.',
         valueHash: hashes[0] ?? null,
+        activeArchives: activeIds,
+        standbyArchives: standbyIds,
+        ...summary,
+      },
+      null,
+      2,
+    )}\n`,
+    'utf8',
+  )
+  return summary
+}
+
+export async function acceptOnDemandRuntime(): Promise<{
+  ok: boolean
+  poolOk: boolean
+  selectionOk: boolean
+  endorsedOk: boolean
+  protectedOk: boolean
+  rows: Array<{
+    domainId: string
+    role?: string
+    frozen?: boolean
+    poolRoot?: string
+    roulette?: string
+    committee?: string[]
+    standbys?: string[]
+    attestors?: string[]
+    endorsed?: boolean
+    attestCount?: number
+    geth?: string
+    beacon?: string
+    validator?: string
+    detail: string
+  }>
+}> {
+  const hosts = await loadLabHosts()
+  const inventory = await loadOfficialLabInventory()
+  const activeIds = inventory.domains.filter((domain) => domain.role === 'active').map((domain) => domain.domainId)
+  const standbyIds = inventory.domains.filter((domain) => domain.role === 'standby').map((domain) => domain.domainId)
+  const acceptScript = [
+    'set +e',
+    STATUS_ARCHIVE,
+    'echo SEL_BEGIN',
+    `for i in 1 2 3 4 5 6 7 8 9 10 11 12; do curl -fsS --max-time 4 http://127.0.0.1:${LAB_PORT}/ondemand/selection > /tmp/dle-sel.json && grep -q '"endorsed":true' /tmp/dle-sel.json && break; sleep 3; done`,
+    'cat /tmp/dle-sel.json 2>/dev/null',
+    'echo',
+    'echo SEL_END',
+    'echo POOL_BEGIN',
+    `curl -fsS --max-time 4 http://127.0.0.1:${LAB_PORT}/ondemand/pool`,
+    'echo',
+    'echo POOL_END',
+  ].join('\n')
+  const rows: Array<{
+    domainId: string
+    role?: string
+    frozen?: boolean
+    poolRoot?: string
+    roulette?: string
+    committee?: string[]
+    standbys?: string[]
+    attestors?: string[]
+    endorsed?: boolean
+    attestCount?: number
+    geth?: string
+    beacon?: string
+    validator?: string
+    detail: string
+  }> = []
+  for (const host of hosts.hosts) {
+    const result = await runSsh(host.sshHost, acceptScript)
+    const stdout = result.stdout
+    let health: Record<string, unknown> = {}
+    const healthMatch = stdout.match(/\{"ok":true,"command":"archive"[^\n]*?\}/)
+    if (healthMatch?.[0]) {
+      try {
+        health = JSON.parse(healthMatch[0]) as Record<string, unknown>
+      } catch {
+        health = {}
+      }
+    }
+    let selection: Record<string, unknown> = {}
+    const selMatch = stdout.match(/SEL_BEGIN\n([\s\S]*?)\nSEL_END/)
+    if (selMatch?.[1]) {
+      try {
+        selection = JSON.parse(selMatch[1].trim()) as Record<string, unknown>
+      } catch {
+        selection = {}
+      }
+    }
+    let pool: Record<string, unknown> = {}
+    const poolMatch = stdout.match(/POOL_BEGIN\n([\s\S]*?)\nPOOL_END/)
+    if (poolMatch?.[1]) {
+      try {
+        pool = JSON.parse(poolMatch[1].trim()) as Record<string, unknown>
+      } catch {
+        pool = {}
+      }
+    }
+    const committee = Array.isArray(selection.committee)
+      ? selection.committee.filter((item): item is string => typeof item === 'string')
+      : undefined
+    const standbys = Array.isArray(selection.standbys)
+      ? selection.standbys.filter((item): item is string => typeof item === 'string')
+      : undefined
+    const attestors = Array.isArray(selection.attestors)
+      ? selection.attestors.filter((item): item is string => typeof item === 'string')
+      : undefined
+    const geth = stdout.match(/^GETH=(.*)$/m)?.[1]?.trim()
+    const beacon = stdout.match(/^BEACON=(.*)$/m)?.[1]?.trim()
+    const validator = stdout.match(/^VALIDATOR=(.*)$/m)?.[1]?.trim()
+    rows.push({
+      domainId: host.domainId,
+      ...(typeof health.role === 'string' ? { role: health.role } : {}),
+      ...(typeof pool.frozen === 'boolean' ? { frozen: pool.frozen } : {}),
+      ...(typeof selection.poolRoot === 'string' ? { poolRoot: selection.poolRoot } : {}),
+      ...(typeof selection.roulette === 'string' ? { roulette: selection.roulette } : {}),
+      ...(committee !== undefined ? { committee } : {}),
+      ...(standbys !== undefined ? { standbys } : {}),
+      ...(attestors !== undefined ? { attestors } : {}),
+      ...(typeof selection.endorsed === 'boolean' ? { endorsed: selection.endorsed } : {}),
+      ...(typeof health.ondemandAttestCount === 'number' ? { attestCount: health.ondemandAttestCount } : {}),
+      ...(geth !== undefined ? { geth } : {}),
+      ...(beacon !== undefined ? { beacon } : {}),
+      ...(validator !== undefined ? { validator } : {}),
+      detail: stdout.slice(0, 4000),
+    })
+  }
+  const roots = rows.map((row) => row.poolRoot).filter((hash): hash is string => typeof hash === 'string')
+  const sameRoot = roots.length === rows.length && roots.every((hash) => hash === roots[0])
+  const firstCommittee = rows[0]?.committee ?? []
+  const firstStandbys = rows[0]?.standbys ?? []
+  const sameDraw = rows.every(
+    (row) =>
+      row.committee?.length === 7 &&
+      row.standbys?.length === 2 &&
+      JSON.stringify(row.committee) === JSON.stringify(firstCommittee) &&
+      JSON.stringify(row.standbys) === JSON.stringify(firstStandbys),
+  )
+  const poolOk = rows.every((row) => row.frozen === true) && sameRoot
+  const selectionOk = sameDraw && sameRoot
+  const endorsedOk = rows.every((row) => {
+    const next = row.attestors ?? []
+    if (row.endorsed !== true) return false
+    if (next.length < 4) return false
+    if (next.some((id) => !activeIds.includes(id))) return false
+    if (next.some((id) => standbyIds.includes(id))) return false
+    return true
+  })
+  const protectedOk = rows.every((row) => {
+    const leftover = hosts.hosts.find((item) => item.domainId === row.domainId)
+    if (!leftover) return false
+    if (leftover.leftoverElCl) return true
+    return (row.geth ?? '') === '' && (row.beacon ?? '') === '' && (row.validator ?? '') === ''
+  })
+  const summary = {
+    ok: poolOk && selectionOk && endorsedOk && protectedOk,
+    poolOk,
+    selectionOk,
+    endorsedOk,
+    protectedOk,
+    rows,
+  }
+  await mkdir(DEFAULT_EVIDENCE_DIR, { recursive: true })
+  await writeFile(
+    join(DEFAULT_EVIDENCE_DIR, 'ondemand-p3-accept.json'),
+    `${JSON.stringify(
+      {
+        schema: 'OnDemandP3AcceptV1',
+        pilotId: PILOT_LAB_ID,
+        acceptedAt: new Date().toISOString(),
+        port: LAB_PORT,
+        note: 'Lab on-demand SelectionLog on TCP 27101. Beacon is keccak after freeze, not CoNET L1 CL RANDAO. HMAC-SHA256 attests are derived from public domainId — forgeable. SelectionLog is not an Archive Certificate and not 30-day qualification.',
+        poolRoot: roots[0] ?? null,
+        committee: firstCommittee,
+        standbys: firstStandbys,
         activeArchives: activeIds,
         standbyArchives: standbyIds,
         ...summary,

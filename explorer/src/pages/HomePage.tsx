@@ -5,11 +5,12 @@ import { ActivityChart } from '../components/ActivityChart'
 import { ClusterGauge } from '../components/ClusterGauge'
 import { EventTable } from '../components/EventTable'
 import { MetricCard } from '../components/MetricCard'
+import { OnDemandSelectionPanel } from '../components/OnDemandSelectionPanel'
 import { RefreshButton } from '../components/RefreshButton'
 import { StatusPill } from '../components/StatusPill'
 import { MainPageShell } from '../components/TitleCapsule'
 import { sortEventsNewestFirst } from '../lib/events'
-import { formatHeight, formatInteger } from '../lib/format'
+import { formatHeight, formatInteger, shortenHash } from '../lib/format'
 import { CONET_L1_CHAIN_ID, DLE_LAB_CHAIN_ID_HEX } from '../protocol'
 import { useExplorer } from '../providers/ExplorerProvider'
 
@@ -26,6 +27,10 @@ export function HomePage() {
   const newestEvents = sortEventsNewestFirst(snapshot.events).slice(0, 8)
   const quorumOk = snapshot.health && snapshot.health.lastQuorumOk === true
   const archiveShare = snapshot.archives.length > 0 ? (liveCount / snapshot.archives.length) * 100 : 0
+  const pool = snapshot.waitingPool
+  const selection = snapshot.selection
+  const selectionReady = selection?.available === true
+  const poolRoot = selectionReady ? selection.poolRoot : pool?.poolRoot
 
   const onSearch = (event: FormEvent) => {
     event.preventDefault()
@@ -70,6 +75,14 @@ export function HomePage() {
         <StatusPill label="producesBlocks=false" tone="neutral" />
         <StatusPill label="No tip VM" tone="warn" />
         <StatusPill label={info?.l1Isolated === true ? 'L1 isolated' : 'L1 isolation unknown'} tone={info?.l1Isolated === true ? 'ok' : 'warn'} />
+        <StatusPill
+          label={pool?.frozen === true ? 'Waiting pool frozen' : 'Waiting pool open'}
+          tone={pool?.frozen === true ? 'ok' : 'warn'}
+        />
+        <StatusPill
+          label={selectionReady && selection.endorsed ? '7+2 endorsed' : '7+2 pending'}
+          tone={selectionReady && selection.endorsed ? 'ok' : 'warn'}
+        />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -94,6 +107,42 @@ export function HomePage() {
           value={snapshot.certificate?.available ? 'Available' : 'Empty'}
           hint={snapshot.certificate?.reason}
           tone={snapshot.certificate?.available ? 'default' : 'warn'}
+        />
+      </div>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          label="Waiting pool"
+          value={`${formatInteger(pool?.minerCount ?? 0)} miners`}
+          hint={pool?.frozen === true ? 'Frozen before roulette' : 'Open — not frozen yet'}
+          tone={pool?.frozen === true ? 'default' : 'warn'}
+        />
+        <MetricCard
+          label="7+2 selection"
+          value={selectionReady ? (selection.endorsed ? 'Endorsed' : 'Drawn') : 'Empty'}
+          hint={
+            selectionReady
+              ? `${formatInteger(selection.committee.length)} committee · ${formatInteger(selection.standbys.length)} standby`
+              : selection && selection.available === false
+                ? selection.reason
+                : 'SelectionLog not available'
+          }
+          tone={selectionReady && selection.endorsed ? 'default' : 'warn'}
+        />
+        <MetricCard
+          label="poolRoot"
+          value={poolRoot ? shortenHash(poolRoot, 10, 8) : 'Empty'}
+          hint="Recomputable Merkle root of the frozen waiting pool"
+        />
+        <MetricCard
+          label="Attestors"
+          value={
+            selectionReady
+              ? `${formatInteger(selection.attestors.length)} / Q_A ${formatInteger(selection.quorum)}`
+              : '0 / Q_A 4'
+          }
+          hint="Active-archive HMAC attests. Forgeable. Not 30-day qualification."
+          tone={selectionReady && selection.endorsed ? 'default' : 'warn'}
         />
       </div>
 
@@ -132,6 +181,16 @@ export function HomePage() {
           </div>
         </section>
       </div>
+
+      <section className="dle-glass mt-4 rounded-2xl p-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-white">On-demand 7+2</h2>
+          <Link to="/certificates" className="text-xs font-semibold text-[#00b4ff]">
+            Certificate vs SelectionLog
+          </Link>
+        </div>
+        <OnDemandSelectionPanel pool={pool} selection={selection} />
+      </section>
 
       <section className="dle-glass mt-4 rounded-2xl">
         <div className="flex items-center justify-between gap-2 px-4 pt-4">

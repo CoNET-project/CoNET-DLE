@@ -25,6 +25,7 @@
     "lab:deploy": "npm run build && node dist/src/cli.js lab-deploy",
     "lab:deploy-archive": "npm run build && node dist/src/cli.js lab-deploy-archive",
     "lab:accept-archive": "npm run build && node dist/src/cli.js lab-accept-archive",
+    "lab:accept-ondemand": "npm run build && node dist/src/cli.js lab-accept-ondemand",
     "lab:status": "npm run build && node dist/src/cli.js lab-status",
     "lab:warmup": "npm run build && node dist/src/cli.js lab-warmup",
     "lab:inject-crash": "npm run build && node dist/src/cli.js lab-inject-crash",

@@ -9,6 +9,8 @@ export interface ArchiveStore {
   recentWal(limit?: number): Array<Record<string, unknown>>
   persistBftState(state: unknown): void
   loadBftState(): unknown | null
+  persistOnDemandState(state: unknown): void
+  loadOnDemandState(): unknown | null
 }
 
 export function openArchiveStore(dataDir: string): ArchiveStore {
@@ -16,6 +18,7 @@ export function openArchiveStore(dataDir: string): ArchiveStore {
   const walPath = join(dataDir, 'archive.wal.ndjson')
   const identityPath = join(dataDir, 'archive-identity.json')
   const bftPath = join(dataDir, 'bft-state.json')
+  const ondemandPath = join(dataDir, 'ondemand-state.json')
   const ring: Array<Record<string, unknown>> = []
   writeFileSync(
     identityPath,
@@ -50,6 +53,17 @@ export function openArchiveStore(dataDir: string): ArchiveStore {
       if (!existsSync(bftPath)) return null
       try {
         return JSON.parse(readFileSync(bftPath, 'utf8')) as unknown
+      } catch {
+        return null
+      }
+    },
+    persistOnDemandState(state) {
+      writeFileSync(ondemandPath, `${JSON.stringify(state)}\n`, 'utf8')
+    },
+    loadOnDemandState() {
+      if (!existsSync(ondemandPath)) return null
+      try {
+        return JSON.parse(readFileSync(ondemandPath, 'utf8')) as unknown
       } catch {
         return null
       }

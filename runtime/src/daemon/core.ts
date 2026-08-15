@@ -1,5 +1,13 @@
 import { parseJsonRpcBatchResponse, parseJsonRpcResponse } from '../shared/jsonrpc.js'
 import {
+  drawCommittee,
+  LAB_DAEMON_PROBE_MINER,
+  LAB_GROUP_ID,
+  sameHexList,
+  type SelectionView,
+  type WaitingPoolView,
+} from '../shared/ondemand/index.js'
+import {
   DLE_COMMAND,
   DLE_JSONRPC_VERSION,
   DLE_RUNTIME,
@@ -26,8 +34,15 @@ export function daemonInfo(archiveUrl: string): DleDaemonInfo {
 
 export interface OnDemandWaitSession {
   schema: 'DleOnDemandWaitV1'
-  status: 'queued'
-  slot: null
+  status: 'queued' | 'frozen' | 'rejected'
+  slot: number | null
+  miner: string
+  groupId: string
+  poolRoot: string | null
+  committee: string[]
+  standbys: string[]
+  recomputed: boolean
+  endorsed: boolean
   note: string
 }
 
@@ -36,7 +51,94 @@ export function createWaitSession(): OnDemandWaitSession {
     schema: 'DleOnDemandWaitV1',
     status: 'queued',
     slot: null,
-    note: 'Wait hook is local-only in this scaffold; freeze poolRoot before drawing 7+2.',
+    miner: LAB_DAEMON_PROBE_MINER,
+    groupId: LAB_GROUP_ID,
+    poolRoot: null,
+    committee: [],
+    standbys: [],
+    recomputed: false,
+    endorsed: false,
+    note: 'Local queued placeholder. Call submitWaitHook to post a real wait-to-mine hook.',
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+async function postJson(archiveUrl: string, pathname: string, body: unknown): Promise<unknown> {
+  const endpoint = archiveUrl.replace(/\/$/, '')
+  const response = await fetch(`${endpoint}${pathname}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return response.json()
+}
+
+async function getJson(archiveUrl: string, pathname: string): Promise<unknown> {
+  const endpoint = archiveUrl.replace(/\/$/, '')
+  const response = await fetch(`${endpoint}${pathname}`)
+  if (!response.ok) throw new Error(`archive HTTP ${response.status}`)
+  return response.json()
+}
+
+function recomputeFromPool(pool: WaitingPoolView, selection: SelectionView): boolean {
+  if (selection.available !== true || pool.miners.length === 0) return false
+  const drawn = drawCommittee({
+    miners: pool.miners,
+    epoch: pool.epoch,
+    shardId: pool.shardId,
+    beacon: selection.beacon,
+  })
+  return (
+    drawn.poolRoot === selection.poolRoot &&
+    drawn.roulette === selection.roulette &&
+    sameHexList(drawn.committee, selection.committee) &&
+    sameHexList(drawn.standbys, selection.standbys)
+  )
+}
+
+export async function submitWaitHook(
+  archiveUrl: string,
+  miner: string = LAB_DAEMON_PROBE_MINER,
+  groupId: string = LAB_GROUP_ID,
+): Promise<OnDemandWaitSession> {
+  const hook = await postJson(archiveUrl, '/ondemand/hook', {
+    schema: 'DleOnDemandHookV1',
+    miner,
+    groupId,
+  })
+  const poolRaw = await getJson(archiveUrl, '/ondemand/pool')
+  const selectionRaw = await getJson(archiveUrl, '/ondemand/selection')
+  const pool = isRecord(poolRaw) ? (poolRaw as unknown as WaitingPoolView) : null
+  const selection = isRecord(selectionRaw) ? (selectionRaw as unknown as SelectionView) : null
+  const recomputed = pool !== null && selection !== null ? recomputeFromPool(pool, selection) : false
+  const hookRow = isRecord(hook) ? hook : {}
+  const status =
+    hookRow.status === 'frozen' || hookRow.error === 'ERR_POOL_FROZEN'
+      ? 'frozen'
+      : hookRow.status === 'rejected' || hookRow.error === 'ERR_DUPLICATE_HOOK'
+        ? 'rejected'
+        : 'queued'
+  const selected = selection !== null && selection.available === true ? selection : null
+  return {
+    schema: 'DleOnDemandWaitV1',
+    status,
+    slot: typeof hookRow.slot === 'number' ? hookRow.slot : null,
+    miner,
+    groupId,
+    poolRoot: selected?.poolRoot ?? pool?.poolRoot ?? null,
+    committee: selected?.committee ?? [],
+    standbys: selected?.standbys ?? [],
+    recomputed,
+    endorsed: selected?.endorsed === true,
+    note:
+      status === 'frozen'
+        ? 'Pool already frozen. Daemon recomputed 7+2 from public poolRoot and beacon.'
+        : status === 'rejected'
+          ? 'Duplicate wait hook rejected (one in-flight hook per miner and group).'
+          : 'Wait hook queued. Freeze poolRoot before drawing 7+2.',
   }
 }
 
@@ -108,6 +210,6 @@ export async function probeArchive(archiveUrl: string): Promise<{
     daemon: daemonInfo(archiveUrl),
     health,
     info,
-    wait: createWaitSession(),
+    wait: await submitWaitHook(archiveUrl),
   }
 }

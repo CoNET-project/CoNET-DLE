@@ -37,6 +37,8 @@ export const DLE_ARCHIVE_METHODS = [
   'dle_info',
   'dle_tip',
   'dle_getArchiveCertificate',
+  'dle_getWaitingPool',
+  'dle_getSelectionLog',
   'eth_chainId',
   'eth_blockNumber',
   'net_version',
@@ -82,6 +84,8 @@ export interface DleTipView {
   finalized: boolean
   note: string
 }
+
+export type { SelectionView as DleSelectionLogView, WaitingPoolView as DleWaitingPoolView } from './ondemand/index.js'
 
 export interface DleCertificateView {
   available: boolean

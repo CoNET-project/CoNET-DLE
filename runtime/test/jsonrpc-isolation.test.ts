@@ -39,6 +39,10 @@ test('archive JSON-RPC facade source never names L1 public RPC hosts', async () 
     'src/archive/bft/engine.ts',
     'src/archive/bft/modeA.ts',
     'src/archive/bft/labCandidate.ts',
+    'src/archive/ondemand/engine.ts',
+    'src/archive/ondemand/mac.ts',
+    'src/shared/ondemand/encoding.ts',
+    'src/daemon/core.ts',
   ]
   for (const relative of files) {
     const source = await readFile(join(ROOT, relative), 'utf8')
