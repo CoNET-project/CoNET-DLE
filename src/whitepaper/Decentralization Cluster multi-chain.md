@@ -4,7 +4,7 @@
 
 **Author:** Peter Xie  
 **First draft:** 2023  
-**Revision:** 2026-08-15 (on-demand wait-hook intra-group fan-out: hooks **MUST NOT** be treated as gossiped among archives; the miner/daemon **MUST** deliver the same wait-hook to every live archive in that group — §5.4 / §8.1; laboratory HTTP `POST /ondemand/hook` is a lab/MVP control-plane path, **not** production DePIN gossip and **not** explorer HTTPS; laboratory beacon ≠ L1 CL RANDAO — §7.8.5; HTTP 30-miner queue is measured lab evidence, **not** 30-day qualification — §15; prior 2026-08-14: global DLE RPC truth surface: any live archive is a valid RPC entry; foreign-group queries **MUST proxy** to that group’s `historyProviders` — §5.2.0d; DLE Chain ID ≡ archive `groupId` + L1 Global Archive Routing Registry: archive wallets + hosted chain NFT ids, chain routing / history providers — §5.2.0d; 5-active + 2-standby archive groups + strict 4/5 quorum + executable Archive Tendermint v2 corpus/Archive A MVP + line-level Tendermint/WAL rules + AdaptiveRotationV1 + OperatorDomainRegistryV1 + L1QueueAccumulatorV1 scale profile + deterministic `dle.rs.v1` correct-encoding proof + challenged force exit + Treasury V3 canonical ERC-20 burn/remint gateway + **measured P1 economic evidence boundary: 100-USDC safety cap frozen, 10-USDC floor and 1.2× coverage still provisional** + L1-anchored seller orders + x402 v2 AI pay-per-use / API-gateway target profile + three-ledger protocol/execution/availability economics + Treasury-canonical L1 pool/TWAP asset admission; archives have no block-production right)
+**Revision:** 2026-08-15 (lab M0–M4 hash pipe live after wipe; hop-1 `historyProviders` on lab HTTP :27101 — still not production DePIN; hash-only RPC must first hit `chainNftId`, then hop-1 proxy — §5.2.0e; in-group geth-style hot KV + freezer keyed by `(nft, height)`; per-group `HashIndexTreeV1` / `hashIndexRoot`; plane-wide `null` only after trusted not-found; prior same-day: on-demand wait-hook intra-group fan-out: hooks **MUST NOT** be treated as gossiped among archives; the miner/daemon **MUST** deliver the same wait-hook to every live archive in that group — §5.4 / §8.1; laboratory HTTP `POST /ondemand/hook` is a lab/MVP control-plane path, **not** production DePIN gossip and **not** explorer HTTPS; laboratory beacon ≠ L1 CL RANDAO — §7.8.5; HTTP 30-miner queue is measured lab evidence, **not** 30-day qualification — §15; prior 2026-08-14: global DLE RPC truth surface: any live archive is a valid RPC entry; foreign-group queries **MUST proxy** to that group’s `historyProviders` — §5.2.0d; DLE Chain ID ≡ archive `groupId` + L1 Global Archive Routing Registry: archive wallets + hosted chain NFT ids, chain routing / history providers — §5.2.0d; 5-active + 2-standby archive groups + strict 4/5 quorum + executable Archive Tendermint v2 corpus/Archive A MVP + line-level Tendermint/WAL rules + AdaptiveRotationV1 + OperatorDomainRegistryV1 + L1QueueAccumulatorV1 scale profile + deterministic `dle.rs.v1` correct-encoding proof + challenged force exit + Treasury V3 canonical ERC-20 burn/remint gateway + **measured P1 economic evidence boundary: 100-USDC safety cap frozen, 10-USDC floor and 1.2× coverage still provisional** + L1-anchored seller orders + x402 v2 AI pay-per-use / API-gateway target profile + three-ledger protocol/execution/availability economics + Treasury-canonical L1 pool/TWAP asset admission; archives have no block-production right)
 
 **Paired translation (must stay in sync):** [`Decentralization Cluster multi-chain.zh-CN.md`](./Decentralization%20Cluster%20multi-chain.zh-CN.md)
 **Sync rule:** `.cursor/rules/conet-layer2-whitepaper-bilingual-sync.mdc`
@@ -37,6 +37,7 @@
 - **Archive-plane fission + BFT finality:** let \(G_e\) be the L1-registered live-group count, \(N_e=5G_e\) the unique active-voter count, and \(U_e\) the eligible `UnassignedPool` count; a serviceable new group may form iff **\(U_e\ge7\)**. Every group receives **five newly assigned, non-overlapping active voters plus two dedicated ordered standbys** selected with public randomness; `maxGroupsPerArchive=1` and cross-group roster overlap is zero. Identity exclusivity is strengthened by **OperatorDomainRegistryV1**: challengeable canonical operator, infrastructure, and role-domain commitments govern group formation and archive/validator separation. Existing groups keep their assignments and only witness formation / serve proof-carrying read-only data for foreign groups **via the global RPC proxy** (§5.2.0d). `groupId` is monotonic and never reused. New chains are roulette-assigned then bound on L1 1155; existing tips stay on `archiveGroupId`; **MigrationCertificate** is only for dissolve/re-home (§5.2). Each group finalizes validator-produced event blocks with the line-level Tendermint-style **PrevoteQC → PrecommitQC (= AC)** rule at \(N_A=5\Rightarrow f=1,\,Q_A=4\). **AdaptiveRotationV1** replaces one active slot on a mandatory schedule and completes a five-slot churn cycle even without failure; static binomial figures are only the initial-draw baseline (§5.2.1a, §12.3.1a).
 - **DLE Chain ID = archive group id:** the protocol **Chain ID** is the hosting archive **`groupId`**, not CoNET L1 EVM `224422` and not the tip’s NFT id. Bootstrap is **one** live group; fission yields a second unique group, then a third, and so on. CoNET L1 **Global Archive Routing Registry** records every participating archive **wallet address** and every hosted chain **NFT id**, so clients obtain **chain routing** and **which archives may serve that tip’s history** from L1 (§5.2.0d).
 - **Global RPC truth + foreign-group proxy:** every live archive **MUST** expose the same global DLE RPC surface, so a client MAY query **any** archive as a single entry. If the request is **not** for that node’s own `groupId` (L1 `route(chainNftId)`), the node **MUST proxy** to `historyProviders(chainNftId)` — the hosting group’s archive wallets — and **MUST NOT** answer foreign-group state from a local replica as RPC truth (§5.2.0d).
+- **Hash-only lookup hits a tip first:** if the client holds only a block / tx / AC / `daRoot` hash, the entry **MUST** resolve a `HashLocatorV1` that includes **`chainNftId`**, then `route(nftId)` and hop-1 proxy. A local miss is **not** plane-wide `null`. Own-group hot path is a geth-style KV `hash → (chainNftId, kind, height)` plus freezer keyed by `(nft, height)`; each group commits `hashIndexRoot` for inclusion / non-inclusion proofs. Success without `chainNftId` is a protocol error (§5.2.0e).
 - **Archive-member exit and slashing:** archive identities exit through `ACTIVE → EXIT_REQUESTED → DRAINING → STANDBY_SYNCING → HANDOVER_READY → MEMBERSHIP_SWITCHED → UNBONDING → EXITED`; duties remain until the L1 `membershipRoot` atomically switches. Provable inactivity, pre-handover shutdown, DA fraud, and equivocation receive graduated penalties. Archive-member exit is distinct from a user’s challenged `AssetBurnMintGateway` `request → challenge → finalize` forced-exit claim (§5.2.1).
 - **DA:** v1 freezes a byte-exact **`dle.rs.v1`** systematic Reed–Solomon \((n,k)=(7,4)\) codec. Before precommit, every archive signer must obtain the canonical full body, replay it, deterministically re-encode all seven chunks, and recompute both `bodyCommitment` and `daRoot`; Merkle membership or possession of four chunks alone is insufficient. `BadEncodingEvidence` / `BadEncodingProof` covers inconsistent codewords (§5.2.1).
 - **Economics (three separate ledgers):** the **variable protocol value fee** remains 1 bp—asset transfers pay canonical conet-USDC after L1 pool/TWAP valuation and trade settlement pays the same `quoteAsset`; storage content/retention stays in **conet-GB**. A payer-capped canonical-conet-USDC **execution reserve** reimburses only objective L1 gas and frozen `FeeScheduleV1` resource units for oracle, proof, DA ingress, cross-domain legs, and bounded retries. A distinct per-epoch **availability budget** funds fixed 5+2 archive, standby-readiness, validator, and history-service capacity through chain rent / creation reserves or an explicit capped bootstrap subsidy. The 1 bp protocol fee splits **50% hosting archive / 50% \(Q_V\) validators** and is never represented as sufficient execution or availability funding (§13).
@@ -1166,6 +1167,112 @@ Proxy obligations:
 
 Do **not** write public explorer hostnames into Solidity constants. The Global registry stores **wallets, `groupId`s, and NFT ids** only.
 
+### 5.2.0e Hash-only lookup: hit a tip, then hop-1 proxy (product freeze)
+
+§5.2.0d freezes routing **when the client already has `chainNftId`**. Clients often hold only a 32-byte object hash (block, transaction, Archive Certificate, or `daRoot` proof package). DLE is a **multi-tip aggregator**: one live group hosts `hostedChainNftIds[]` / `chainsOf(groupId)`. A lookup that answers only `groupId`, or that treats a local miss as Ethereum-style `null`, is therefore incomplete.
+
+**Identity split (do not conflate).**
+
+| Name | Meaning | Does a hash-only query hit it? |
+| --- | --- | --- |
+| **`chainNftId`** | L1 ERC-1155 token id of one atomic tip | **MUST.** First field of a successful locator. |
+| **`groupId` / DLE Chain ID** | Hosting 5-active + 2-standby committee | **Derived.** `groupId = route(chainNftId)`. |
+| CoNET L1 `224422` | Settlement EVM | **No.** Not the DLE object directory. |
+
+**Hit definition.** A successful `dle_locateHash` / `dle_getByHash` (and the Ethereum-compat wrappers that share the same pipe) **MUST** return a `HashLocatorV1` that includes **`chainNftId`**. A 200 without `chainNftId` is a **protocol error**. Knowing only the host group is not a hit: two hosted tips may both have `height=9`; freezer slots and `historyProviders` are keyed by NFT, not by a group-wide height.
+
+```
+HashLocatorV1 = {
+  chainNftId,          // required
+  kind,                // ac | block | tx | daRootProof
+  height,              // height on that tip
+  acRef?,              // AC / valueHash binding that tip
+  groupId?             // debug only; authoritative route is live L1 route(nftId)
+}
+```
+
+**Normative pipeline.**
+
+```
+hash
+ → locator { chainNftId, kind, height, acRef }   // nft required
+ → groupId = route(chainNftId)
+ → hop-1 fetch (chainNftId, height) on historyProviders(chainNftId)
+```
+
+- If the request already carries a `chainNftId` hint, query **only** that tip’s namespace. A leaf whose nft disagrees **MUST NOT** be returned as success (a diagnostic `foundOnChain` MAY be attached).
+- The same object hash appearing under two `chainNftId`s is a **domain-separation invariant break**: fail closed; **MUST NOT** return a multi-hit array.
+- After re-home, `groupId` MAY change; authoritative routing is the **current** L1 `route(nftId)`. Responses MAY echo `groupId` for debug.
+- Event-hash preimages that enter the public directory **MUST** already bind `chainNftId` (as `ArchiveConsensusDomain` / `valueHash` already do).
+
+**In-group hot path (geth-inspired; not a geth clone).**
+
+Archive geth answers `eth_getBlockByHash` / `eth_getTransactionByHash` from a flat KV (`H` / `l`) then reads header/body by height. Freezer holds ancient bodies while **indexes stay in the hot store**. DLE **MAY** copy that shape **inside one group**, with two mandatory expansions:
+
+| Geth (single chain) | DLE (multi-tip group) |
+| --- | --- |
+| `hash → number` | `hash → (chainNftId, kind, height)` |
+| freezer key = height | freezer / WAL key = **`(chainNftId, height)`**, never `(groupId, height)` |
+| local miss ⇒ JSON-RPC `null` | local miss **MUST NOT** become plane-wide `null`; continue locate / hop-1 or return unavailable |
+
+Own-group hot RPC is **O(1) KV**. Opening `HashIndexTreeV1` **MUST NOT** be the hot Get. Indexes remain in the hot store after bodies move to append-only freezer. Archive-mode historical **state trie** is a different switch and is **not** the object directory. DLE `/rpc` **MUST NOT** be reverse-proxied to CoNET `publicrpc` / `rpc1` as a substitute for this pipe.
+
+**Per-group `HashIndexTreeV1`.**
+
+Each live group maintains one sparse / sorted Merkle tree whose root `hashIndexRoot` is committed by that group’s \(Q_A\) through AC / membership checkpoint.
+
+| Field | Rule |
+| --- | --- |
+| Key | object hash |
+| Leaf | `{ kind, chainNftId, height or acRef, migratedTo? }` — **no payload body** |
+| Proofs | inclusion **and** non-inclusion (sparse Merkle or sorted-range) |
+| Scope | **one tree per group**, not one global tree and not one tree per tip |
+| Not | `daRoot`, `membershipRoot`, `tipStateRoot` |
+| Hash | v1 Keccak with domain separation; **no** Verkle / KZG in v1 |
+
+The tree accelerates foreign-group locate and client-verifiable not-found. It **does not** replace the host group’s O(1) KV and **does not** authorize a replica to answer foreign RPC.
+
+**RPC methods (same pipe).**
+
+| Method | Role |
+| --- | --- |
+| `dle_locateHash(hash [, hint])` | Return `HashLocatorV1` including **`chainNftId`**; no payload body |
+| `dle_getByHash(hash [, hint])` | Locate then hop-1 fetch the object + proof bundle |
+| `eth_getBlockByHash` / `eth_getTransactionByHash` | Compatibility wrappers over the same pipe |
+
+**In scope / out of scope.**
+
+| In the hash pipe | Out of the hash pipe |
+| --- | --- |
+| AC, `valueHash` / block, transaction, `daRoot` proof package | Copyright plaintext / IPFS fragment |
+|  | Waiting-pool state (group-local) |
+
+**Failure semantics (trusted empty vs unavailable).**
+
+- JSON-RPC `null` / trusted not-found **only** after every **live** group has returned a **trusted** not-found for the queried namespace (no hint ⇒ all hosted tips of all live groups; hint ⇒ that `chainNftId` only).
+- Timeout, partial group failure, or unverified proof ⇒ **unavailable**, not `null`.
+- A replica **MUST NOT** convert “I do not have this hash” into plane-wide `null`.
+
+**Proxy obligations (extends §5.2.0d).**
+
+1. After locate yields `chainNftId`, hop-1 **only** to `historyProviders(chainNftId)`.
+2. **MUST NOT** fan out the payload to every live group.
+3. **MUST NOT** put every object hash on L1 as a directory.
+4. A cross-group replica is not RPC truth.
+5. Transport remains CoNET DePIN; laboratory HTTP on control port 27101 is not the product path.
+
+**Forbidden.**
+
+- Treating a local tip-hash compare miss as Ethereum `null`
+- `locate(hash) → groupId` then scanning every hosted tip
+- Freezer / WAL keyed only by `(groupId, height)`
+- Success response without `chainNftId`
+- Payload fan-out; L1 as a hash directory; replica as RPC truth
+- Using `HashIndexTreeV1` as the own-group hot Get
+- Putting copyright plaintext or wait-pool entries in the public hash directory
+
+After the 2026-08-15 laboratory wipe, the lab facade implements **M0–M4**: own-group hash KV, freezer keyed by `(chainNftId, height)`, `dle_locateHash` / `dle_getByHash` / `eth_*ByHash` on the same pipe, and hop-1 object fetch to `historyProviders(chainNftId)` over laboratory HTTP `:27101`. A hit **MUST** include `chainNftId`. Unknown hashes return `unavailable` (`planeWideNull: false`), not plane-wide `null`. Own-group hop failure **MAY** fall back to the local freezer and **MUST** mark `usedLocalFallback`. Foreign-group hop failure **MUST NOT** present a local replica as RPC truth. `dle_getObject` is local-freezer only and **MUST NOT** recurse into `dle_getByHash`. Laboratory HTTP / HMAC / lab beacon remain **not** production DePIN. **M5–M6** (`hashIndexRoot`, second group) are not implemented. This is **not** 30-day qualification (§15.20).
+
 ### 5.2.1 Archive-shard BFT & Archive Certificate (product freeze)
 
 The byte-level Proposal/Vote vectors remain immutable in [`DLE-Archive-Tendermint-Vectors-v1.json`](./DLE-Archive-Tendermint-Vectors-v1.json). The canonical executable [`v2 corpus`](../../conformance/corpus/DLE-Archive-Tendermint-Vectors-v2.json) and its [SHA-256 manifest](../../conformance/DLE-Archive-Tendermint-Corpus-v2.sha256) additionally freeze QC/AC/TC/Reject containers and references, signing roots, coordinator selection, WAL safety records/frames, error and reject enums, ordered FSM/lifecycle vectors, and deterministic RS `(7,4)` golden data. The [`Archive Tendermint Conformance Specification`](./DLE-Archive-Tendermint-Conformance-Spec.md) is controlling. Production remains blocked on the single SSZ→EIP-712 signature wrapper, an independent second-language reproduction, and production integration; prose in this section cannot override the machine corpus.
@@ -2265,6 +2372,8 @@ L2Envelope {
 - [ ] New-chain host placement = `UniformPlacementV1` with L1-frozen `L1QueueRangeCheckpoint` + eligible-group root before beacon reveal; no \(Q_G\), dynamic load, or self-reported counters in v1 (§5.2.0a).
 - [ ] DLE Chain ID = L1 archive `groupId`; Global Archive Routing Registry stores archive **wallets** + hosted chain **NFT ids**; clients route history via `route(nftId)` → `historyProviders`—never EVM `224422`, lab `eth_chainId`, or `tokenId` hash (§5.2.0d).
 - [ ] Every live archive exposes the **global DLE RPC** surface; **foreign-group** queries **MUST proxy** to `historyProviders` / `archivesOf(targetGroupId)` and **MUST NOT** answer from a local replica as RPC truth (§5.2.0d).
+- [ ] Hash-only lookup first hits **`chainNftId`** (`HashLocatorV1`); then `route(nftId)` and hop-1 to `historyProviders`. Success without `chainNftId` is a protocol error. Local miss is not plane-wide `null` (§5.2.0e).
+- [ ] Own-group hot path is O(1) KV `hash → (chainNftId, kind, height)` plus freezer/WAL keyed by `(chainNftId, height)`. Per-group `hashIndexRoot` proves inclusion / non-inclusion; it is not the hot Get and not `daRoot` / `membershipRoot` / `tipStateRoot` (§5.2.0e).
 - [ ] Block acceptance = full set of secp256k1 votes on `blockHash`.
 - [ ] No private keys in logs; no plaintext mirroring on relays.
 
@@ -3220,6 +3329,7 @@ These items are left explicit so engineering can freeze parameters without rewri
 17. **Verifiable DA + burn/mint exit** are product-frozen in form (§5.2.1, §4.6): byte-exact **`dle.rs.v1` \((n,k)=(7,4)\)** with frozen GF(2^8) matrix, padding, leaf tree, vectors, full-body re-encoding by every precommit signer, `BadEncodingProof`, assigned-share custody and **UnavailableChallenge**. AC fields include `bodyCommitment`, `payloadLength`, `codecSpecHash`, `daRoot`, `chunkAssignmentRoot`, `tipStateRoot`, parent AC, and L1 context. Treasury V3 burns exact canonical L1 units; normal exit remints through Treasury V3 only after an AC-backed debit and may use `ExitFeeQuoteV1`; force exit uses **`requestForceWithdraw → challengeForceWithdraw → finalizeForceWithdraw`**, monotonic `latestKnownAC`, deterministic contract-derived claim id/nullifier, pending-owner spend freeze, cumulative `totalBurnedIn` / `totalMintedOut` accounting, emergency-reserve funding, and \(T_{\mathrm{exit}}\). The old one-shot interface and escrow-vault model are forbidden. Open items: numeric DA/exit/archive timeouts, bonds/bounties, exact canonical `BlockBodyV1` container encoding, fraud-proof execution environment/gas benchmark, AC ancestry proof encoding, gateway + Treasury DLE-authority-interface ABI and canonical-token allowlist—**not** whether chunk membership alone proves correct encoding.
 18. **AI pay-per-use / x402 v2 is target-frozen at the boundary but not implementation-complete** (§4.7a): HTTP uses `PAYMENT-REQUIRED` / `PAYMENT-SIGNATURE` / `PAYMENT-RESPONSE`; CoNET is `eip155:224422`; `exact`, single-use `upto`, and capital-backed `batch-settlement` retain their scheme-specific semantics; DLE stores commitments, not prompt/output plaintext or arbitrary API code. Open release gates are: a frozen CoNET mechanism binding and canonical asset-transfer method for each advertised scheme; facilitator `/supported` discovery; `conet-dle` extension JSON Schema; byte-exact `AiUsageReceiptV1` and voucher/FSM encodings; idempotency/replay, zero-charge, partial-stream, timeout, facilitator-failure and L1-reorg vectors; an L1 escrow/channel implementation and measured gas/capacity for batch settlement; metering-policy challenge rules; and an explicit `AiUsageFeePolicyV1`. The existing `src/x402sdk` legacy exact path must not be advertised as v2 before those gates pass.
 19. **Laboratory HTTP wait-hook queue (measured, non-normative as production gossip):** 2026-08-15 isolated-lab evidence shows 30 on-demand clients on `70.35.205.77` posting the same miner hook to all seven lab archives via `http://<archive>:27101/ondemand/hook` (hooks are **not** intra-group gossip). After freeze, the seven archives shared `poolRoot=0xafdf42e9625961ce16f2403f509835d79bba94b144bba9606346c9adf0c3c2c4`, `minerCount=30`, `frozen=true`, 5 active HMAC attests, `endorsed=true`. Evidence: `src/conet-layer2/pilot/evidence/conet-dle-30d-lab-2026-08/ondemand-http-queue-30.json`. This is **not** production DePIN gossip, **not** L1 CL RANDAO (§7.8.5), **not** an Archive Certificate, and **not** 30-day archive-group qualification.
+20. **Hash-only RPC pipe (lab M0–M4 live after wipe):** §5.2.0e is product-frozen. After the 2026-08-15 DLE lab wipe, the laboratory facade implements **M0–M4**: unknown hash → `unavailable` (`planeWideNull: false`), never plane-wide `null`; own-group file KV `hash → (chainNftId, kind, height)`; append-only freezer keyed by `(chainNftId, height)`; `dle_locateHash` / `dle_getByHash` / `eth_getBlockByHash` / `eth_getTransactionByHash` share the pipe; a hit **MUST** include `chainNftId`; after locate, hop-1 fetches the object from `historyProviders` on lab HTTP `:27101` (`dle_getObject` is local-only). Explore (`https://dle.conet.network`) can search a 32-byte hash and shows the hop receipt. **M5–M6** remain open (`hashIndexRoot`, second group). HMAC ≠ EIP-712; laboratory beacon ≠ L1 CL RANDAO; HTTP hook ≠ production DePIN. Completing M0–M4 does **not** start 30-day qualification.
 
 ---
 
@@ -3280,6 +3390,9 @@ Security remains conditional. The ≤100 USDC-equivalent asset-tip cap limits di
 | **DLE Chain ID** | Protocol Chain ID of the DLE plane = hosting archive **`groupId`**. Not CoNET L1 EVM `224422`, not a lab EVM id, and not the tip NFT id (§5.2.0d). |
 | **Global Archive Routing Registry** | CoNET L1 contract (or facade) that records every live group’s archive **wallets** and hosted chain **NFT ids**. Clients obtain **chain routing** and **authoritative history providers** from it (§5.2.0d). |
 | **Global RPC truth / foreign-group proxy** | Every live archive exposes one plane-wide DLE RPC entry. Queries for another group **MUST** be proxied to that group’s `historyProviders`; a local replica is not RPC truth (§5.2.0d). |
+| **HashLocatorV1** | Successful hash-only locate result: **`chainNftId` required**, plus `kind`, `height`, optional `acRef` / debug `groupId`. A 200 without nft is a protocol error (§5.2.0e). |
+| **`hashIndexRoot` / HashIndexTreeV1** | Per-group sparse / sorted Merkle directory of object hashes → locators (no bodies). Supports inclusion and non-inclusion proofs. Not the own-group hot Get; not `daRoot` / `membershipRoot` / `tipStateRoot` (§5.2.0e). |
+| **Hash must hit `chainNftId`** | Hash-only RPC first resolves a tip NFT, then `route()` and hop-1 proxy. Group-only locate is incomplete; freezer/WAL keys are `(chainNftId, height)` (§5.2.0e). |
 | **Cross-group read replica** | An archive retaining old inventory or mirroring another group’s finalized AC chain. Used for DA recovery / catch-up / audit after host-group AC verification; **not** a substitute for the foreign-group RPC proxy; no foreign-group consensus or write authority (§5.2, §5.2.0d). |
 | **Placement salt \(R_e^{\mathrm{place}}\)** | Domain-separated host-placement seed over L1 finalized beacon randomness, L1 queue range hash, epoch, and eligible-group registry root (§5.2.0a). |
 | **L1BeaconFinalizedRandomness** | CoNET CL finalized random beacon field (RANDAO or equivalent) bound into production \(R_e\); **not** execution `block.hash` (§7.8.1). |

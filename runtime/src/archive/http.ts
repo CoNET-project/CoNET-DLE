@@ -7,12 +7,22 @@ import type {
   DleTipView,
   DleWaitingPoolView,
 } from '../shared/protocol.js'
+import { createHashLookupAdapter } from './hashPipe.js'
+import type { Hop1Fetch } from './hop1.js'
 import {
   buildArchiveFacadeInfo,
   defaultFacadeViews,
   dispatchArchiveJsonRpcEnvelope,
 } from './jsonrpcFacade.js'
+import { defaultLabRouteTable, type LabRouteTable } from '../shared/labRoute.js'
 import type { ArchiveStore } from './store.js'
+
+const HASH_GET_RE = /^\/api\/v2\/dle\/hash\/(0x[0-9a-fA-F]{64})$/i
+const OBJECT_GET_RE = /^\/api\/v2\/dle\/object\/(\d+)\/(0x[0-9a-fA-F]+)$/i
+const ROUTE_GET_RE = /^\/api\/v2\/dle\/route\/(\d+)$/i
+const PROVIDERS_GET_RE = /^\/api\/v2\/dle\/historyProviders\/(\d+)$/i
+const ARCHIVES_GET_RE = /^\/api\/v2\/dle\/archivesOf\/(\d+)$/i
+const CHAINS_GET_RE = /^\/api\/v2\/dle\/chainsOf\/([^/]+)$/i
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -36,6 +46,8 @@ export interface ArchiveHttpOptions {
     selectionLog?: DleSelectionLogView
   }
   onPost?: (pathname: string, body: unknown) => { status: number; body: unknown } | undefined
+  routeTable?: LabRouteTable
+  hopFetch?: Hop1Fetch
 }
 
 export interface ArchiveHttpServer {
@@ -67,6 +79,18 @@ function readBody(req: IncomingMessage): Promise<string> {
 
 function archiveInfo(port: number, identity?: ArchiveHttpOptions['identity']): DleArchiveInfo & Record<string, unknown> {
   return buildArchiveFacadeInfo(port, identity)
+}
+
+function lookupAdapter(options: ArchiveHttpOptions) {
+  return createHashLookupAdapter(options.store.hash, {
+    table:
+      options.routeTable ??
+      defaultLabRouteTable({
+        domainId: options.identity?.domainId ?? 'local',
+        role: options.identity?.role ?? 'active',
+      }),
+    ...(options.hopFetch !== undefined ? { fetchObject: options.hopFetch } : {}),
+  })
 }
 
 export async function listenArchiveHttp(options: ArchiveHttpOptions): Promise<ArchiveHttpServer> {
@@ -131,6 +155,40 @@ export async function listenArchiveHttp(options: ArchiveHttpOptions): Promise<Ar
       })
       return
     }
+    if (req.method === 'GET') {
+      const lookup = lookupAdapter(options)
+      const hashMatch = HASH_GET_RE.exec(url.pathname)
+      const hashParam = hashMatch?.[1]
+      if (hashParam !== undefined) {
+        sendJson(res, 200, await lookup.get(hashParam))
+        return
+      }
+      const objectMatch = OBJECT_GET_RE.exec(url.pathname)
+      if (objectMatch?.[1] !== undefined && objectMatch[2] !== undefined) {
+        sendJson(res, 200, lookup.getObjectLocal(objectMatch[1], objectMatch[2]))
+        return
+      }
+      const routeMatch = ROUTE_GET_RE.exec(url.pathname)
+      if (routeMatch?.[1] !== undefined) {
+        sendJson(res, 200, lookup.route(routeMatch[1]))
+        return
+      }
+      const providersMatch = PROVIDERS_GET_RE.exec(url.pathname)
+      if (providersMatch?.[1] !== undefined) {
+        sendJson(res, 200, lookup.historyProviders(providersMatch[1]))
+        return
+      }
+      const archivesMatch = ARCHIVES_GET_RE.exec(url.pathname)
+      if (archivesMatch?.[1] !== undefined) {
+        sendJson(res, 200, lookup.archivesOf(archivesMatch[1]))
+        return
+      }
+      const chainsMatch = CHAINS_GET_RE.exec(url.pathname)
+      if (chainsMatch?.[1] !== undefined) {
+        sendJson(res, 200, lookup.chainsOf(decodeURIComponent(chainsMatch[1])))
+        return
+      }
+    }
     if (req.method === 'GET' && options.extraGet !== undefined) {
       const extra = options.extraGet(url.pathname)
       if (extra !== undefined) {
@@ -156,7 +214,12 @@ export async function listenArchiveHttp(options: ArchiveHttpOptions): Promise<Ar
       }
       if (url.pathname === '/' || url.pathname === '/rpc') {
         const views = options.facadeViews?.() ?? defaultFacadeViews()
-        const dispatched = dispatchArchiveJsonRpcEnvelope(parsed, info, views)
+        const dispatched = await dispatchArchiveJsonRpcEnvelope(
+          parsed,
+          info,
+          views,
+          lookupAdapter(options),
+        )
         if (!dispatched.ok) {
           sendJson(res, dispatched.status, dispatched.body)
           return

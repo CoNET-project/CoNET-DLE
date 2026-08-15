@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ActivityChart } from '../components/ActivityChart'
 import { ClusterGauge } from '../components/ClusterGauge'
 import { EventTable } from '../components/EventTable'
+import { HashCapsule } from '../components/HashCapsule'
 import { MetricCard } from '../components/MetricCard'
 import { OnDemandSelectionPanel } from '../components/OnDemandSelectionPanel'
 import { RefreshButton } from '../components/RefreshButton'
@@ -11,7 +12,7 @@ import { StatusPill } from '../components/StatusPill'
 import { MainPageShell } from '../components/TitleCapsule'
 import { sortEventsNewestFirst } from '../lib/events'
 import { formatHeight, formatInteger, shortenHash } from '../lib/format'
-import { CONET_L1_CHAIN_ID, DLE_LAB_CHAIN_ID_HEX } from '../protocol'
+import { CONET_L1_CHAIN_ID, DLE_LAB_CHAIN_ID_HEX, HASH32_RE } from '../protocol'
 import { useExplorer } from '../providers/ExplorerProvider'
 
 export function HomePage() {
@@ -35,6 +36,10 @@ export function HomePage() {
   const onSearch = (event: FormEvent) => {
     event.preventDefault()
     const next = query.trim()
+    if (HASH32_RE.test(next)) {
+      navigate(`/hash/${next.toLowerCase()}`)
+      return
+    }
     navigate(next === '' ? '/events' : `/events?q=${encodeURIComponent(next)}`)
   }
 
@@ -45,7 +50,7 @@ export function HomePage() {
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Explore the DLE Network</h1>
         <form className="dle-glass mt-5 flex flex-col gap-2 rounded-full p-1.5 sm:flex-row sm:items-center" onSubmit={onSearch}>
           <label htmlFor="dle-event-search" className="sr-only">
-            Search events
+            Search hash or events
           </label>
           <div className="flex min-w-0 flex-1 items-center gap-2 px-3">
             <Search className="h-4 w-4 shrink-0 text-cyan-300" aria-hidden />
@@ -53,7 +58,7 @@ export function HomePage() {
               id="dle-event-search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search events by type, method, or domain"
+              placeholder="Search 0x hash, or events by type, method, or domain"
               autoComplete="off"
               enterKeyHint="search"
               tabIndex={1}
@@ -109,6 +114,12 @@ export function HomePage() {
           tone={snapshot.certificate?.available ? 'default' : 'warn'}
         />
       </div>
+      {tip?.hash && HASH32_RE.test(tip.hash) ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300/70">Tip hash</p>
+          <HashCapsule value={tip.hash} to={`/hash/${tip.hash.toLowerCase()}`} />
+        </div>
+      ) : null}
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard

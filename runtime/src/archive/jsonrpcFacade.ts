@@ -1,5 +1,13 @@
 import { isJsonRpcRequest, jsonRpcError, jsonRpcSuccess, requestIdOf } from '../shared/jsonrpc.js'
 import {
+  hashLookupUnavailable,
+  normalizeChainNftId,
+  normalizeHash32,
+  normalizeHeightHex,
+  type HashLookupHint,
+  type HashLocatorV1,
+} from '../shared/hashLookup.js'
+import {
   CONET_L1_CHAIN_ID,
   CONET_L1_CHAIN_ID_HEX,
   DLE_ARCHIVE_CLIENT_VERSION,
@@ -18,6 +26,7 @@ import {
   type JsonRpcRequest,
   type JsonRpcResponse,
 } from '../shared/protocol.js'
+import type { HashLookupAdapter } from './hashPipe.js'
 
 export interface ArchiveFacadeViews {
   tip: DleTipView
@@ -102,6 +111,26 @@ function firstParam(params: unknown): unknown {
   return params[0]
 }
 
+function secondParam(params: unknown): unknown {
+  if (!Array.isArray(params) || params.length < 2) return undefined
+  return params[1]
+}
+
+function parseHashHint(raw: unknown): HashLookupHint | undefined {
+  if (raw === undefined || raw === null) return undefined
+  if (typeof raw === 'string' || typeof raw === 'number') {
+    const chainNftId = normalizeChainNftId(raw)
+    return chainNftId === null ? undefined : { chainNftId }
+  }
+  if (typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const chainNftId = normalizeChainNftId((raw as { chainNftId?: unknown }).chainNftId)
+  return chainNftId === null ? undefined : { chainNftId }
+}
+
+function wrapBlockHit(block: Record<string, unknown>, locator: HashLocatorV1): Record<string, unknown> {
+  return { ...block, dleLocator: locator }
+}
+
 function wantsFullTx(params: unknown): boolean {
   return Array.isArray(params) && params[1] === true
 }
@@ -137,11 +166,12 @@ function isTipBlockHash(hash: unknown, tipHash: string): boolean {
   return hash.toLowerCase() === tipHash.toLowerCase()
 }
 
-export function dispatchArchiveJsonRpc(
+export async function dispatchArchiveJsonRpc(
   request: JsonRpcRequest,
   info: DleArchiveInfo,
   views: ArchiveFacadeViews = defaultFacadeViews(),
-): JsonRpcResponse {
+  lookup?: HashLookupAdapter,
+): Promise<JsonRpcResponse> {
   if (info.chainId === CONET_L1_CHAIN_ID || info.chainIdHex === CONET_L1_CHAIN_ID_HEX) {
     return jsonRpcError(request.id, -32603, 'DLE facade refused to advertise CoNET L1 chain id')
   }
@@ -192,9 +222,178 @@ export function dispatchArchiveJsonRpc(
     case 'eth_getBlockByNumber':
       if (!isTipBlockTag(firstParam(request.params), views.tip.height)) return jsonRpcSuccess(request.id, null)
       return jsonRpcSuccess(request.id, syntheticTipBlock(wantsFullTx(request.params), views.tip))
-    case 'eth_getBlockByHash':
-      if (!isTipBlockHash(firstParam(request.params), views.tip.hash)) return jsonRpcSuccess(request.id, null)
-      return jsonRpcSuccess(request.id, syntheticTipBlock(wantsFullTx(request.params), views.tip))
+    case 'eth_getBlockByHash': {
+      const hashParam = firstParam(request.params)
+      if (hashParam === undefined || hashParam === null) {
+        return jsonRpcSuccess(request.id, syntheticTipBlock(wantsFullTx(request.params), views.tip))
+      }
+      const hash = normalizeHash32(hashParam)
+      if (hash === null) {
+        return jsonRpcError(request.id, -32602, 'eth_getBlockByHash requires a 32-byte hash')
+      }
+      if (lookup !== undefined) {
+        const found = await lookup.get(hash)
+        if (found.status === 'hit') {
+          if (found.locator.kind === 'tx') {
+            return jsonRpcSuccess(
+              request.id,
+              hashLookupUnavailable('Hash is not a block.', hash),
+            )
+          }
+          const object =
+            found.object !== null && typeof found.object === 'object' && !Array.isArray(found.object)
+              ? (found.object as Record<string, unknown>)
+              : null
+          const block =
+            object !== null && object.block !== null && typeof object.block === 'object' && !Array.isArray(object.block)
+              ? (object.block as Record<string, unknown>)
+              : syntheticTipBlock(wantsFullTx(request.params), {
+                  ...views.tip,
+                  hash,
+                  height: found.locator.height,
+                })
+          return jsonRpcSuccess(request.id, wrapBlockHit(block, found.locator))
+        }
+      }
+      if (isTipBlockHash(hash, views.tip.hash)) {
+        return jsonRpcSuccess(request.id, syntheticTipBlock(wantsFullTx(request.params), views.tip))
+      }
+      return jsonRpcSuccess(
+        request.id,
+        hashLookupUnavailable(
+          'Hash is not in this lab group index; plane-wide not-found is unproven (single-group lab).',
+          hash,
+        ),
+      )
+    }
+    case 'eth_getTransactionByHash': {
+      const hash = normalizeHash32(firstParam(request.params))
+      if (hash === null) {
+        return jsonRpcError(request.id, -32602, 'eth_getTransactionByHash requires a 32-byte hash')
+      }
+      if (lookup !== undefined) {
+        const found = await lookup.get(hash)
+        if (found.status === 'hit' && found.locator.kind === 'tx') {
+          return jsonRpcSuccess(request.id, {
+            ...(found.object !== undefined ? { object: found.object } : {}),
+            dleLocator: found.locator,
+          })
+        }
+      }
+      return jsonRpcSuccess(
+        request.id,
+        hashLookupUnavailable(
+          'Hash is not a lab transaction; plane-wide not-found is unproven (single-group lab).',
+          hash,
+        ),
+      )
+    }
+    case 'dle_locateHash': {
+      const hash = normalizeHash32(firstParam(request.params))
+      if (hash === null) {
+        return jsonRpcError(request.id, -32602, 'dle_locateHash requires a 32-byte hash')
+      }
+      if (lookup === undefined) {
+        return jsonRpcSuccess(
+          request.id,
+          hashLookupUnavailable(
+            'Hash is not in this lab group index; plane-wide not-found is unproven (single-group lab).',
+            hash,
+          ),
+        )
+      }
+      return jsonRpcSuccess(request.id, lookup.locate(hash, parseHashHint(secondParam(request.params))))
+    }
+    case 'dle_getByHash': {
+      const hash = normalizeHash32(firstParam(request.params))
+      if (hash === null) {
+        return jsonRpcError(request.id, -32602, 'dle_getByHash requires a 32-byte hash')
+      }
+      if (lookup === undefined) {
+        return jsonRpcSuccess(
+          request.id,
+          hashLookupUnavailable(
+            'Hash is not in this lab group index; plane-wide not-found is unproven (single-group lab).',
+            hash,
+          ),
+        )
+      }
+      return jsonRpcSuccess(request.id, await lookup.get(hash, parseHashHint(secondParam(request.params))))
+    }
+    case 'dle_getObject': {
+      const nft = normalizeChainNftId(firstParam(request.params))
+      const height = normalizeHeightHex(secondParam(request.params))
+      if (nft === null || height === null) {
+        return jsonRpcError(request.id, -32602, 'dle_getObject requires chainNftId and height')
+      }
+      if (lookup === undefined) {
+        return jsonRpcSuccess(request.id, {
+          schema: 'DleHashObjectV1',
+          status: 'unavailable',
+          planeWideNull: false,
+          reason: 'Object is not in this archive freezer.',
+          chainNftId: nft,
+          height,
+        })
+      }
+      return jsonRpcSuccess(request.id, lookup.getObjectLocal(nft, height))
+    }
+    case 'dle_route': {
+      const nft = normalizeChainNftId(firstParam(request.params))
+      if (nft === null) return jsonRpcError(request.id, -32602, 'dle_route requires chainNftId')
+      if (lookup === undefined) {
+        return jsonRpcSuccess(request.id, {
+          schema: 'DleLabRouteV1',
+          labOnly: true,
+          notProductionDepin: true,
+          l1RouteUnproven: true,
+          chainNftId: nft,
+          groupId: null,
+          ownGroup: false,
+          reason: 'Lab route table is not attached; L1 registry is unproven.',
+        })
+      }
+      return jsonRpcSuccess(request.id, lookup.route(nft))
+    }
+    case 'dle_historyProviders':
+    case 'dle_archivesOf': {
+      const nft = normalizeChainNftId(firstParam(request.params))
+      if (nft === null) {
+        return jsonRpcError(request.id, -32602, `${request.method} requires chainNftId`)
+      }
+      if (lookup === undefined) {
+        return jsonRpcSuccess(request.id, {
+          schema: 'DleLabProvidersV1',
+          labOnly: true,
+          notProductionDepin: true,
+          l1RouteUnproven: true,
+          chainNftId: nft,
+          groupId: null,
+          providers: [],
+        })
+      }
+      return jsonRpcSuccess(
+        request.id,
+        request.method === 'dle_archivesOf' ? lookup.archivesOf(nft) : lookup.historyProviders(nft),
+      )
+    }
+    case 'dle_chainsOf': {
+      const groupId = firstParam(request.params)
+      if (typeof groupId !== 'string' || groupId === '') {
+        return jsonRpcError(request.id, -32602, 'dle_chainsOf requires groupId')
+      }
+      if (lookup === undefined) {
+        return jsonRpcSuccess(request.id, {
+          schema: 'DleLabChainsV1',
+          labOnly: true,
+          notProductionDepin: true,
+          l1RouteUnproven: true,
+          groupId,
+          chainNftIds: [],
+        })
+      }
+      return jsonRpcSuccess(request.id, lookup.chainsOf(groupId))
+    }
     case 'eth_call':
     case 'eth_estimateGas':
     case 'eth_sendRawTransaction':
@@ -210,11 +409,14 @@ export function dispatchArchiveJsonRpc(
   }
 }
 
-export function dispatchArchiveJsonRpcEnvelope(
+export async function dispatchArchiveJsonRpcEnvelope(
   parsed: unknown,
   info: DleArchiveInfo,
   views: ArchiveFacadeViews = defaultFacadeViews(),
-): { ok: true; body: JsonRpcResponse | JsonRpcResponse[] } | { ok: false; status: number; body: JsonRpcResponse } {
+  lookup?: HashLookupAdapter,
+): Promise<
+  { ok: true; body: JsonRpcResponse | JsonRpcResponse[] } | { ok: false; status: number; body: JsonRpcResponse }
+> {
   if (Array.isArray(parsed)) {
     if (parsed.length === 0) {
       return { ok: false, status: 400, body: jsonRpcError(null, -32600, 'invalid request') }
@@ -222,16 +424,18 @@ export function dispatchArchiveJsonRpcEnvelope(
     if (parsed.length > DLE_JSONRPC_BATCH_MAX) {
       return { ok: false, status: 400, body: jsonRpcError(null, -32600, 'batch too large') }
     }
-    const body = parsed.map((item) => {
-      if (!isJsonRpcRequest(item)) {
-        return jsonRpcError(requestIdOf(item), -32600, 'invalid request')
-      }
-      return dispatchArchiveJsonRpc(item, info, views)
-    })
+    const body = await Promise.all(
+      parsed.map(async (item) => {
+        if (!isJsonRpcRequest(item)) {
+          return jsonRpcError(requestIdOf(item), -32600, 'invalid request')
+        }
+        return dispatchArchiveJsonRpc(item, info, views, lookup)
+      }),
+    )
     return { ok: true, body }
   }
   if (!isJsonRpcRequest(parsed)) {
     return { ok: false, status: 400, body: jsonRpcError(null, -32600, 'invalid request') }
   }
-  return { ok: true, body: dispatchArchiveJsonRpc(parsed, info, views) }
+  return { ok: true, body: await dispatchArchiveJsonRpc(parsed, info, views, lookup) }
 }

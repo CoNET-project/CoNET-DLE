@@ -24,6 +24,7 @@
     "lab:preflight": "npm run build && node dist/src/cli.js lab-preflight",
     "lab:deploy": "npm run build && node dist/src/cli.js lab-deploy",
     "lab:deploy-archive": "npm run build && node dist/src/cli.js lab-deploy-archive",
+    "lab:deploy-archive-keep": "npm run build && node dist/src/cli.js lab-deploy-archive-keep",
     "lab:accept-archive": "npm run build && node dist/src/cli.js lab-accept-archive",
     "lab:accept-ondemand": "npm run build && node dist/src/cli.js lab-accept-ondemand",
     "lab:deploy-ondemand-http-clients": "npm run build && node dist/src/cli.js lab-deploy-ondemand-http-clients",

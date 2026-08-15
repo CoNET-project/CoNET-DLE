@@ -11,6 +11,46 @@ import type { MeterSampleV1, PilotInventoryV1 } from './model.js'
 export const PILOT_LAB_ID = 'conet-dle-30d-lab-2026-08'
 export const LAB_PORT = 27101
 export const LAB_DIR = '/home/peter/dle-30d-lab'
+function extractArchiveHealthJson(stdout: string): Record<string, unknown> {
+  const marker = '{"ok":true,"command":"archive"'
+  const start = stdout.indexOf(marker)
+  if (start < 0) return {}
+  let depth = 0
+  let inString = false
+  let escape = false
+  for (let i = start; i < stdout.length; i += 1) {
+    const ch = stdout[i]
+    if (inString) {
+      if (escape) {
+        escape = false
+        continue
+      }
+      if (ch === '\\') {
+        escape = true
+        continue
+      }
+      if (ch === '"') inString = false
+      continue
+    }
+    if (ch === '"') {
+      inString = true
+      continue
+    }
+    if (ch === '{') depth += 1
+    if (ch === '}') {
+      depth -= 1
+      if (depth === 0) {
+        try {
+          return JSON.parse(stdout.slice(start, i + 1)) as Record<string, unknown>
+        } catch {
+          return {}
+        }
+      }
+    }
+  }
+  return {}
+}
+
 export const PROTECTED_PROCESS_NAMES = [
   'geth',
   'beacon-chain',
@@ -318,8 +358,8 @@ const STOP_LAB_ONLY = [
 
 const START_ARCHIVE = [
   'set -euo pipefail',
+  `rm -rf '${LAB_DIR}/data'`,
   `mkdir -p '${LAB_DIR}/app' '${LAB_DIR}/data' '${LAB_DIR}/daemon' '${LAB_DIR}/wal'`,
-  `rm -f '${LAB_DIR}/data/bft-state.json' '${LAB_DIR}/data/ondemand-state.json'`,
   `cd '${LAB_DIR}'`,
   `if [ -x '${LAB_DIR}/runtime/bin/node' ]; then NODE='${LAB_DIR}/runtime/bin/node'; else NODE=$(command -v node); fi`,
   `nohup "$NODE" '${REMOTE_ARCHIVE_ENTRY}' --config '${LAB_DIR}/config.json' --data-dir '${LAB_DIR}/data' >> '${LAB_DIR}/archive.log' 2>&1 &`,
@@ -332,6 +372,17 @@ const START_ARCHIVE_KEEP_BFT = [
   'set -euo pipefail',
   `mkdir -p '${LAB_DIR}/app' '${LAB_DIR}/data' '${LAB_DIR}/daemon' '${LAB_DIR}/wal'`,
   `rm -f '${LAB_DIR}/data/ondemand-state.json'`,
+  `cd '${LAB_DIR}'`,
+  `if [ -x '${LAB_DIR}/runtime/bin/node' ]; then NODE='${LAB_DIR}/runtime/bin/node'; else NODE=$(command -v node); fi`,
+  `nohup "$NODE" '${REMOTE_ARCHIVE_ENTRY}' --config '${LAB_DIR}/config.json' --data-dir '${LAB_DIR}/data' >> '${LAB_DIR}/archive.log' 2>&1 &`,
+  'echo STARTED=$!',
+  'sleep 2',
+  `curl -fsS --max-time 5 http://127.0.0.1:${LAB_PORT}/health`,
+].join('\n')
+
+const START_ARCHIVE_KEEP_ALL = [
+  'set -euo pipefail',
+  `mkdir -p '${LAB_DIR}/app' '${LAB_DIR}/data' '${LAB_DIR}/daemon' '${LAB_DIR}/wal'`,
   `cd '${LAB_DIR}'`,
   `if [ -x '${LAB_DIR}/runtime/bin/node' ]; then NODE='${LAB_DIR}/runtime/bin/node'; else NODE=$(command -v node); fi`,
   `nohup "$NODE" '${REMOTE_ARCHIVE_ENTRY}' --config '${LAB_DIR}/config.json' --data-dir '${LAB_DIR}/data' >> '${LAB_DIR}/archive.log' 2>&1 &`,
@@ -358,6 +409,7 @@ export async function deployArchiveRuntime(options?: {
   hostsPath?: string
   archiveDistDir?: string
   daemonProbePath?: string
+  keepData?: boolean
 }): Promise<{ ok: boolean; results: Array<{ domainId: string; host: string; ok: boolean; detail: string }> }> {
   const inventory = await loadOfficialLabInventory(options?.inventoryPath)
   const hosts = await loadLabHosts(options?.hostsPath)
@@ -412,7 +464,7 @@ export async function deployArchiveRuntime(options?: {
       })
       continue
     }
-    const started = await runSsh(host.sshHost, START_ARCHIVE)
+    const started = await runSsh(host.sshHost, options?.keepData === true ? START_ARCHIVE_KEEP_ALL : START_ARCHIVE)
     const healthOk = started.stdout.includes('"command":"archive"')
     results.push({
       domainId: host.domainId,
@@ -495,15 +547,7 @@ export async function acceptArchiveRuntime(): Promise<{
   for (const host of hosts.hosts) {
     const result = await runSsh(host.sshHost, acceptScript)
     const stdout = result.stdout
-    let health: Record<string, unknown> = {}
-    const healthMatch = stdout.match(/\{"ok":true,"command":"archive"[^\n]*?\}/)
-    if (healthMatch?.[0]) {
-      try {
-        health = JSON.parse(healthMatch[0]) as Record<string, unknown>
-      } catch {
-        health = {}
-      }
-    }
+    const health = extractArchiveHealthJson(stdout)
     let certificate: Record<string, unknown> = {}
     const certMatch = stdout.match(/CERT_BEGIN\n([\s\S]*?)\nCERT_END/)
     if (certMatch?.[1]) {
@@ -647,15 +691,7 @@ export async function acceptOnDemandRuntime(): Promise<{
   for (const host of hosts.hosts) {
     const result = await runSsh(host.sshHost, acceptScript)
     const stdout = result.stdout
-    let health: Record<string, unknown> = {}
-    const healthMatch = stdout.match(/\{"ok":true,"command":"archive"[^\n]*?\}/)
-    if (healthMatch?.[0]) {
-      try {
-        health = JSON.parse(healthMatch[0]) as Record<string, unknown>
-      } catch {
-        health = {}
-      }
-    }
+    const health = extractArchiveHealthJson(stdout)
     let selection: Record<string, unknown> = {}
     const selMatch = stdout.match(/SEL_BEGIN\n([\s\S]*?)\nSEL_END/)
     if (selMatch?.[1]) {

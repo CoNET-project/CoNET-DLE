@@ -1,12 +1,15 @@
 import { Check, Copy } from 'lucide-react'
 import { useCallback, useState, type MouseEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { shortenHash } from '../lib/format'
 
 export function HashCapsule({
   value,
+  to,
   className = 'max-w-full border-cyan-400/20 bg-white/10 text-white/85',
 }: {
   value: string
+  to?: string
   className?: string
 }) {
   const [copied, setCopied] = useState(false)
@@ -32,9 +35,15 @@ export function HashCapsule({
     <div
       className={`inline-flex items-center gap-2 rounded-full border py-1.5 pl-3 pr-2 font-mono text-[11px] font-semibold ${className}`}
     >
-      <span className="min-w-0 truncate" title={value}>
-        {short}
-      </span>
+      {to !== undefined ? (
+        <Link to={to} className="min-w-0 truncate hover:text-white" title={value}>
+          {short}
+        </Link>
+      ) : (
+        <span className="min-w-0 truncate" title={value}>
+          {short}
+        </span>
+      )}
       <button
         type="button"
         onClick={(event) => void handleCopy(event)}

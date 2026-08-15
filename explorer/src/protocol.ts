@@ -1,6 +1,8 @@
 /** Lab DLE chain id. Copied locally — never import runtime or archive-a/b. Must never equal CoNET L1 224422. */
 export const DLE_LAB_CHAIN_ID = 0x44c45
 export const CONET_L1_CHAIN_ID = 224422
+export const DLE_LAB_CHAIN_NFT_ID = '42'
+export const DLE_LAB_GROUP_ID = 'dle.lab.group.v1'
 
 export const DLE_JSONRPC_VERSION = '2.0' as const
 
@@ -16,6 +18,14 @@ export const DLE_ARCHIVE_METHODS = [
   'web3_clientVersion',
   'eth_getBlockByNumber',
   'eth_getBlockByHash',
+  'eth_getTransactionByHash',
+  'dle_locateHash',
+  'dle_getByHash',
+  'dle_getObject',
+  'dle_route',
+  'dle_historyProviders',
+  'dle_archivesOf',
+  'dle_chainsOf',
   'eth_syncing',
   'eth_accounts',
   'eth_protocolVersion',
@@ -31,6 +41,8 @@ export const DLE_REJECTED_METHODS = [
   'eth_getStorageAt',
   'eth_getTransactionCount',
 ] as const
+
+export const HASH32_RE = /^0x[0-9a-fA-F]{64}$/
 
 export const DEFAULT_ARCHIVE_URL = 'http://127.0.0.1:27101'
 export const DEFAULT_ARCHIVE_PORT = 27101

@@ -3,6 +3,8 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import process from 'node:process'
+import { DLE_LAB_CHAIN_NFT_ID } from '../shared/hashLookup.js'
+import { labRouteTableFromPeers } from '../shared/labRoute.js'
 import { createArchiveBftEngine } from './bft/engine.js'
 import { listenArchiveHttp } from './http.js'
 import { createOnDemandEngine } from './ondemand/engine.js'
@@ -116,10 +118,17 @@ const ondemand = createOnDemandEngine({
   autoFreeze: config.autoFreeze !== false,
 })
 
+const peers = Array.isArray(config.peers) ? config.peers : []
+const routeTable = labRouteTableFromPeers(
+  { domainId: config.domainId, role: config.role },
+  peers,
+)
+
 const server = await listenArchiveHttp({
   port,
   store,
   identity: { domainId: config.domainId, role: config.role },
+  routeTable,
   facadeViews() {
     const bft = engine.facadeViews()
     const waiting = ondemand.facadeViews()
@@ -147,6 +156,14 @@ const server = await listenArchiveHttp({
       bftPrecommitCount: bft.precommitCount,
       bftVoted: bft.voted,
       ...ondemand.health(),
+      hop1: {
+        labOnly: true,
+        notProductionDepin: true,
+        l1RouteUnproven: true,
+        transport: 'lab-http-27101',
+        ownGroupId: routeTable.ownGroupId,
+        providerCount: routeTable.groups[DLE_LAB_CHAIN_NFT_ID]?.wallets.length ?? 0,
+      },
     }
   },
   extraGet(pathname) {

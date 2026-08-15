@@ -39,6 +39,21 @@ export async function fetchArchiveHealth(archiveUrl: string): Promise<Record<str
   return body
 }
 
+export async function fetchHashLookup(archiveUrl: string, hash: string): Promise<unknown | null> {
+  try {
+    const rpc = await callArchive(archiveUrl, 'dle_getByHash', [hash])
+    if ('result' in rpc) return rpc.result
+  } catch {
+    /* fall through to GET */
+  }
+  try {
+    const body = await getJson(`${endpoint(archiveUrl)}/api/v2/dle/hash/${hash}`)
+    return body
+  } catch {
+    return null
+  }
+}
+
 export async function callArchive(
   archiveUrl: string,
   method: string,

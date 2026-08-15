@@ -26,7 +26,10 @@ import {
   type DepositBundle,
   type ModeAResult,
 } from './types.js'
+import { indexLabHashObject, labAcLocator } from '../hashPipe.js'
+import { syntheticTipBlock } from '../jsonrpcFacade.js'
 import type { ArchiveStore } from '../store.js'
+import { normalizeHash32 } from '../../shared/hashLookup.js'
 import type { DleCertificateView, DleTipView } from '../../shared/protocol.js'
 
 const GOSSIP_MS = 1_000
@@ -209,6 +212,27 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
     )
   }
 
+  function indexCertificate(next: ArchiveCertificate): void {
+    const hash = normalizeHash32(next.valueHash)
+    if (hash === null || hash === ZERO32) return
+    const height = `0x${next.height.toString(16)}`
+    const tip: DleTipView = {
+      height,
+      hash,
+      finalized: true,
+      note: 'Tip finalized by a lab networked Archive Certificate (PrecommitQC). Archives do not produce blocks.',
+    }
+    indexLabHashObject(
+      options.store.hash,
+      labAcLocator(hash, height, next.valueHash),
+      {
+        certificate: next,
+        tip,
+        block: syntheticTipBlock(false, tip),
+      },
+    )
+  }
+
   function installCertificate(next: ArchiveCertificate): void {
     const previous = certificate
     if (
@@ -217,6 +241,7 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
       previous.signers.length >= next.signers.length &&
       previous.signers.every((id) => next.signers.includes(id))
     ) {
+      indexCertificate(next)
       return
     }
     certificate = next
@@ -227,7 +252,10 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
       signers: next.signers,
       quorum: next.quorum,
     })
+    indexCertificate(next)
   }
+
+  if (certificate !== null) indexCertificate(certificate)
 
   function tryAdvance(): void {
     if (!replay.ok) return

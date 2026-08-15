@@ -1,10 +1,12 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { openHashStore, type HashStore } from './hashStore.js'
 
 const WAL_RING_MAX = 256
 
 export interface ArchiveStore {
   readonly dataDir: string
+  readonly hash: HashStore
   appendWal(record: Record<string, unknown>): void
   recentWal(limit?: number): Array<Record<string, unknown>>
   persistBftState(state: unknown): void
@@ -36,6 +38,7 @@ export function openArchiveStore(dataDir: string): ArchiveStore {
   )
   return {
     dataDir,
+    hash: openHashStore(dataDir),
     appendWal(record) {
       const row = { at: new Date().toISOString(), ...record }
       appendFileSync(walPath, `${JSON.stringify(row)}\n`, 'utf8')

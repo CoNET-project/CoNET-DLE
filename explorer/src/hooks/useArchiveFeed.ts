@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   DLE_ARCHIVE_METHODS,
+  DLE_LAB_CHAIN_NFT_ID,
+  DLE_LAB_GROUP_ID,
   DLE_REJECTED_METHODS,
 } from '../protocol'
 import type { RefreshStatus, TrustedExplorerSnapshot } from '../types'
@@ -82,10 +84,34 @@ export function useArchiveFeed() {
       const certFromOverview = overview ? parseCertificate(overview.certificate) : null
 
       const methods = [...DLE_ARCHIVE_METHODS, ...DLE_REJECTED_METHODS]
+      const HASH_METHODS = new Set([
+        'eth_getBlockByHash',
+        'eth_getTransactionByHash',
+        'dle_locateHash',
+        'dle_getByHash',
+      ])
+      const NFT_METHODS = new Set(['dle_route', 'dle_historyProviders', 'dle_archivesOf'])
+      const tipHash =
+        (typeof tipFromOverview?.hash === 'string' && tipFromOverview.hash) ||
+        (typeof previous.tip?.hash === 'string' && previous.tip.hash) ||
+        ''
+      const tipHeight =
+        (typeof tipFromOverview?.height === 'string' && tipFromOverview.height) ||
+        (typeof previous.tip?.height === 'string' && previous.tip.height) ||
+        '0x1'
       const rpcSettled = await Promise.all(
         methods.map(async (method) => {
           try {
-            return rpcRowFromResponse(method, await callArchive(url, method))
+            const params = HASH_METHODS.has(method) && /^0x[0-9a-fA-F]{64}$/.test(tipHash)
+              ? [tipHash]
+              : method === 'dle_getObject'
+                ? [DLE_LAB_CHAIN_NFT_ID, tipHeight]
+                : NFT_METHODS.has(method)
+                  ? [DLE_LAB_CHAIN_NFT_ID]
+                  : method === 'dle_chainsOf'
+                    ? [DLE_LAB_GROUP_ID]
+                    : []
+            return rpcRowFromResponse(method, await callArchive(url, method, params))
           } catch {
             return previous.rpc.find((row) => row.method === method) ?? {
               method,

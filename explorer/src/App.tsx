@@ -5,6 +5,7 @@ import { ArchivesPage } from './pages/ArchivesPage'
 import { CertificatesPage } from './pages/CertificatesPage'
 import { EventDetailPage } from './pages/EventDetailPage'
 import { EventsPage } from './pages/EventsPage'
+import { HashLookupPage } from './pages/HashLookupPage'
 import { HomePage } from './pages/HomePage'
 import { RpcPage } from './pages/RpcPage'
 import { ExplorerChromeProvider, useExplorerChrome } from './providers/ExplorerChrome'
@@ -22,6 +23,7 @@ function Shell() {
         <Route path="/archives" element={<ArchivesPage />} />
         <Route path="/archives/:domainId" element={<ArchiveDetailPage />} />
         <Route path="/certificates" element={<CertificatesPage />} />
+        <Route path="/hash/:hash" element={<HashLookupPage />} />
         <Route path="/rpc" element={<RpcPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

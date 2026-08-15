@@ -1,7 +1,7 @@
 {
   "schema": "OnDemandHttpQueue30V1",
   "pilotId": "conet-dle-30d-lab-2026-08",
-  "acceptedAt": "2026-08-15T08:00:24.090Z",
+  "acceptedAt": "2026-08-15T18:37:17.196Z",
   "clientHost": "70.35.205.77",
   "clientDir": "/home/peter/dle-ondemand-clients",
   "clientCount": 30,
@@ -14,7 +14,7 @@
   "frozen": true,
   "endorsed": true,
   "poolRoot": "0xafdf42e9625961ce16f2403f509835d79bba94b144bba9606346c9adf0c3c2c4",
-  "start": "STARTED=37686\nFLEET_PIDS=37686 37694 37701 37710 37718 37726 37734 37742 37750 37758 37766 37774 37782 37790",
+  "start": "STARTED=49335\nFLEET_PIDS=49335 49343 49351 49359 49367 49375 49383 49391 49399 49407 49415 49423 49431 49439 49447 49455 49463 49471 49479 49487 49495",
   "lastPools": [
     {
       "url": "http://74.208.224.45:27101",

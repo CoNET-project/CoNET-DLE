@@ -1,3 +1,4 @@
+import { HashCapsule } from '../components/HashCapsule'
 import { JsonBlock } from '../components/JsonBlock'
 import { OnDemandSelectionPanel } from '../components/OnDemandSelectionPanel'
 import { StatusPill } from '../components/StatusPill'
@@ -31,6 +32,11 @@ export function CertificatesPage() {
             ? 'This is a lab networked Archive Certificate (PrecommitQC) on TCP 27101. It is not a frozen EIP-712 L1 wrapper or corpus SSZ object, and it does not claim 30-day qualification.'
             : 'DLE tip finality is an Archive Certificate (PrecommitQC), not an L1 block. The empty state is honest until a lab networked AC is available.'}
         </p>
+        {typeof cert?.hash === 'string' && cert.hash.startsWith('0x') ? (
+          <div className="mb-3">
+            <HashCapsule value={cert.hash} to={`/hash/${cert.hash.toLowerCase()}`} />
+          </div>
+        ) : null}
         <div className="dle-glass rounded-2xl p-4">
           <JsonBlock
             value={{
