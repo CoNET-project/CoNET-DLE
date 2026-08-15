@@ -56,7 +56,8 @@ export function projectHashObject(raw: unknown, kind: HashObjectKind): unknown |
   if (isFreezerSlot(raw)) {
     return Object.prototype.hasOwnProperty.call(raw.objects, kind) ? raw.objects[kind] : undefined
   }
-  return raw
+  // Legacy unmigrated freezer body is the AC object only. Other kinds must not alias it.
+  return kind === 'ac' ? raw : undefined
 }
 
 function mergeKindIntoSlot(

@@ -60,6 +60,26 @@ test('hash hit must include chainNftId and never treat a miss as plane-wide null
   }
 })
 
+test('legacy freezer body must not alias as prevoteQc', async () => {
+  const legacyHash = `0x${'11'.repeat(32)}`
+  const prevoteHash = `0x${'22'.repeat(32)}`
+  const legacyBody = { kind: 'ac', height: '0x2', note: 'unmigrated freezer' }
+  assert.equal(store.putLocator(labAcLocator(legacyHash, '0x2', legacyHash)).ok, true)
+  assert.equal(store.putBody(DLE_LAB_CHAIN_NFT_ID, '0x2', legacyBody).ok, true)
+  assert.equal(store.putLocator(labPrevoteLocator(prevoteHash, '0x2', legacyHash)).ok, true)
+  const acHit = await lookup.get(legacyHash)
+  assert.equal(acHit.status, 'hit')
+  if (acHit.status === 'hit') {
+    assert.equal(acHit.locator.kind, 'ac')
+    assert.equal((acHit.object as { note?: string }).note, 'unmigrated freezer')
+  }
+  const leaked = await lookup.get(prevoteHash)
+  assert.equal(leaked.status, 'unavailable')
+  if (leaked.status === 'unavailable') {
+    assert.equal(leaked.planeWideNull, false)
+  }
+})
+
 test('prevoteQc is a first-class kind, not an AC field alias', async () => {
   const prevoteHash = `0x${'7e'.repeat(32)}`
   const indexed = indexLabHashObject(
