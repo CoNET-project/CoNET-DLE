@@ -24,6 +24,8 @@ interface LabConfig {
   role: string
   port: number
   peers?: LabPeer[]
+  autoSeedLabMiners?: boolean
+  autoFreeze?: boolean
 }
 
 function parseArgs(argv: string[]): { configPath: string; dataDir: string } {
@@ -110,8 +112,8 @@ const ondemand = createOnDemandEngine({
   role: config.role,
   peers: Array.isArray(config.peers) ? config.peers : [],
   store,
-  autoSeedLabMiners: true,
-  autoFreeze: true,
+  autoSeedLabMiners: config.autoSeedLabMiners !== false,
+  autoFreeze: config.autoFreeze !== false,
 })
 
 const server = await listenArchiveHttp({

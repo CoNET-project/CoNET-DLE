@@ -198,6 +198,95 @@ export async function fetchArchiveHealth(archiveUrl: string): Promise<Record<str
   return body as Record<string, unknown>
 }
 
+function asWaitingPool(value: unknown): WaitingPoolView | null {
+  if (!isRecord(value) || value.schema !== 'DleWaitingPoolV1') return null
+  if (!Array.isArray(value.miners) || !value.miners.every((item) => typeof item === 'string')) return null
+  if (typeof value.minerCount !== 'number' || typeof value.frozen !== 'boolean') return null
+  return value as unknown as WaitingPoolView
+}
+
+export async function fetchWaitingPool(archiveUrl: string): Promise<WaitingPoolView> {
+  const pool = asWaitingPool(await getJson(archiveUrl, '/ondemand/pool'))
+  if (pool === null) throw new Error('invalid waiting pool')
+  return pool
+}
+
+export async function fetchSelectionLog(archiveUrl: string): Promise<SelectionView> {
+  const raw = await getJson(archiveUrl, '/ondemand/selection')
+  if (!isRecord(raw) || raw.schema !== 'DleLabSelectionLogV1') throw new Error('invalid selection')
+  return raw as unknown as SelectionView
+}
+
+export async function freezeWaitingPool(archiveUrl: string): Promise<unknown> {
+  return postJson(archiveUrl, '/ondemand/freeze', { schema: 'DleOnDemandFreezeV1' })
+}
+
+export interface ArchiveHookResult {
+  archiveUrl: string
+  status: OnDemandWaitSession['status']
+  minerInPool: boolean
+}
+
+export async function submitWaitHookToArchives(
+  archiveUrls: readonly string[],
+  miner: string,
+  groupId: string = LAB_GROUP_ID,
+): Promise<OnDemandWaitSession & { archives: ArchiveHookResult[] }> {
+  if (archiveUrls.length === 0) throw new Error('submitWaitHookToArchives requires at least one archive URL')
+  const archives: ArchiveHookResult[] = []
+  for (const archiveUrl of archiveUrls) {
+    let minerInPool = false
+    try {
+      const pool = await fetchWaitingPool(archiveUrl)
+      minerInPool = pool.miners.some((row) => row.toLowerCase() === miner.toLowerCase())
+    } catch {
+      minerInPool = false
+    }
+    if (minerInPool) {
+      archives.push({ archiveUrl, status: 'queued', minerInPool: true })
+      continue
+    }
+    const session = await submitWaitHook(archiveUrl, miner, groupId)
+    archives.push({
+      archiveUrl,
+      status: session.status,
+      minerInPool: session.status === 'queued',
+    })
+  }
+  const firstUrl = archiveUrls[0]!
+  const pool = asWaitingPool(await getJson(firstUrl, '/ondemand/pool'))
+  const selectionRaw = await getJson(firstUrl, '/ondemand/selection')
+  const selection = isRecord(selectionRaw) ? (selectionRaw as unknown as SelectionView) : null
+  const recomputed = pool !== null && selection !== null ? recomputeFromPool(pool, selection) : false
+  const selected = selection !== null && selection.available === true ? selection : null
+  const allQueued = archives.every((row) => row.status === 'queued')
+  const anyFrozen = archives.some((row) => row.status === 'frozen')
+  const status: OnDemandWaitSession['status'] = allQueued ? 'queued' : anyFrozen ? 'frozen' : 'rejected'
+  return {
+    schema: 'DleOnDemandWaitV1',
+    status,
+    slot: (() => {
+      if (pool === null) return null
+      const index = pool.miners.findIndex((row) => row.toLowerCase() === miner.toLowerCase())
+      return index >= 0 ? index : null
+    })(),
+    miner,
+    groupId,
+    poolRoot: selected?.poolRoot ?? pool?.poolRoot ?? null,
+    committee: selected?.committee ?? [],
+    standbys: selected?.standbys ?? [],
+    recomputed,
+    endorsed: selected?.endorsed === true,
+    archives,
+    note:
+      status === 'frozen'
+        ? 'One or more archives already froze the waiting pool.'
+        : status === 'rejected'
+          ? 'Wait hook was not queued on every archive.'
+          : 'Wait hook queued on every archive. Freeze poolRoot before drawing 7+2.',
+  }
+}
+
 export async function probeArchive(archiveUrl: string): Promise<{
   daemon: DleDaemonInfo
   health: Record<string, unknown>

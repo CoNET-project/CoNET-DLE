@@ -1,0 +1,69 @@
+{
+  "schema": "OnDemandHttpQueue30V1",
+  "pilotId": "conet-dle-30d-lab-2026-08",
+  "acceptedAt": "2026-08-15T08:00:24.090Z",
+  "clientHost": "70.35.205.77",
+  "clientDir": "/home/peter/dle-ondemand-clients",
+  "clientCount": 30,
+  "transport": "http",
+  "archivePort": 27101,
+  "minerPrefix": "0xb110…0001–001e",
+  "note": "HTTP wait-hook queue on seven archive nodes. Hooks do not gossip; each client posted to every archive. Lab beacon ≠ CoNET L1 CL RANDAO. HMAC attests are forgeable. SelectionLog is not an Archive Certificate and not 30-day qualification.",
+  "opened": true,
+  "queued": true,
+  "frozen": true,
+  "endorsed": true,
+  "poolRoot": "0xafdf42e9625961ce16f2403f509835d79bba94b144bba9606346c9adf0c3c2c4",
+  "start": "STARTED=37686\nFLEET_PIDS=37686 37694 37701 37710 37718 37726 37734 37742 37750 37758 37766 37774 37782 37790",
+  "lastPools": [
+    {
+      "url": "http://74.208.224.45:27101",
+      "frozen": true,
+      "minerCount": 30,
+      "present": true,
+      "poolRoot": "0xafdf42e9625961ce16f2403f509835d79bba94b144bba9606346c9adf0c3c2c4"
+    },
+    {
+      "url": "http://216.225.197.189:27101",
+      "frozen": true,
+      "minerCount": 30,
+      "present": true,
+      "poolRoot": "0xafdf42e9625961ce16f2403f509835d79bba94b144bba9606346c9adf0c3c2c4"
+    },
+    {
+      "url": "http://198.251.77.98:27101",
+      "frozen": true,
+      "minerCount": 30,
+      "present": true,
+      "poolRoot": "0xafdf42e9625961ce16f2403f509835d79bba94b144bba9606346c9adf0c3c2c4"
+    },
+    {
+      "url": "http://167.254.243.38:27101",
+      "frozen": true,
+      "minerCount": 30,
+      "present": true,
+      "poolRoot": "0xafdf42e9625961ce16f2403f509835d79bba94b144bba9606346c9adf0c3c2c4"
+    },
+    {
+      "url": "http://170.205.39.67:27101",
+      "frozen": true,
+      "minerCount": 30,
+      "present": true,
+      "poolRoot": "0xafdf42e9625961ce16f2403f509835d79bba94b144bba9606346c9adf0c3c2c4"
+    },
+    {
+      "url": "http://216.225.193.174:27101",
+      "frozen": true,
+      "minerCount": 30,
+      "present": true,
+      "poolRoot": "0xafdf42e9625961ce16f2403f509835d79bba94b144bba9606346c9adf0c3c2c4"
+    },
+    {
+      "url": "http://212.227.242.207:27101",
+      "frozen": true,
+      "minerCount": 30,
+      "present": true,
+      "poolRoot": "0xafdf42e9625961ce16f2403f509835d79bba94b144bba9606346c9adf0c3c2c4"
+    }
+  ]
+}

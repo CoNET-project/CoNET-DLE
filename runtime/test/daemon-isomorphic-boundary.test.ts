@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 
 const DAEMON_ROOT = join(dirname(fileURLToPath(import.meta.url)), '../src/daemon')
 const ISOMORPHIC = new Set(['core.ts', 'browser.ts'])
-const NODE_ONLY = new Set(['cli.ts', 'serve-browser.ts'])
+const NODE_ONLY = new Set(['cli.ts', 'serve-browser.ts', 'fleet-cli.ts'])
 
 async function listTs(directory: string): Promise<string[]> {
   const files: string[] = []

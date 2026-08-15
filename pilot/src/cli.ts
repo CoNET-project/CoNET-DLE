@@ -11,6 +11,7 @@ import {
   acceptOnDemandRuntime,
   deployArchiveRuntime,
   deployIsolatedLab,
+  deployOnDemandHttpClients,
   injectIsolatedProcessCrash,
   labCorrelationReport,
   loadOfficialLabInventory,
@@ -113,6 +114,12 @@ async function main(): Promise<void> {
       if (!result.ok) process.exitCode = 2
       return
     }
+    case 'lab-deploy-ondemand-http-clients': {
+      const result = await deployOnDemandHttpClients()
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
     case 'lab-status': {
       const rows = await statusIsolatedLab()
       process.stdout.write(`${JSON.stringify({ ok: true, command, rows }, null, 2)}\n`)
@@ -131,7 +138,7 @@ async function main(): Promise<void> {
     }
     default:
       throw new Error(
-        'usage: cli preflight --inventory FILE | dry-run [--output DIR] | bundle --source DIR --output DIR --pilot-id ID --gate FILE [--simulation-only true] [--redaction-salt SALT] | verify --bundle DIR | lab-preflight [--inventory FILE] | lab-deploy | lab-deploy-archive | lab-accept-archive | lab-accept-ondemand | lab-status | lab-warmup [--evidence DIR] | lab-inject-crash --domain ID',
+        'usage: cli preflight --inventory FILE | dry-run [--output DIR] | bundle --source DIR --output DIR --pilot-id ID --gate FILE [--simulation-only true] [--redaction-salt SALT] | verify --bundle DIR | lab-preflight [--inventory FILE] | lab-deploy | lab-deploy-archive | lab-accept-archive | lab-accept-ondemand | lab-deploy-ondemand-http-clients | lab-status | lab-warmup [--evidence DIR] | lab-inject-crash --domain ID',
       )
   }
 }

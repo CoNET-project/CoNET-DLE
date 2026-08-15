@@ -4,7 +4,7 @@
 
 **作者：** Peter Xie  
 **初稿：** 2023  
-**修订：** 2026-08-14（全局 DLE RPC 真相面：任一活跃归档均可作为 RPC 入口；非本组查询 **必须** 代理到该组 `historyProviders` — §5.2.0d；DLE Chain ID ≡ 归档 `groupId` + L1 Global 归档路由注册表：归档钱包 + 所托管链 NFT id，链路由 / 历史提供者 — §5.2.0d；每组 5 名活跃归档 + 2 名专属有序备选、严格 4/5 quorum、可执行 Archive Tendermint v2 语料/Archive A MVP、五槽 AdaptiveRotationV1、OperatorDomainRegistryV1、L1QueueAccumulatorV1、线级 Tendermint/SSZ/WAL 规则、确定性 `dle.rs.v1` 正确编码证明、带挑战期强制退出、Treasury V3 规范 ERC-20 burn/remint 网关、**P1 实测证据边界：100-USDC 安全封顶已冻结，10-USDC 下限与 1.2× coverage 仍属临时参数**、L1 锚定卖方订单、x402 v2 AI pay-per-use / API gateway 目标 profile、协议费/执行准备金/可用性预算三账本、Treasury 规范资产 L1 pool/TWAP 准入；归档无出块权）
+**修订：** 2026-08-15（on-demand 等待钩组内投递：钩 **不得** 视为已在归档间 gossip；miner/daemon **必须** 把同一等待钩投到该组每一台活跃归档 — §5.4 / §8.1；实验室 HTTP `POST /ondemand/hook` 是实验室 / MVP 控制面路径，**不是** 生产 DePIN gossip，也 **不是** explorer HTTPS；实验室 beacon ≠ L1 CL RANDAO — §7.8.5；HTTP 30 miner 排队是实测实验室证据，**不是** 30 天资格 — §15；此前 2026-08-14：全局 DLE RPC 真相面：任一活跃归档均可作为 RPC 入口；非本组查询 **必须** 代理到该组 `historyProviders` — §5.2.0d；DLE Chain ID ≡ 归档 `groupId` + L1 Global 归档路由注册表：归档钱包 + 所托管链 NFT id，链路由 / 历史提供者 — §5.2.0d；每组 5 名活跃归档 + 2 名专属有序备选、严格 4/5 quorum、可执行 Archive Tendermint v2 语料/Archive A MVP、五槽 AdaptiveRotationV1、OperatorDomainRegistryV1、L1QueueAccumulatorV1、线级 Tendermint/SSZ/WAL 规则、确定性 `dle.rs.v1` 正确编码证明、带挑战期强制退出、Treasury V3 规范 ERC-20 burn/remint 网关、**P1 实测证据边界：100-USDC 安全封顶已冻结，10-USDC 下限与 1.2× coverage 仍属临时参数**、L1 锚定卖方订单、x402 v2 AI pay-per-use / API gateway 目标 profile、协议费/执行准备金/可用性预算三账本、Treasury 规范资产 L1 pool/TWAP 准入；归档无出块权）
 
 **成对译本（必须同步更新）：** [`Decentralization Cluster multi-chain.md`](./Decentralization%20Cluster%20multi-chain.md)
 **同步守则：** `.cursor/rules/conet-layer2-whitepaper-bilingual-sync.mdc`
@@ -1879,6 +1879,7 @@ MC = {
 
 - **轻量** miner：不必存储完整链历史。
 - 向各组由该组托管 / 排序的 **on-demand miner 等待队列** 投递 **等待挖矿钩子** 以宣告就绪（§8）。
+- **组内投递（产品冻结）：** 等待钩 **不得** 假定已在同组归档间 gossip。miner 或其 daemon **必须** 把 **同一** 钩（同一 `miner`、同一 `groupId`）投到该组 **每一台** 活跃归档。单台归档返回接受 **不等于** 全组等待池一致。
 - **并行钩子（产品冻结）：** miner **可以** 同时向 **每一个** 活跃组投钩，仅受自身处理能力约束。
 - **每组最多一个在途钩：** 对每一对 \((\mathrm{miner},\,\mathrm{groupId})\) **至多** 一个未完成等待钩。miner **不得** 在同一组队列里叠多个席位。
 - 该组抽中该 miner 且任务经 AC / CandidateRejectCertificate / 解散冷静期完成后，miner 才可向该组投递下一钩。
@@ -2226,7 +2227,17 @@ R_e \;=\; H\!\big(\texttt{"dle.roulette.v1"}\;\big\|\; \mathrm{L1BeaconFinalized
 
 #### 7.8.4 选取日志
 
-归档分片将选取输入与 `selected[]` 追加到选取链。验证人仅在 ≥\(Q_A\) 归档背书后消费名单并生产候选；归档的 \(Q_A\) 背书不构成出块。
+归档分片将选取输入与 `selected[]` 追加到选取链。验证人仅在 ≥\(Q_A\) 归档背书后消费名单并生产候选；该 \(Q_A\) 背书 **不是** 出块，也 **不是** 归档证书（AC）。客户端应复算 \(R_e\)。
+
+#### 7.8.5 实验室 beacon（非生产）
+
+隔离实验室 / MVP 归档抽选 **可以** 临时用
+
+\[
+R_e^{\mathrm{lab}} \;=\; H\!\big(\texttt{"dle.lab.beacon.afterFreeze.v1"}\;\big\|\; \mathrm{poolRoot}_e\;\big\|\; e\;\big\|\; \mathrm{shardId}\big)
+\]
+
+替代生产信标。此路径 **必须** 标注为实验室。它 **不是** \(\mathrm{L1BeaconFinalizedRandomness}_e\)，**不得** 从 `publicrpc` / `rpc1` 当作 live CoNET CL RANDAO 读取，也 **不得** 宣传为生产级不可偏置随机。实验室对 SelectionLog 的 HMAC 背书 **可伪造**（共享实验室 MAC 材料），**不是** 生产 EIP-712 / corpus SSZ。经 \(Q_A\) 背书的 SelectionLog **不是** 归档证书，也 **不是** 30 天归档组资格。
 
 ### 7.9 Proof of History（本地节拍时钟 — 非共享顺序）
 
@@ -2304,7 +2315,8 @@ L2Envelope {
 - [ ] HTTP 入口 **A/C ≠ 邮箱 B**；永不把直连 B 当作产品路径。
 - [ ] 每条命令均 EIP-191；拒绝错误的 `ecrecover`。
 - [ ] listen 会话密钥用 AES-GCM（或 CBC+HMAC）；禁止裸 CBC。
-- [ ] 生产 roulette = \(R_e = H(\texttt{"dle.roulette.v1"}\,\|\,\mathrm{L1BeaconFinalizedRandomness}_e\,\|\,e\,\|\,\mathrm{shardId}\,\|\,\mathrm{poolRoot}_e)\)；`poolRoot_e` 在 beacon 已知前冻结；commit–reveal 仅 MVP；无可选 VRF 拼接（§7.8）。
+- [ ] 生产 roulette = \(R_e = H(\texttt{"dle.roulette.v1"}\,\|\,\mathrm{L1BeaconFinalizedRandomness}_e\,\|\,e\,\|\,\mathrm{shardId}\,\|\,\mathrm{poolRoot}_e)\)；`poolRoot_e` 在 beacon 已知前冻结；commit–reveal 仅 MVP；无可选 VRF 拼接（§7.8）。实验室 beacon / HMAC SelectionLog **必须** 标注为非生产（§7.8.5）。
+- [ ] 等待钩投到目标组 **每一台** 活跃归档；单台接受不等于全组池；钩 **不是** 组内 gossip（§5.4、§8.1）。
 - [ ] 新链托管 = `UniformPlacementV1`；队列检查点与合格组根须在 beacon 揭示前冻结；v1 无动态负载或自报计数（§5.2.0a）。
 - [ ] DLE Chain ID = L1 归档 `groupId`；Global 归档路由注册表登记归档 **钱包** + 所托管链 **NFT id**；客户端经 `route(nftId)` → `historyProviders` 取历史——不得用 EVM `224422`、实验室 `eth_chainId` 或 `tokenId` 哈希（§5.2.0d）。
 - [ ] 每个活跃归档暴露 **全局 DLE RPC** 面；**非本组** 查询 **必须** 代理到 `historyProviders` / `archivesOf(targetGroupId)`，**不得** 用本地副本充当 RPC 真相（§5.2.0d）。
@@ -2320,10 +2332,13 @@ L2Envelope {
 ### 8.1 On-demand miner 等待队列
 
 - 非归档的 **on-demand miner** 通过 **DePIN gossip** 宣告就绪（并可保持面向归档的 REST/SSE 等待句柄），向某组 **等待队列** 投递 **等待挖矿钩子**。
+- **组内投递（产品冻结）：** 等待钩 **不得** 视为已在同组归档间 gossip。miner 或其 daemon **必须** 把 **同一** 钩投到该组 **每一台** 活跃归档。单台归档返回接受 **不等于** 全组等待池一致。
+- **实验室 HTTP 路径（非生产）：** 隔离实验室 / MVP 控制面 **可以** 在归档控制口（实验室 TCP **27101**）接受 `POST /ondemand/hook`。这 **不是** 生产 DePIN gossip，**不是** explorer HTTPS，也 **不得** 宣传为产品邮箱路径。公开 explorer（`https://dle.conet.network`）**必须** 保持只读（`GET /ondemand/pool`、`GET /ondemand/selection`），**不得** 暴露 hook / freeze POST。
 - 每个活跃组有 **自己的** 队列。当该组托管的链出现 **新事件** 时，**仅从该组队列** 抽选当前区块的 **N_V=7** 名验证人 + **S_{\mathrm{sb}}=2** 候补。
 - **并行钩子：** miner **可以** 同时向 **每一个** 活跃组投钩，仅受自身处理能力约束（§5.4）。
 - 每对 `(miner,groupId)` 至多一个在途钩；仅在任务经 AC / CandidateRejectCertificate / 解散冷静期完成后才可投下一钩。
-- **已拒绝：** 在同一组队列叠多个席位；把全局单一队列当作权威。
+- **已拒绝：** 在同一组队列叠多个席位；把全局单一队列当作权威；把单台归档接受当作全组共识。
+- **冻结后：** 新钩 **必须** 拒绝（`ERR_POOL_FROZEN`）。同一未冻结池中的重复 miner **必须** 拒绝（`ERR_DUPLICATE_HOOK`）。
 - 若参与者在 **该组** 已有活跃等待会话，该组 **终止前一会话** 并将其排到 **该组** 顺序 **末尾**（防占坑）。这 **不** 取消 **其他组** 上的钩。
 - 等待参与者 **按组** 的 **规范** 顺序是该组 **Q_A 背书** 的 `poolRoot_e` / 选取日志条目所编码的顺序（§7.8.1、§7.9）——**不是**「跨归档协定的 PoH 时间戳」。节点可为 join 提案附加本地 PoH 标签作为防回拨证据。
 - **抽选快照：** 在 epoch \(e\)，托管组将 \(\mathcal{W}_e\) 冻结在 **≥ \(Q_A\)** 成员背书的 `poolRoot_e` 下，且须在绑定的 \(\mathrm{L1BeaconFinalizedRandomness}_e\) 已知 **之前**（§7.8.1）。客户端与验证人依据该根 + \(R_e\) 复算当选集合；**任何** 单一归档的本地等待列表或本地 PoH 链都不是权威真相。
@@ -2337,7 +2352,7 @@ L2Envelope {
 
 1. 托管 **归档组**（L1 `archiveGroupId`，或创世时 NewChainQueue 被分配组）观察到链上 **新事件**（或创世请求）。
 2. 分片冻结 `poolRoot_e`（≥ Q_A 背书）并计算生产种子
-  \(R_e = H(\texttt{"dle.roulette.v1"}\,\|\,\mathrm{L1BeaconFinalizedRandomness}_e\,\|\,e\,\|\,\mathrm{shardId}\,\|\,\mathrm{poolRoot}_e)\)（§7.8.1）。`poolRoot_e` 须在绑定 beacon 已知前冻结。MVP 测试网可临时使用 commit–reveal（§7.8.3），并须标明 last-revealer 风险。
+  \(R_e = H(\texttt{"dle.roulette.v1"}\,\|\,\mathrm{L1BeaconFinalizedRandomness}_e\,\|\,e\,\|\,\mathrm{shardId}\,\|\,\mathrm{poolRoot}_e)\)（§7.8.1）。`poolRoot_e` 须在绑定 beacon 已知前冻结。隔离实验室抽选 **可以** 临时使用实验室 beacon（§7.8.5），且 **必须** 标注为非生产。MVP 测试网可临时使用 commit–reveal（§7.8.3），并须标明 last-revealer 风险。
 3. Roulette 将 R_e 映射到 \mathcal{W}*e，为该链 **当前区块** 抽选 **N_V=7 名验证人 + S*{\mathrm{sb}}=2 候补**（可选：合约要求时另抽提案人 / 发行者位）（§6.5），并 **拒绝** 会违反委员会累计暴露 E_C\le E_{\max} 的抽选（§12.3.2）。**任何** 持有公开输入的一方均可复算同一集合。
 4. **≥ Q_A** 归档背书抽取后，记录到 **选取日志**。
 5. 验证人委员会生产并以 ≥\(Q_V=5\) 签署候选；归档只质检、PrevoteQC → PrecommitQC（= AC）并存档。
@@ -3271,6 +3286,7 @@ CoNET-DLE 精神上最接近 **「许多微账本 + 随机委员会 + 归档终�
 16. 分层 **密钥保险库** 参数（spend 派生批次大小、硬件/阈值策略、恢复映射加密、分片 derivation domain ID、默认单设备每小时合并/转出上限）以及 **密钥域 / 恢复域** 隔离 UX——仅客户端产品；非 tip/归档/验证人共识（§4.5、§12.9）。
 17. **可验证 DA + burn/mint 退出** 形式已产品冻结（§5.2.1、§4.6）：字节精确 **`dle.rs.v1` \((7,4)\)**，含冻结的 \(GF(2^8)\) 矩阵、padding、叶树、测试向量、每个 precommit signer 的完整 body 重编码、`BadEncodingProof`、指派份额保管与 **UnavailableChallenge**。AC 字段含 `bodyCommitment`、`payloadLength`、`codecSpecHash`、`daRoot`、`chunkAssignmentRoot`、`tipStateRoot`、parent AC 与 L1 context。Treasury V3 精确 burn 规范 L1 单位；普通退出只在 AC 支持的 debit 后通过 Treasury V3 remint，并可使用 `ExitFeeQuoteV1`；强制退出采用 **`requestForceWithdraw → challengeForceWithdraw → finalizeForceWithdraw`**、单调 `latestKnownAC`、合约派生 claim id/nullifier、pending owner 支出冻结、累计 `totalBurnedIn` / `totalMintedOut` 会计、紧急准备金承保与 \(T_{\mathrm{exit}}\)。旧一步式接口和 escrow-vault 模型禁止。开放项：DA/exit/archive 超时、保证金/赏金、精确规范 `BlockBodyV1` 容器、欺诈证明执行环境/gas 基准、AC ancestry 证明编码、gateway + Treasury DLE authority interface ABI 与规范 token allowlist——**不是** chunk membership 是否足以证明正确编码。
 18. **AI pay-per-use / x402 v2 的边界已目标冻结，但实现尚未完成**（§4.7a）：HTTP 使用 `PAYMENT-REQUIRED` / `PAYMENT-SIGNATURE` / `PAYMENT-RESPONSE`；CoNET 标识为 `eip155:224422`；`exact`、单次消费 `upto` 与资本担保 `batch-settlement` 保持各自 scheme 语义；DLE 只存承诺，不存 prompt/output 明文或任意 API 代码。开放发布门包括：为每个公布 scheme 冻结 CoNET mechanism binding 与规范 asset-transfer method；facilitator `/supported` discovery；`conet-dle` extension JSON Schema；字节精确 `AiUsageReceiptV1` 及 voucher/FSM 编码；幂等/replay、零扣款、局部 streaming、timeout、facilitator 故障与 L1 reorg vectors；L1 escrow/channel 实现及 batch settlement gas/capacity 实测；metering-policy 挑战规则；以及显式 `AiUsageFeePolicyV1`。上述门未通过前，既有 `src/x402sdk` legacy exact 路径不得公布为 v2。
+19. **实验室 HTTP 等待钩排队（实测，不作生产 gossip 规范）：** 2026-08-15 隔离实验室证据显示，`70.35.205.77` 上 30 个 on-demand 客户端经 `http://<archive>:27101/ondemand/hook` 把同一 miner 钩投到全部七台实验室归档（钩 **不是** 组内 gossip）。冻结后七台共享 `poolRoot=0xafdf42e9625961ce16f2403f509835d79bba94b144bba9606346c9adf0c3c2c4`、`minerCount=30`、`frozen=true`、5 台 active HMAC 背书、`endorsed=true`。证据：`src/conet-layer2/pilot/evidence/conet-dle-30d-lab-2026-08/ondemand-http-queue-30.json`。这 **不是** 生产 DePIN gossip，**不是** L1 CL RANDAO（§7.8.5），**不是** 归档证书，也 **不是** 30 天归档组资格。
 
 ---
 
@@ -3323,6 +3339,9 @@ CoNET-DLE 以去中心化集群维护大量并行、事件驱动的原子链：�
 | **100 USDC 单 tip 上限**                     | 约束单资产 tip 的 **直接** oracle 损失；**不能** 使串谋动机归零，也不能代替 P_{\mathrm{year}} / 归档 BFT / E_{\max}（§12.2）。                                                                         |
 | **候补 S_{\mathrm{sb}}**                    | **2** 名有序候补，在整轮解散前可提升（§6.5）。                                                                                                                                            |
 | **On-demand miner 等待队列**                  | 可被单块抽选的轻量 miner 队列（§8.1）。                                                                                                                                               |
+| **等待挖矿钩 / 组内投递** | 一对 `(miner, groupId)` 的就绪宣告。钩 **不得** 假定已在归档间 gossip；miner/daemon **必须** 把同一钩投到该组每一台活跃归档（§5.4、§8.1）。 |
+| **实验室 HTTP 等待钩** | 隔离实验室 / MVP 在归档控制口 27101 上的 `POST /ondemand/hook`。**不是** 生产 DePIN gossip，也 **不是** explorer HTTPS（§8.1）。 |
+| **实验室 beacon** | \(R_e^{\mathrm{lab}} = H(\texttt{"dle.lab.beacon.afterFreeze.v1"}\,\|\,\mathrm{poolRoot}_e\,\|\,e\,\|\,\mathrm{shardId})\)。**不是** live CoNET CL RANDAO；**必须** 标注为非生产（§7.8.5）。 |
 | **归档节点** | 无出块权；共同维护 QUEUED，重放验证人候选、质量检查、Prevote/Precommit、聚合 AC、提供历史与 DA。 |
 | **归档平面裂变** | \(U_e\ge7\) 时由五名全新活跃成员 + 两名专属有序备选形成不重叠新组；旧组只见证，已有 tip 不重映射。 |
 | **DLE Chain ID** | DLE 平面的协议 Chain ID = 托管归档 **`groupId`**。不是 CoNET L1 EVM `224422`，不是实验室 EVM id，也不是 tip NFT id（§5.2.0d）。 |

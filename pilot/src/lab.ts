@@ -58,6 +58,12 @@ export const REMOTE_DAEMON_PROBE = `${LAB_DIR}/daemon/probe.mjs`
 export const ARCHIVE_RUNTIME_DIST = resolve(here, '../../runtime/dist/archive')
 export const ARCHIVE_REMOTE_DIR = `${LAB_DIR}/archive-runtime`
 export const DAEMON_PROBE_PATH = resolve(here, '../../runtime/src/daemon/probe.mjs')
+export const HTTP_QUEUE_CLIENT_HOST = '70.35.205.77'
+export const HTTP_QUEUE_CLIENT_DIR = '/home/peter/dle-ondemand-clients'
+export const HTTP_QUEUE_CLIENT_COUNT = 30
+export const HTTP_QUEUE_GROUP_ID = 'dle.lab.group.v1'
+export const DEFAULT_FLEET_DIST_DIR = resolve(LAYER2_ROOT, 'runtime/dist/fleet')
+export const REMOTE_FLEET_ENTRY = `${HTTP_QUEUE_CLIENT_DIR}/app/daemon/fleet-cli.js`
 
 export async function loadOfficialLabInventory(path = DEFAULT_INVENTORY_PATH): Promise<PilotInventoryV1> {
   const inventory = JSON.parse(await readFile(path, 'utf8')) as PilotInventoryV1
@@ -190,11 +196,12 @@ export function agentConfigFor(
   inventory: PilotInventoryV1,
   hosts: PilotLabHostsV1,
   domainId: string,
+  extras?: { autoSeedLabMiners?: boolean; autoFreeze?: boolean },
 ): Record<string, unknown> {
   const domain = inventory.domains.find((item) => item.domainId === domainId)
   const self = hosts.hosts.find((item) => item.domainId === domainId)
   if (!domain || !self) throw new Error(`unknown domain ${domainId}`)
-  return {
+  const config: Record<string, unknown> = {
     schema: 'DleLabAgentConfigV1',
     agent: 'dle-30d-lab',
     domainId,
@@ -215,6 +222,9 @@ export function agentConfigFor(
         }
       }),
   }
+  if (extras?.autoSeedLabMiners !== undefined) config.autoSeedLabMiners = extras.autoSeedLabMiners
+  if (extras?.autoFreeze !== undefined) config.autoFreeze = extras.autoFreeze
+  return config
 }
 
 const ENSURE_NODE = [
@@ -310,6 +320,18 @@ const START_ARCHIVE = [
   'set -euo pipefail',
   `mkdir -p '${LAB_DIR}/app' '${LAB_DIR}/data' '${LAB_DIR}/daemon' '${LAB_DIR}/wal'`,
   `rm -f '${LAB_DIR}/data/bft-state.json' '${LAB_DIR}/data/ondemand-state.json'`,
+  `cd '${LAB_DIR}'`,
+  `if [ -x '${LAB_DIR}/runtime/bin/node' ]; then NODE='${LAB_DIR}/runtime/bin/node'; else NODE=$(command -v node); fi`,
+  `nohup "$NODE" '${REMOTE_ARCHIVE_ENTRY}' --config '${LAB_DIR}/config.json' --data-dir '${LAB_DIR}/data' >> '${LAB_DIR}/archive.log' 2>&1 &`,
+  'echo STARTED=$!',
+  'sleep 2',
+  `curl -fsS --max-time 5 http://127.0.0.1:${LAB_PORT}/health`,
+].join('\n')
+
+const START_ARCHIVE_KEEP_BFT = [
+  'set -euo pipefail',
+  `mkdir -p '${LAB_DIR}/app' '${LAB_DIR}/data' '${LAB_DIR}/daemon' '${LAB_DIR}/wal'`,
+  `rm -f '${LAB_DIR}/data/ondemand-state.json'`,
   `cd '${LAB_DIR}'`,
   `if [ -x '${LAB_DIR}/runtime/bin/node' ]; then NODE='${LAB_DIR}/runtime/bin/node'; else NODE=$(command -v node); fi`,
   `nohup "$NODE" '${REMOTE_ARCHIVE_ENTRY}' --config '${LAB_DIR}/config.json' --data-dir '${LAB_DIR}/data' >> '${LAB_DIR}/archive.log' 2>&1 &`,
@@ -756,6 +778,363 @@ export async function statusIsolatedLab(): Promise<
     })
   }
   return rows
+}
+
+export function httpArchiveUrls(hosts: PilotLabHostsV1): string[] {
+  return hosts.hosts.map((host) => `http://${host.sshHost}:${hosts.labPort}`)
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolvePromise) => {
+    setTimeout(resolvePromise, ms)
+  })
+}
+
+function httpQueueMinerAddress(index: number): string {
+  return `0xb1100000000000000000000000000000000000${index.toString(16).padStart(2, '0')}`
+}
+
+function httpQueueMinerSet(): Set<string> {
+  return new Set(Array.from({ length: HTTP_QUEUE_CLIENT_COUNT }, (_, index) => httpQueueMinerAddress(index + 1)))
+}
+
+async function fetchArchiveJson(url: string): Promise<Record<string, unknown>> {
+  const response = await fetch(url, { signal: AbortSignal.timeout(8_000) })
+  if (!response.ok) throw new Error(`HTTP ${response.status} ${url}`)
+  const body: unknown = await response.json()
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) throw new Error(`invalid JSON ${url}`)
+  return body as Record<string, unknown>
+}
+
+export async function openOnDemandHttpQueue(options?: {
+  inventoryPath?: string
+  hostsPath?: string
+  archiveDistDir?: string
+}): Promise<{
+  ok: boolean
+  results: Array<{ domainId: string; host: string; ok: boolean; frozen?: boolean; minerCount?: number; detail: string }>
+}> {
+  const inventory = await loadOfficialLabInventory(options?.inventoryPath)
+  const hosts = await loadLabHosts(options?.hostsPath)
+  const archiveDistDir = options?.archiveDistDir ?? DEFAULT_ARCHIVE_DIST_DIR
+  const bundlePath = '/tmp/dle-archive-runtime.tgz'
+  await runLocal('tar', ['-czf', bundlePath, '--exclude', '._*', '-C', archiveDistDir, '.'], {
+    env: { ...process.env, COPYFILE_DISABLE: '1' },
+  })
+  const results: Array<{
+    domainId: string
+    host: string
+    ok: boolean
+    frozen?: boolean
+    minerCount?: number
+    detail: string
+  }> = []
+  for (const host of hosts.hosts) {
+    const ensure = await runSsh(host.sshHost, ENSURE_NODE)
+    if (ensure.code !== 0) {
+      results.push({
+        domainId: host.domainId,
+        host: host.sshHost,
+        ok: false,
+        detail: ensure.stderr || ensure.stdout || `ssh exit ${ensure.code}`,
+      })
+      continue
+    }
+    const config = agentConfigFor(inventory, hosts, host.domainId, {
+      autoSeedLabMiners: false,
+      autoFreeze: false,
+    })
+    const tmpConfig = `/tmp/dle-lab-http-queue-${host.domainId}.json`
+    await writeFile(tmpConfig, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
+    const stopped = await runSsh(host.sshHost, STOP_LAB_ONLY)
+    if (stopped.code !== 0) {
+      results.push({
+        domainId: host.domainId,
+        host: host.sshHost,
+        ok: false,
+        detail: stopped.stderr || stopped.stdout || 'refused to stop protected process',
+      })
+      continue
+    }
+    await runSsh(host.sshHost, `mkdir -p '${LAB_DIR}/app' '${LAB_DIR}/data' '${LAB_DIR}/daemon' '${LAB_DIR}/wal'`)
+    await runScp(bundlePath, host.sshHost, '/tmp/dle-archive-runtime.tgz')
+    await runScp(tmpConfig, host.sshHost, `${LAB_DIR}/config.json`)
+    const unpacked = await runSsh(
+      host.sshHost,
+      `rm -rf '${LAB_DIR}/app' && mkdir -p '${LAB_DIR}/app' && tar -xzf /tmp/dle-archive-runtime.tgz -C '${LAB_DIR}/app' && printf '%s\\n' '{"type":"module","private":true,"name":"@conet/dle-archive-runtime"}' > '${LAB_DIR}/app/package.json'`,
+    )
+    if (unpacked.code !== 0) {
+      results.push({
+        domainId: host.domainId,
+        host: host.sshHost,
+        ok: false,
+        detail: unpacked.stderr || unpacked.stdout,
+      })
+      continue
+    }
+    const started = await runSsh(host.sshHost, START_ARCHIVE_KEEP_BFT)
+    let frozen: boolean | undefined
+    let minerCount: number | undefined
+    try {
+      const health = await fetchArchiveJson(`http://${host.sshHost}:${LAB_PORT}/health`)
+      frozen = health.ondemandFrozen === true
+      minerCount = typeof health.ondemandMinerCount === 'number' ? health.ondemandMinerCount : undefined
+    } catch {
+      frozen = undefined
+      minerCount = undefined
+    }
+    const healthOk =
+      started.code === 0 &&
+      started.stdout.includes('"command":"archive"') &&
+      frozen === false &&
+      minerCount === 0
+    const row: {
+      domainId: string
+      host: string
+      ok: boolean
+      frozen?: boolean
+      minerCount?: number
+      detail: string
+    } = {
+      domainId: host.domainId,
+      host: host.sshHost,
+      ok: healthOk,
+      detail: `${stopped.stdout.trim()}\n${started.stdout.trim() || started.stderr.trim()}`.trim(),
+    }
+    if (frozen !== undefined) row.frozen = frozen
+    if (minerCount !== undefined) row.minerCount = minerCount
+    results.push(row)
+  }
+  return { ok: results.every((row) => row.ok), results }
+}
+
+const STOP_HTTP_QUEUE_CLIENTS = [
+  'set -euo pipefail',
+  `PIDS=$(pgrep -f '[n]ode .*dle-ondemand-clients/' || true)`,
+  'for pid in $PIDS; do',
+  '  comm=$(ps -p "$pid" -o comm= || true)',
+  '  args=$(ps -p "$pid" -o args= || true)',
+  '  case "$comm $args" in',
+  '    *geth*|*beacon-chain*|*validator*|*prysm*) echo PROTECTED; exit 3 ;;',
+  '    *dle-30d-lab*) echo PROTECTED_LAB; exit 3 ;;',
+  '  esac',
+  '  kill -TERM "$pid" || true',
+  '  echo STOPPED=$pid',
+  'done',
+  'sleep 1',
+].join('\n')
+
+const START_HTTP_QUEUE_CLIENTS = [
+  'set -euo pipefail',
+  `mkdir -p '${HTTP_QUEUE_CLIENT_DIR}/data'`,
+  `cd '${HTTP_QUEUE_CLIENT_DIR}'`,
+  'NODE=$(command -v node)',
+  `PIDS=$(pgrep -f '[n]ode .*dle-ondemand-clients/' || true)`,
+  'if [ -n "$PIDS" ]; then echo ALREADY=$PIDS; exit 0; fi',
+  `nohup "$NODE" '${REMOTE_FLEET_ENTRY}' --supervisor --archives-file '${HTTP_QUEUE_CLIENT_DIR}/archives.json' --data-dir '${HTTP_QUEUE_CLIENT_DIR}/data' --client-count ${HTTP_QUEUE_CLIENT_COUNT} >> '${HTTP_QUEUE_CLIENT_DIR}/fleet.log' 2>&1 &`,
+  'echo STARTED=$!',
+  'sleep 2',
+  `echo FLEET_PIDS=$(pgrep -f '[n]ode .*dle-ondemand-clients/' | tr '\\n' ' ')`,
+].join('\n')
+
+export async function deployOnDemandHttpClients(options?: {
+  inventoryPath?: string
+  hostsPath?: string
+  archiveDistDir?: string
+  fleetDistDir?: string
+  waitMs?: number
+}): Promise<{
+  ok: boolean
+  opened: boolean
+  queued: boolean
+  frozen: boolean
+  endorsed: boolean
+  poolRoot: string | null
+  clientHost: string
+  results: unknown
+}> {
+  const hosts = await loadLabHosts(options?.hostsPath)
+  const openOptions: { inventoryPath?: string; hostsPath?: string; archiveDistDir?: string } = {}
+  if (options?.inventoryPath !== undefined) openOptions.inventoryPath = options.inventoryPath
+  if (options?.hostsPath !== undefined) openOptions.hostsPath = options.hostsPath
+  if (options?.archiveDistDir !== undefined) openOptions.archiveDistDir = options.archiveDistDir
+  const opened = await openOnDemandHttpQueue(openOptions)
+  if (!opened.ok) {
+    return {
+      ok: false,
+      opened: false,
+      queued: false,
+      frozen: false,
+      endorsed: false,
+      poolRoot: null,
+      clientHost: HTTP_QUEUE_CLIENT_HOST,
+      results: opened.results,
+    }
+  }
+  const fleetDistDir = options?.fleetDistDir ?? DEFAULT_FLEET_DIST_DIR
+  const bundlePath = '/tmp/dle-ondemand-fleet.tgz'
+  await runLocal('tar', ['-czf', bundlePath, '--exclude', '._*', '-C', fleetDistDir, '.'], {
+    env: { ...process.env, COPYFILE_DISABLE: '1' },
+  })
+  const archives = httpArchiveUrls(hosts)
+  const archivesFile = {
+    schema: 'DleOnDemandHttpArchivesV1',
+    groupId: HTTP_QUEUE_GROUP_ID,
+    archives,
+  }
+  const tmpArchives = '/tmp/dle-ondemand-archives.json'
+  await writeFile(tmpArchives, `${JSON.stringify(archivesFile, null, 2)}\n`, 'utf8')
+  const ensure = await runSsh(
+    HTTP_QUEUE_CLIENT_HOST,
+    `mkdir -p '${HTTP_QUEUE_CLIENT_DIR}/app' '${HTTP_QUEUE_CLIENT_DIR}/data'`,
+  )
+  if (ensure.code !== 0) {
+    return {
+      ok: false,
+      opened: true,
+      queued: false,
+      frozen: false,
+      endorsed: false,
+      poolRoot: null,
+      clientHost: HTTP_QUEUE_CLIENT_HOST,
+      results: ensure.stderr || ensure.stdout,
+    }
+  }
+  const stopped = await runSsh(HTTP_QUEUE_CLIENT_HOST, STOP_HTTP_QUEUE_CLIENTS)
+  if (stopped.code !== 0) {
+    return {
+      ok: false,
+      opened: true,
+      queued: false,
+      frozen: false,
+      endorsed: false,
+      poolRoot: null,
+      clientHost: HTTP_QUEUE_CLIENT_HOST,
+      results: stopped.stderr || stopped.stdout || 'refused to stop protected process',
+    }
+  }
+  await runScp(bundlePath, HTTP_QUEUE_CLIENT_HOST, '/tmp/dle-ondemand-fleet.tgz')
+  await runScp(tmpArchives, HTTP_QUEUE_CLIENT_HOST, `${HTTP_QUEUE_CLIENT_DIR}/archives.json`)
+  const unpacked = await runSsh(
+    HTTP_QUEUE_CLIENT_HOST,
+    `rm -rf '${HTTP_QUEUE_CLIENT_DIR}/app' && mkdir -p '${HTTP_QUEUE_CLIENT_DIR}/app' && tar -xzf /tmp/dle-ondemand-fleet.tgz -C '${HTTP_QUEUE_CLIENT_DIR}/app' && printf '%s\\n' '{"type":"module","private":true,"name":"@conet/dle-ondemand-fleet"}' > '${HTTP_QUEUE_CLIENT_DIR}/app/package.json'`,
+  )
+  if (unpacked.code !== 0) {
+    return {
+      ok: false,
+      opened: true,
+      queued: false,
+      frozen: false,
+      endorsed: false,
+      poolRoot: null,
+      clientHost: HTTP_QUEUE_CLIENT_HOST,
+      results: unpacked.stderr || unpacked.stdout,
+    }
+  }
+  const started = await runSsh(HTTP_QUEUE_CLIENT_HOST, START_HTTP_QUEUE_CLIENTS)
+  const expected = httpQueueMinerSet()
+  const deadline = Date.now() + (options?.waitMs ?? 240_000)
+  let queued = false
+  let frozen = false
+  let endorsed = false
+  let poolRoot: string | null = null
+  let lastPools: unknown = null
+  while (Date.now() < deadline) {
+    const pools = []
+    for (const url of archives) {
+      try {
+        const pool = await fetchArchiveJson(`${url}/ondemand/pool`)
+        const miners = Array.isArray(pool.miners) ? pool.miners.map((row) => String(row).toLowerCase()) : []
+        pools.push({
+          url,
+          frozen: pool.frozen === true,
+          minerCount: pool.minerCount,
+          present: [...expected].every((miner) => miners.includes(miner)),
+          poolRoot: typeof pool.poolRoot === 'string' ? pool.poolRoot : null,
+        })
+      } catch (error) {
+        pools.push({
+          url,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
+    lastPools = pools
+    queued = pools.every((row) => 'present' in row && row.present === true && row.minerCount === HTTP_QUEUE_CLIENT_COUNT)
+    if (queued) {
+      for (const url of archives) {
+        try {
+          await fetch(`${url}/ondemand/freeze`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ schema: 'DleOnDemandFreezeV1' }),
+            signal: AbortSignal.timeout(8_000),
+          })
+        } catch {
+          /* supervisor may already be freezing */
+        }
+      }
+    }
+    const selections: Array<{ available: boolean; endorsed: boolean }> = []
+    for (const url of archives) {
+      try {
+        const selection = await fetchArchiveJson(`${url}/ondemand/selection`)
+        selections.push({
+          available: selection.available === true,
+          endorsed: selection.endorsed === true,
+        })
+      } catch {
+        selections.push({ available: false, endorsed: false })
+      }
+    }
+    frozen = pools.every((row) => 'frozen' in row && row.frozen === true)
+    const roots = pools
+      .map((row) => ('poolRoot' in row ? row.poolRoot : null))
+      .filter((hash): hash is string => typeof hash === 'string' && hash.startsWith('0x'))
+    poolRoot = roots[0] ?? null
+    endorsed =
+      frozen &&
+      selections.every((row) => row.available === true && row.endorsed === true) &&
+      roots.length === archives.length &&
+      roots.every((hash) => hash === poolRoot)
+    if (queued && frozen && endorsed) break
+    await delay(5_000)
+  }
+  const evidence = {
+    schema: 'OnDemandHttpQueue30V1',
+    pilotId: PILOT_LAB_ID,
+    acceptedAt: new Date().toISOString(),
+    clientHost: HTTP_QUEUE_CLIENT_HOST,
+    clientDir: HTTP_QUEUE_CLIENT_DIR,
+    clientCount: HTTP_QUEUE_CLIENT_COUNT,
+    transport: 'http',
+    archivePort: LAB_PORT,
+    minerPrefix: '0xb110…0001–001e',
+    note: 'HTTP wait-hook queue on seven archive nodes. Hooks do not gossip; each client posted to every archive. Lab beacon ≠ CoNET L1 CL RANDAO. HMAC attests are forgeable. SelectionLog is not an Archive Certificate and not 30-day qualification.',
+    opened: opened.ok,
+    queued,
+    frozen,
+    endorsed,
+    poolRoot,
+    start: started.stdout.trim() || started.stderr.trim(),
+    lastPools,
+  }
+  await mkdir(DEFAULT_EVIDENCE_DIR, { recursive: true })
+  await writeFile(
+    join(DEFAULT_EVIDENCE_DIR, 'ondemand-http-queue-30.json'),
+    `${JSON.stringify(evidence, null, 2)}\n`,
+    'utf8',
+  )
+  return {
+    ok: opened.ok && queued && frozen && endorsed,
+    opened: opened.ok,
+    queued,
+    frozen,
+    endorsed,
+    poolRoot,
+    clientHost: HTTP_QUEUE_CLIENT_HOST,
+    results: { opened: opened.results, start: started.stdout.trim(), lastPools },
+  }
 }
 
 export async function injectIsolatedProcessCrash(domainId: string): Promise<{ ok: boolean; detail: string }> {

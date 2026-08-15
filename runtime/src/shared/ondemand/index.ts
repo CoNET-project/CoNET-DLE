@@ -15,7 +15,14 @@ export {
   type WaitMiner,
   type WaitingPoolView,
 } from './types.js'
-export { LAB_DAEMON_PROBE_MINER, LAB_MINERS } from './miners.js'
+export {
+  HTTP_QUEUE_CLIENT_COUNT,
+  HTTP_QUEUE_MINERS,
+  LAB_DAEMON_PROBE_MINER,
+  LAB_MINERS,
+  httpQueueMiner,
+  httpQueueMinersPresent,
+} from './miners.js'
 export {
   drawCommittee,
   fisherYates,

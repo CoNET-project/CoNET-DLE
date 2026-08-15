@@ -22,6 +22,7 @@ test('shared and archive on-demand packages do not import archive-a or archive-b
     ...(await listTs(join(ROOT, 'src/shared/ondemand'))),
     ...(await listTs(join(ROOT, 'src/archive/ondemand'))),
     join(ROOT, 'src/daemon/core.ts'),
+    join(ROOT, 'src/daemon/fleet-cli.ts'),
   ]
   assert.equal(files.length > 3, true)
   for (const path of files) {
