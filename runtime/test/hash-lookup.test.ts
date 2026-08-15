@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createHashLookupAdapter, indexLabHashObject, labAcLocator } from '../src/archive/hashPipe.js'
+import { createHashLookupAdapter, indexLabHashObject, labAcLocator, labPrevoteLocator } from '../src/archive/hashPipe.js'
 import { openHashStore } from '../src/archive/hashStore.js'
 import { dispatchArchiveJsonRpc } from '../src/archive/jsonrpcFacade.js'
 import { DLE_LAB_CHAIN_NFT_ID, hashLookupUnavailable } from '../src/shared/hashLookup.js'
@@ -53,10 +53,30 @@ test('hash hit must include chainNftId and never treat a miss as plane-wide null
     assert.equal(hit.hop?.labOnly, true)
   }
   const miss = lookup.locate(unknown)
-  assert.equal(miss.status, 'unavailable')
-  if (miss.status === 'unavailable') {
+  assert.equal(miss.status, 'notFound')
+  if (miss.status === 'notFound') {
     assert.equal(miss.planeWideNull, false)
+    assert.equal(miss.scope, 'thisGroup')
   }
+})
+
+test('prevoteQc is a first-class kind, not an AC field alias', async () => {
+  const prevoteHash = `0x${'7e'.repeat(32)}`
+  const indexed = indexLabHashObject(
+    store,
+    labPrevoteLocator(prevoteHash, '0x1', hash),
+    { schema: 'DleLabPrevoteQcV1', kind: 1, qcRef: prevoteHash },
+  )
+  assert.equal(indexed.ok, true)
+  const hit = await lookup.get(prevoteHash)
+  assert.equal(hit.status, 'hit')
+  if (hit.status === 'hit') {
+    assert.equal(hit.locator.kind, 'prevoteQc')
+    assert.equal(hit.locator.acRef, hash)
+    assert.equal((hit.object as { qcRef?: string }).qcRef, prevoteHash)
+  }
+  const tipAlias = lookup.locate(`0x${'08'.repeat(32)}`)
+  assert.equal(tipAlias.status, 'notFound')
 })
 
 test('same hash on a second chainNftId fails closed', () => {
@@ -71,7 +91,7 @@ test('same hash on a second chainNftId fails closed', () => {
   if (!conflict.ok) assert.equal(conflict.error, 'ERR_HASH_NFT_CONFLICT')
 })
 
-test('JSON-RPC hash methods return unavailable instead of null', async () => {
+test('JSON-RPC hash methods return this-group notFound instead of null', async () => {
   const locate = await dispatchArchiveJsonRpc(
     { jsonrpc: DLE_JSONRPC_VERSION, id: 1, method: 'dle_locateHash', params: [unknown] },
     info,
@@ -80,9 +100,10 @@ test('JSON-RPC hash methods return unavailable instead of null', async () => {
   )
   assert.equal('result' in locate, true)
   if ('result' in locate) {
-    const body = locate.result as { status?: string; planeWideNull?: boolean }
-    assert.equal(body.status, 'unavailable')
+    const body = locate.result as { status?: string; planeWideNull?: boolean; scope?: string }
+    assert.equal(body.status, 'notFound')
     assert.equal(body.planeWideNull, false)
+    assert.equal(body.scope, 'thisGroup')
   }
   const block = await dispatchArchiveJsonRpc(
     { jsonrpc: DLE_JSONRPC_VERSION, id: 2, method: 'eth_getBlockByHash', params: [unknown, false] },
@@ -93,7 +114,7 @@ test('JSON-RPC hash methods return unavailable instead of null', async () => {
   assert.equal('result' in block && block.result !== null, true)
   if ('result' in block && block.result !== null && typeof block.result === 'object') {
     const body = block.result as { status?: string }
-    assert.equal(body.status, 'unavailable')
+    assert.equal(body.status, 'notFound')
   }
   const noLookup = await dispatchArchiveJsonRpc(
     { jsonrpc: DLE_JSONRPC_VERSION, id: 3, method: 'eth_getBlockByHash', params: [unknown, false] },

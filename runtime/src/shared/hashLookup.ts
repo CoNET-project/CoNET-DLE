@@ -5,7 +5,22 @@ export const DLE_LAB_GROUP_ID = 'dle.lab.group.v1'
 
 export const HASH32_RE = /^0x[0-9a-fA-F]{64}$/
 
-export type HashObjectKind = 'ac' | 'block' | 'tx' | 'daRootProof'
+export const HASH_OBJECT_KINDS = ['ac', 'prevoteQc', 'block', 'tx', 'daRootProof'] as const
+
+export type HashObjectKind = (typeof HASH_OBJECT_KINDS)[number]
+
+export const HASH_BOUND_FIELDS = [
+  'valueHash',
+  'tipStateRoot',
+  'prevoteQCRef',
+  'membershipRoot',
+  'daRoot',
+  'bodyCommitment',
+  'blockHash',
+  'txHash',
+] as const
+
+export type HashBoundField = (typeof HASH_BOUND_FIELDS)[number]
 
 export interface HashLocatorV1 {
   schema: 'HashLocatorV1'
@@ -15,6 +30,7 @@ export interface HashLocatorV1 {
   height: string
   groupId?: string
   acRef?: string
+  boundField?: HashBoundField
 }
 
 export interface DleHop1ReceiptV1 {
@@ -47,7 +63,16 @@ export interface HashLookupUnavailable {
   hop?: DleHop1ReceiptV1
 }
 
-export type HashLookupResult = HashLookupHit | HashLookupUnavailable
+export interface HashLookupNotFound {
+  schema: 'DleHashLookupV1'
+  status: 'notFound'
+  planeWideNull: false
+  scope: 'thisGroup'
+  reason: string
+  hash: string
+}
+
+export type HashLookupResult = HashLookupHit | HashLookupUnavailable | HashLookupNotFound
 
 export interface HashLookupHint {
   chainNftId?: string
@@ -115,14 +140,32 @@ export function hashLookupUnavailable(
   }
 }
 
+export function hashLookupNotFound(hash: string, reason?: string): HashLookupNotFound {
+  return {
+    schema: 'DleHashLookupV1',
+    status: 'notFound',
+    planeWideNull: false,
+    scope: 'thisGroup',
+    reason: reason ?? 'Hash is not present in this DLE group’s committed corpus.',
+    hash,
+  }
+}
+
+export function isHashBoundField(value: unknown): value is HashBoundField {
+  return typeof value === 'string' && (HASH_BOUND_FIELDS as readonly string[]).includes(value)
+}
+
+export function isHashObjectKind(value: unknown): value is HashObjectKind {
+  return typeof value === 'string' && (HASH_OBJECT_KINDS as readonly string[]).includes(value)
+}
+
 export function isHashLocatorV1(value: unknown): value is HashLocatorV1 {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
   const row = value as Record<string, unknown>
   if (row.schema !== 'HashLocatorV1') return false
   if (normalizeHash32(row.hash) === null) return false
   if (normalizeChainNftId(row.chainNftId) === null) return false
-  if (row.kind !== 'ac' && row.kind !== 'block' && row.kind !== 'tx' && row.kind !== 'daRootProof') {
-    return false
-  }
+  if (!isHashObjectKind(row.kind)) return false
+  if (row.boundField !== undefined && !isHashBoundField(row.boundField)) return false
   return normalizeHeightHex(row.height) !== null
 }

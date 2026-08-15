@@ -10,6 +10,7 @@ import {
   VOTE_STEP_PRECOMMIT,
   VOTE_STEP_PREVOTE,
   type ArchiveCertificate,
+  type ArchivePrevoteQc,
   type ArchiveVote,
 } from './types.js'
 
@@ -101,6 +102,40 @@ export function uniqueActiveSigners(votes: readonly ArchiveVote[], activeDomainI
 
 export function hasQuorum(signers: readonly string[]): boolean {
   return signers.length >= ARCHIVE_QUORUM
+}
+
+export function buildPrevoteQc(input: {
+  valueHash: Hex
+  membershipRoot: Hex
+  height: number
+  round: number
+  signers: readonly string[]
+}): { ok: true; prevoteQc: ArchivePrevoteQc } | { ok: false; error: string } {
+  if (!hasQuorum(input.signers)) return { ok: false, error: ERR_INVALID_QUORUM }
+  const qcRef = topicQcRef({
+    kind: CERT_KIND_PREVOTE_QC,
+    valueHash: input.valueHash,
+    membershipRoot: input.membershipRoot,
+    height: input.height,
+    round: input.round,
+  })
+  return {
+    ok: true,
+    prevoteQc: {
+      schema: 'DleLabPrevoteQcV1',
+      kind: CERT_KIND_PREVOTE_QC,
+      height: input.height,
+      round: input.round,
+      valueHash: input.valueHash,
+      membershipRoot: input.membershipRoot,
+      qcRef,
+      quorum: ARCHIVE_QUORUM,
+      signers: [...input.signers].sort(),
+      networked: true,
+      labOnly: true,
+      note: 'Lab networked PrevoteQC. First-class hash object (kind=prevoteQc); not an AC field alias.',
+    },
+  }
 }
 
 export function buildArchiveCertificate(input: {

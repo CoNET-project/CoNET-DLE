@@ -1,5 +1,6 @@
 import { isJsonRpcRequest, jsonRpcError, jsonRpcSuccess, requestIdOf } from '../shared/jsonrpc.js'
 import {
+  hashLookupNotFound,
   hashLookupUnavailable,
   normalizeChainNftId,
   normalizeHash32,
@@ -233,26 +234,26 @@ export async function dispatchArchiveJsonRpc(
       }
       if (lookup !== undefined) {
         const found = await lookup.get(hash)
+        if (found.status === 'notFound' || found.status === 'unavailable') {
+          return jsonRpcSuccess(request.id, found)
+        }
         if (found.status === 'hit') {
-          if (found.locator.kind === 'tx') {
-            return jsonRpcSuccess(
-              request.id,
-              hashLookupUnavailable('Hash is not a block.', hash),
-            )
+          if (found.locator.kind === 'ac' || found.locator.kind === 'block') {
+            const object =
+              found.object !== null && typeof found.object === 'object' && !Array.isArray(found.object)
+                ? (found.object as Record<string, unknown>)
+                : null
+            const block =
+              object !== null && object.block !== null && typeof object.block === 'object' && !Array.isArray(object.block)
+                ? (object.block as Record<string, unknown>)
+                : syntheticTipBlock(wantsFullTx(request.params), {
+                    ...views.tip,
+                    hash,
+                    height: found.locator.height,
+                  })
+            return jsonRpcSuccess(request.id, wrapBlockHit(block, found.locator))
           }
-          const object =
-            found.object !== null && typeof found.object === 'object' && !Array.isArray(found.object)
-              ? (found.object as Record<string, unknown>)
-              : null
-          const block =
-            object !== null && object.block !== null && typeof object.block === 'object' && !Array.isArray(object.block)
-              ? (object.block as Record<string, unknown>)
-              : syntheticTipBlock(wantsFullTx(request.params), {
-                  ...views.tip,
-                  hash,
-                  height: found.locator.height,
-                })
-          return jsonRpcSuccess(request.id, wrapBlockHit(block, found.locator))
+          return jsonRpcSuccess(request.id, found)
         }
       }
       if (isTipBlockHash(hash, views.tip.hash)) {
@@ -260,10 +261,9 @@ export async function dispatchArchiveJsonRpc(
       }
       return jsonRpcSuccess(
         request.id,
-        hashLookupUnavailable(
-          'Hash is not in this lab group index; plane-wide not-found is unproven (single-group lab).',
-          hash,
-        ),
+        lookup === undefined
+          ? hashLookupUnavailable('Hash lookup adapter is not attached; fact-check did not complete.', hash)
+          : hashLookupNotFound(hash),
       )
     }
     case 'eth_getTransactionByHash': {
@@ -273,19 +273,24 @@ export async function dispatchArchiveJsonRpc(
       }
       if (lookup !== undefined) {
         const found = await lookup.get(hash)
-        if (found.status === 'hit' && found.locator.kind === 'tx') {
-          return jsonRpcSuccess(request.id, {
-            ...(found.object !== undefined ? { object: found.object } : {}),
-            dleLocator: found.locator,
-          })
+        if (found.status === 'notFound' || found.status === 'unavailable') {
+          return jsonRpcSuccess(request.id, found)
+        }
+        if (found.status === 'hit') {
+          if (found.locator.kind === 'tx') {
+            return jsonRpcSuccess(request.id, {
+              ...(found.object !== undefined ? { object: found.object } : {}),
+              dleLocator: found.locator,
+            })
+          }
+          return jsonRpcSuccess(request.id, found)
         }
       }
       return jsonRpcSuccess(
         request.id,
-        hashLookupUnavailable(
-          'Hash is not a lab transaction; plane-wide not-found is unproven (single-group lab).',
-          hash,
-        ),
+        lookup === undefined
+          ? hashLookupUnavailable('Hash lookup adapter is not attached; fact-check did not complete.', hash)
+          : hashLookupNotFound(hash),
       )
     }
     case 'dle_locateHash': {
@@ -296,10 +301,7 @@ export async function dispatchArchiveJsonRpc(
       if (lookup === undefined) {
         return jsonRpcSuccess(
           request.id,
-          hashLookupUnavailable(
-            'Hash is not in this lab group index; plane-wide not-found is unproven (single-group lab).',
-            hash,
-          ),
+          hashLookupUnavailable('Hash lookup adapter is not attached; fact-check did not complete.', hash),
         )
       }
       return jsonRpcSuccess(request.id, lookup.locate(hash, parseHashHint(secondParam(request.params))))
@@ -312,10 +314,7 @@ export async function dispatchArchiveJsonRpc(
       if (lookup === undefined) {
         return jsonRpcSuccess(
           request.id,
-          hashLookupUnavailable(
-            'Hash is not in this lab group index; plane-wide not-found is unproven (single-group lab).',
-            hash,
-          ),
+          hashLookupUnavailable('Hash lookup adapter is not attached; fact-check did not complete.', hash),
         )
       }
       return jsonRpcSuccess(request.id, await lookup.get(hash, parseHashHint(secondParam(request.params))))
@@ -393,6 +392,42 @@ export async function dispatchArchiveJsonRpc(
         })
       }
       return jsonRpcSuccess(request.id, lookup.chainsOf(groupId))
+    }
+    case 'dle_getHashIndexRoot': {
+      if (lookup === undefined) {
+        return jsonRpcSuccess(request.id, {
+          schema: 'DleHashIndexRootV1',
+          labOnly: true,
+          notProductionDepin: true,
+          notHotGet: true,
+          committedInAc: false,
+          groupId: 'dle.lab.group.v1',
+          hashIndexRoot: null,
+          leafCount: 0,
+          reason: 'Hash index tree is not attached.',
+        })
+      }
+      return jsonRpcSuccess(request.id, lookup.hashIndexRoot())
+    }
+    case 'dle_proveHash': {
+      const hash = normalizeHash32(firstParam(request.params))
+      if (hash === null) {
+        return jsonRpcError(request.id, -32602, 'dle_proveHash requires a 32-byte hash')
+      }
+      if (lookup === undefined) {
+        return jsonRpcSuccess(
+          request.id,
+          hashLookupUnavailable(
+            'Hash index tree is not attached; plane-wide not-found is unproven (single-group lab).',
+            hash,
+          ),
+        )
+      }
+      const proof = lookup.proveHash(hash)
+      if ('ok' in proof && proof.ok === false) {
+        return jsonRpcError(request.id, -32602, proof.error)
+      }
+      return jsonRpcSuccess(request.id, proof)
     }
     case 'eth_call':
     case 'eth_estimateGas':

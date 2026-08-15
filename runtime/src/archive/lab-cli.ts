@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import process from 'node:process'
+import { hashIndexRootView } from '../shared/hashIndexTree.js'
 import { DLE_LAB_CHAIN_NFT_ID } from '../shared/hashLookup.js'
 import { labRouteTableFromPeers } from '../shared/labRoute.js'
 import { createArchiveBftEngine } from './bft/engine.js'
@@ -164,6 +165,7 @@ const server = await listenArchiveHttp({
         ownGroupId: routeTable.ownGroupId,
         providerCount: routeTable.groups[DLE_LAB_CHAIN_NFT_ID]?.wallets.length ?? 0,
       },
+      hashIndex: hashIndexRootView(store.hash.listLocators(), routeTable.ownGroupId),
     }
   },
   extraGet(pathname) {

@@ -26,6 +26,8 @@ export const DLE_ARCHIVE_METHODS = [
   'dle_historyProviders',
   'dle_archivesOf',
   'dle_chainsOf',
+  'dle_getHashIndexRoot',
+  'dle_proveHash',
   'eth_syncing',
   'eth_accounts',
   'eth_protocolVersion',

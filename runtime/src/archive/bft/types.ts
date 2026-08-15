@@ -111,6 +111,21 @@ export interface ArchiveVote {
   mac: Hex
 }
 
+export interface ArchivePrevoteQc {
+  schema: 'DleLabPrevoteQcV1'
+  kind: typeof CERT_KIND_PREVOTE_QC
+  height: number
+  round: number
+  valueHash: Hex
+  membershipRoot: Hex
+  qcRef: Hex
+  quorum: number
+  signers: string[]
+  networked: true
+  labOnly: true
+  note: string
+}
+
 export interface ArchiveCertificate {
   schema: 'DleLabArchiveCertificateV1'
   kind: typeof CERT_KIND_ARCHIVE

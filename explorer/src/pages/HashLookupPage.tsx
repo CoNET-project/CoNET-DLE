@@ -4,7 +4,7 @@ import { DetailPageShell } from '../components/DetailPageShell'
 import { HashCapsule } from '../components/HashCapsule'
 import { JsonBlock } from '../components/JsonBlock'
 import { StatusPill } from '../components/StatusPill'
-import { fetchHashLookup } from '../lib/archiveClient'
+import { fetchHashIndexProof, fetchHashLookup } from '../lib/archiveClient'
 import { HASH32_RE } from '../protocol'
 import { useExplorer } from '../providers/ExplorerProvider'
 import { useExplorerChrome } from '../providers/ExplorerChrome'
@@ -21,6 +21,7 @@ export function HashLookupPage() {
   const hash = rawHash?.toLowerCase() ?? ''
   const valid = HASH32_RE.test(hash)
   const [result, setResult] = useState<unknown>(null)
+  const [proof, setProof] = useState<unknown>(null)
   const [untrusted, setUntrusted] = useState(false)
 
   useEffect(() => {
@@ -32,7 +33,10 @@ export function HashLookupPage() {
     if (!valid) return
     let cancelled = false
     void (async () => {
-      const next = await fetchHashLookup(archiveUrl, hash)
+      const [next, nextProof] = await Promise.all([
+        fetchHashLookup(archiveUrl, hash),
+        fetchHashIndexProof(archiveUrl, hash),
+      ])
       if (cancelled) return
       if (next === null) {
         setUntrusted(true)
@@ -40,6 +44,7 @@ export function HashLookupPage() {
       }
       setUntrusted(false)
       setResult(next)
+      if (nextProof !== null) setProof(nextProof)
     })()
     return () => {
       cancelled = true
@@ -48,12 +53,18 @@ export function HashLookupPage() {
 
   const row = isRecord(result) ? result : null
   const hit = row?.status === 'hit'
+  const notFound = row?.status === 'notFound'
   const locator = hit && isRecord(row.locator) ? row.locator : null
+  const kind = typeof locator?.kind === 'string' ? locator.kind : ''
   const chainNftId = typeof locator?.chainNftId === 'string' ? locator.chainNftId : ''
   const hop = isRecord(row?.hop) ? row.hop : null
   const hopTarget = typeof hop?.targetDomainId === 'string' ? hop.targetDomainId : ''
   const hopFallback = hop?.usedLocalFallback === true
   const hopLabOnly = hop?.labOnly === true
+  const proofRow = isRecord(proof) ? proof : null
+  const proofKind = typeof proofRow?.kind === 'string' ? proofRow.kind : ''
+  const proofRoot = typeof proofRow?.hashIndexRoot === 'string' ? proofRow.hashIndexRoot : ''
+  const proofNotHot = proofRow?.notHotGet === true
 
   return (
     <DetailPageShell
@@ -63,12 +74,18 @@ export function HashLookupPage() {
       pills={
         <>
           {hit ? <StatusPill label="Hit" tone="ok" /> : null}
+          {kind === 'prevoteQc' ? <StatusPill label="Prevote QC" tone="purple" /> : null}
+          {kind === 'ac' ? <StatusPill label="Archive Certificate" tone="blue" /> : null}
+          {notFound ? <StatusPill label="Not found" tone="neutral" /> : null}
           {row?.status === 'unavailable' ? <StatusPill label="Unavailable" tone="warn" /> : null}
           {untrusted ? <StatusPill label="Request failed" tone="warn" /> : null}
           {chainNftId !== '' ? <StatusPill label={`chainNftId ${chainNftId}`} tone="ok" /> : null}
           {hopTarget !== '' ? <StatusPill label={`hop ${hopTarget}`} tone="ok" /> : null}
           {hopFallback ? <StatusPill label="Local fallback" tone="warn" /> : null}
           {hopLabOnly ? <StatusPill label="Lab HTTP hop" tone="warn" /> : null}
+          {proofKind === 'inclusion' ? <StatusPill label="Index inclusion" tone="ok" /> : null}
+          {proofKind === 'non-inclusion' ? <StatusPill label="Index non-inclusion" tone="warn" /> : null}
+          {proofNotHot ? <StatusPill label="Tree is not hot Get" tone="warn" /> : null}
         </>
       }
     >
@@ -84,19 +101,40 @@ export function HashLookupPage() {
           Lookup is unavailable because the last request did not complete. This is not a plane-wide not-found.
         </p>
       ) : null}
+      {notFound ? (
+        <p className="mb-4 text-sm leading-6 text-slate-400">
+          This hash is not present in this group’s committed corpus. That is a this-group{' '}
+          <span className="text-white">not-found</span>, not a plane-wide null. Commitment fields such as{' '}
+          <span className="dle-mono text-cyan-300">tipStateRoot</span> or{' '}
+          <span className="dle-mono text-cyan-300">membershipRoot</span> stay inside the Archive Certificate until they
+          gain their own typed hash kind.
+        </p>
+      ) : null}
       {row?.status === 'unavailable' ? (
         <p className="mb-4 text-sm leading-6 text-slate-400">
-          This lab group does not have a trusted locator for the hash. That is <span className="text-white">unavailable</span>
-          , not a global null. A successful hit must include <span className="dle-mono text-cyan-300">chainNftId</span>.
-          After locate, the object is fetched hop-1 from lab <span className="dle-mono text-cyan-300">historyProviders</span>
-          {' '}
-          (HTTP :27101). That hop is not production DePIN.
+          The fact-check did not complete (request, hop, or adapter). That is{' '}
+          <span className="text-white">unavailable</span>, not a not-found and not a global null. A successful hit must
+          include <span className="dle-mono text-cyan-300">chainNftId</span>. After locate, the object is fetched hop-1
+          from lab <span className="dle-mono text-cyan-300">historyProviders</span> (HTTP :27101). That hop is not
+          production DePIN.
         </p>
       ) : null}
       {hit && chainNftId === '' ? (
         <p className="mb-4 text-sm text-amber-200">Protocol error: hit is missing chainNftId.</p>
       ) : null}
       {row ? <JsonBlock value={row} /> : null}
+      {proofRow ? (
+        <div className="mt-6">
+          <p className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-500">HashIndexTreeV1 proof</p>
+          {proofRoot !== '' ? (
+            <p className="mb-3 text-sm text-slate-400">
+              Independent lab checkpoint <span className="dle-mono text-cyan-300">{proofRoot}</span>
+              . This is not the hot locate path and not a plane-wide null.
+            </p>
+          ) : null}
+          <JsonBlock value={proofRow} />
+        </div>
+      ) : null}
     </DetailPageShell>
   )
 }

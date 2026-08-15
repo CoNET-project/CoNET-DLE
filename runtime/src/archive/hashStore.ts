@@ -6,13 +6,27 @@ import {
   normalizeHash32,
   normalizeHeightHex,
   type HashLocatorV1,
+  type HashObjectKind,
 } from '../shared/hashLookup.js'
+
+export const FREEZER_SLOT_SCHEMA = 'DleLabFreezerSlotV1' as const
+
+export interface DleLabFreezerSlotV1 {
+  schema: typeof FREEZER_SLOT_SCHEMA
+  objects: Partial<Record<HashObjectKind, unknown>>
+}
 
 export interface HashStore {
   putLocator(locator: HashLocatorV1): { ok: true } | { ok: false; error: string }
   getLocator(hash: string): HashLocatorV1 | null
-  putBody(chainNftId: string, height: string, body: unknown): { ok: true } | { ok: false; error: string }
-  getBody(chainNftId: string, height: string): unknown | null
+  listLocators(): HashLocatorV1[]
+  putBody(
+    chainNftId: string,
+    height: string,
+    body: unknown,
+    kind?: HashObjectKind,
+  ): { ok: true } | { ok: false; error: string }
+  getBody(chainNftId: string, height: string, kind?: HashObjectKind): unknown | null
 }
 
 interface HashIndexFile {
@@ -31,6 +45,50 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function freezerKey(chainNftId: string, height: string): string {
   return `${chainNftId}:${height}`
+}
+
+export function isFreezerSlot(value: unknown): value is DleLabFreezerSlotV1 {
+  return isRecord(value) && value.schema === FREEZER_SLOT_SCHEMA && isRecord(value.objects)
+}
+
+export function projectHashObject(raw: unknown, kind: HashObjectKind): unknown | undefined {
+  if (raw === null || raw === undefined) return undefined
+  if (isFreezerSlot(raw)) {
+    return Object.prototype.hasOwnProperty.call(raw.objects, kind) ? raw.objects[kind] : undefined
+  }
+  return raw
+}
+
+function mergeKindIntoSlot(
+  existing: unknown | undefined,
+  kind: HashObjectKind,
+  body: unknown,
+): { ok: true; slot: DleLabFreezerSlotV1 } | { ok: false; error: string } {
+  if (existing === undefined) {
+    return { ok: true, slot: { schema: FREEZER_SLOT_SCHEMA, objects: { [kind]: body } } }
+  }
+  if (isFreezerSlot(existing)) {
+    if (Object.prototype.hasOwnProperty.call(existing.objects, kind)) {
+      if (JSON.stringify(existing.objects[kind]) !== JSON.stringify(body)) {
+        return { ok: false, error: 'ERR_FREEZER_APPEND_ONLY' }
+      }
+      return { ok: true, slot: existing }
+    }
+    return {
+      ok: true,
+      slot: { schema: FREEZER_SLOT_SCHEMA, objects: { ...existing.objects, [kind]: body } },
+    }
+  }
+  if (kind === 'ac') {
+    if (JSON.stringify(existing) !== JSON.stringify(body)) {
+      return { ok: false, error: 'ERR_FREEZER_APPEND_ONLY' }
+    }
+    return { ok: true, slot: { schema: FREEZER_SLOT_SCHEMA, objects: { ac: body } } }
+  }
+  return {
+    ok: true,
+    slot: { schema: FREEZER_SLOT_SCHEMA, objects: { ac: existing, [kind]: body } },
+  }
 }
 
 function locatorsEqual(left: HashLocatorV1, right: HashLocatorV1): boolean {
@@ -133,30 +191,46 @@ export function openHashStore(dataDir: string): HashStore {
       if (normalized === null) return null
       return loadIndex(indexPath)[normalized] ?? null
     },
-    putBody(chainNftId, height, body) {
+    listLocators() {
+      return Object.values(loadIndex(indexPath)).sort((left, right) => left.hash.localeCompare(right.hash))
+    },
+    putBody(chainNftId, height, body, kind) {
       const nft = normalizeChainNftId(chainNftId)
       const heightHex = normalizeHeightHex(height)
       if (nft === null || heightHex === null) return { ok: false, error: 'ERR_INVALID_FREEZER_KEY' }
       const key = freezerKey(nft, heightHex)
       const bodies = loadFreezer(freezerPath)
-      if (key in bodies) {
-        if (JSON.stringify(bodies[key]) !== JSON.stringify(body)) {
-          return { ok: false, error: 'ERR_FREEZER_APPEND_ONLY' }
+      if (kind === undefined) {
+        if (key in bodies) {
+          if (JSON.stringify(bodies[key]) !== JSON.stringify(body)) {
+            return { ok: false, error: 'ERR_FREEZER_APPEND_ONLY' }
+          }
+          return { ok: true }
         }
+        bodies[key] = body
+        writeFreezer(freezerPath, bodies)
         return { ok: true }
       }
-      bodies[key] = body
+      const merged = mergeKindIntoSlot(bodies[key], kind, body)
+      if (!merged.ok) return merged
+      if (key in bodies && JSON.stringify(bodies[key]) === JSON.stringify(merged.slot)) {
+        return { ok: true }
+      }
+      bodies[key] = merged.slot
       writeFreezer(freezerPath, bodies)
       return { ok: true }
     },
-    getBody(chainNftId, height) {
+    getBody(chainNftId, height, kind) {
       const nft = normalizeChainNftId(chainNftId)
       const heightHex = normalizeHeightHex(height)
       if (nft === null || heightHex === null) return null
       const bodies = loadFreezer(freezerPath)
-      return Object.prototype.hasOwnProperty.call(bodies, freezerKey(nft, heightHex))
-        ? bodies[freezerKey(nft, heightHex)]
-        : null
+      const key = freezerKey(nft, heightHex)
+      if (!Object.prototype.hasOwnProperty.call(bodies, key)) return null
+      const raw = bodies[key]
+      if (kind === undefined) return raw
+      const projected = projectHashObject(raw, kind)
+      return projected === undefined ? null : projected
     },
   }
 }

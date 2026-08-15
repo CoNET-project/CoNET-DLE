@@ -110,23 +110,24 @@ test('archive exposes a read-only /api/v2/dle explorer surface', async () => {
   const hashGet = await fetch(`${archiveUrl}/api/v2/dle/hash/${unknown}`)
   assert.equal(hashGet.status, 200)
   const hashBody = (await hashGet.json()) as { status?: string; planeWideNull?: boolean }
-  assert.equal(hashBody.status, 'unavailable')
+  assert.equal(hashBody.status, 'notFound')
   assert.equal(hashBody.planeWideNull, false)
 })
 
-test('unknown hashes are unavailable, not plane-wide null', async () => {
+test('unknown hashes are this-group notFound, not plane-wide null', async () => {
   const unknown = `0x${'cd'.repeat(32)}`
   const locate = await callArchive(archiveUrl, 'dle_locateHash', [unknown])
   assert.equal('result' in locate, true)
   if ('result' in locate && locate.result !== null && typeof locate.result === 'object') {
-    const body = locate.result as { status?: string; planeWideNull?: boolean }
-    assert.equal(body.status, 'unavailable')
+    const body = locate.result as { status?: string; planeWideNull?: boolean; scope?: string }
+    assert.equal(body.status, 'notFound')
     assert.equal(body.planeWideNull, false)
+    assert.equal(body.scope, 'thisGroup')
   }
   const byHash = await callArchive(archiveUrl, 'eth_getBlockByHash', [unknown, false])
   assert.equal('result' in byHash && byHash.result !== null, true)
   if ('result' in byHash && byHash.result !== null && typeof byHash.result === 'object') {
-    assert.equal((byHash.result as { status?: string }).status, 'unavailable')
+    assert.equal((byHash.result as { status?: string }).status, 'notFound')
   }
 })
 

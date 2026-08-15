@@ -89,6 +89,7 @@ export function useArchiveFeed() {
         'eth_getTransactionByHash',
         'dle_locateHash',
         'dle_getByHash',
+        'dle_proveHash',
       ])
       const NFT_METHODS = new Set(['dle_route', 'dle_historyProviders', 'dle_archivesOf'])
       const tipHash =

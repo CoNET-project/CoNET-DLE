@@ -1,6 +1,7 @@
 import {
   DLE_LAB_CHAIN_NFT_ID,
   DLE_LAB_GROUP_ID,
+  hashLookupNotFound,
   hashLookupUnavailable,
   normalizeChainNftId,
   normalizeHash32,
@@ -19,11 +20,15 @@ import {
   type DleLabRouteV1,
   type LabRouteTable,
 } from '../shared/labRoute.js'
+import {
+  hashIndexRootView,
+  proveHashIndex,
+  type HashIndexProofV1,
+  type HashIndexRootViewV1,
+} from '../shared/hashIndexTree.js'
 import { getObjectLocal, hop1GetByLocator, hopMiss, type DleHashObjectResult, type Hop1Fetch } from './hop1.js'
-import type { HashStore } from './hashStore.js'
+import { projectHashObject, type HashStore } from './hashStore.js'
 
-const MISS_REASON =
-  'Hash is not in this lab group index; plane-wide not-found is unproven (single-group lab).'
 const CONFLICT_REASON = 'Hash maps to a conflicting chainNftId; lookup failed closed.'
 
 export interface HashLookupAdapter {
@@ -34,6 +39,8 @@ export interface HashLookupAdapter {
   historyProviders(chainNftId: string): DleLabProvidersV1
   archivesOf(chainNftId: string): DleLabProvidersV1
   chainsOf(groupId: string): DleLabChainsV1
+  hashIndexRoot(): HashIndexRootViewV1
+  proveHash(hash: string): HashIndexProofV1 | { ok: false; error: string }
 }
 
 export interface HashLookupAdapterOptions {
@@ -45,7 +52,7 @@ export function locateHash(store: HashStore, hash: string, hint?: HashLookupHint
   const normalized = normalizeHash32(hash)
   if (normalized === null) return hashLookupUnavailable('Hash must be 0x + 64 hex.')
   const locator = store.getLocator(normalized)
-  if (locator === null) return hashLookupUnavailable(MISS_REASON, normalized)
+  if (locator === null) return hashLookupNotFound(normalized)
   const hinted = hint?.chainNftId !== undefined ? normalizeChainNftId(hint.chainNftId) : null
   if (hint?.chainNftId !== undefined && (hinted === null || hinted !== locator.chainNftId)) {
     return hashLookupUnavailable(CONFLICT_REASON, normalized)
@@ -65,12 +72,17 @@ export async function getByHash(
   if (located.status !== 'hit') return located
   const hopped = await hop1GetByLocator(store, table, located.locator, fetchObject)
   if (!hopped.ok) return hopMiss(located.locator, hopped.hop, located.locator.hash)
+  const projected =
+    hopped.object !== undefined ? projectHashObject(hopped.object, located.locator.kind) : undefined
+  if (projected === undefined) {
+    return hopMiss(located.locator, hopped.hop, located.locator.hash)
+  }
   return {
     schema: 'DleHashLookupV1',
     status: 'hit',
     locator: located.locator,
     hop: hopped.hop,
-    ...(hopped.object !== undefined ? { object: hopped.object } : {}),
+    object: projected,
   }
 }
 
@@ -90,6 +102,8 @@ export function createHashLookupAdapter(
       return { ...view, providers: archivesOf(table, view.chainNftId) }
     },
     chainsOf: (groupId) => chainsView(table, groupId),
+    hashIndexRoot: () => hashIndexRootView(store.listLocators(), table.ownGroupId),
+    proveHash: (hash) => proveHashIndex(store.listLocators(), hash, table.ownGroupId),
   }
 }
 
@@ -100,7 +114,7 @@ export function indexLabHashObject(
 ): { ok: true } | { ok: false; error: string } {
   const put = store.putLocator(locator)
   if (!put.ok) return put
-  return store.putBody(locator.chainNftId, locator.height, body)
+  return store.putBody(locator.chainNftId, locator.height, body, locator.kind)
 }
 
 export function labAcLocator(hash: string, height: string, acRef: string): HashLocatorV1 {
@@ -109,6 +123,18 @@ export function labAcLocator(hash: string, height: string, acRef: string): HashL
     hash,
     chainNftId: DLE_LAB_CHAIN_NFT_ID,
     kind: 'ac',
+    height,
+    groupId: DLE_LAB_GROUP_ID,
+    acRef,
+  }
+}
+
+export function labPrevoteLocator(hash: string, height: string, acRef: string): HashLocatorV1 {
+  return {
+    schema: 'HashLocatorV1',
+    hash,
+    chainNftId: DLE_LAB_CHAIN_NFT_ID,
+    kind: 'prevoteQc',
     height,
     groupId: DLE_LAB_GROUP_ID,
     acRef,

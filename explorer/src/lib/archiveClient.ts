@@ -54,6 +54,20 @@ export async function fetchHashLookup(archiveUrl: string, hash: string): Promise
   }
 }
 
+export async function fetchHashIndexProof(archiveUrl: string, hash: string): Promise<unknown | null> {
+  try {
+    const rpc = await callArchive(archiveUrl, 'dle_proveHash', [hash])
+    if ('result' in rpc) return rpc.result
+  } catch {
+    /* fall through to GET */
+  }
+  try {
+    return await getJson(`${endpoint(archiveUrl)}/api/v2/dle/proveHash/${hash}`)
+  } catch {
+    return null
+  }
+}
+
 export async function callArchive(
   archiveUrl: string,
   method: string,

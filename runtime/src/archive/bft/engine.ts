@@ -5,6 +5,7 @@ import { replayDepositBundle } from './modeA.js'
 import {
   acceptVote,
   buildArchiveCertificate,
+  buildPrevoteQc,
   hasQuorum,
   matchingVotes,
   membershipRootOf,
@@ -20,13 +21,14 @@ import {
   VOTE_STEP_PRECOMMIT,
   VOTE_STEP_PREVOTE,
   type ArchiveCertificate,
+  type ArchivePrevoteQc,
   type ArchiveVote,
   type BftPeer,
   type BftStatus,
   type DepositBundle,
   type ModeAResult,
 } from './types.js'
-import { indexLabHashObject, labAcLocator } from '../hashPipe.js'
+import { indexLabHashObject, labAcLocator, labPrevoteLocator } from '../hashPipe.js'
 import { syntheticTipBlock } from '../jsonrpcFacade.js'
 import type { ArchiveStore } from '../store.js'
 import { normalizeHash32 } from '../../shared/hashLookup.js'
@@ -59,6 +61,7 @@ interface PersistedBft {
   schema: 'DleLabBftStateV1'
   votes: ArchiveVote[]
   certificate: ArchiveCertificate | null
+  prevoteQc?: ArchivePrevoteQc | null
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -124,6 +127,37 @@ function parseCertificate(value: unknown): ArchiveCertificate | null {
   }
 }
 
+const LAB_PREVOTE_NOTE =
+  'Lab networked PrevoteQC. First-class hash object (kind=prevoteQc); not an AC field alias.'
+
+function parsePrevoteQc(value: unknown): ArchivePrevoteQc | null {
+  if (!isRecord(value)) return null
+  if (value.schema !== 'DleLabPrevoteQcV1' || value.kind !== CERT_KIND_PREVOTE_QC) return null
+  if (typeof value.height !== 'number' || typeof value.round !== 'number') return null
+  if (
+    typeof value.valueHash !== 'string' ||
+    typeof value.membershipRoot !== 'string' ||
+    typeof value.qcRef !== 'string'
+  ) {
+    return null
+  }
+  if (!Array.isArray(value.signers) || !value.signers.every((item) => typeof item === 'string')) return null
+  return {
+    schema: 'DleLabPrevoteQcV1',
+    kind: CERT_KIND_PREVOTE_QC,
+    height: value.height,
+    round: value.round,
+    valueHash: value.valueHash as Hex,
+    membershipRoot: value.membershipRoot as Hex,
+    qcRef: value.qcRef as Hex,
+    quorum: ARCHIVE_QUORUM,
+    signers: value.signers as string[],
+    networked: true,
+    labOnly: true,
+    note: typeof value.note === 'string' ? value.note : LAB_PREVOTE_NOTE,
+  }
+}
+
 export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEngine {
   const role = options.role === 'active' ? 'active' : 'standby'
   const roster = [
@@ -136,6 +170,7 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
   const replay: ModeAResult = replayDepositBundle(bundle)
   const votes = new Map<string, ArchiveVote>()
   let certificate: ArchiveCertificate | null = null
+  let prevoteQc: ArchivePrevoteQc | null = null
   let roundState: ArchiveRoundState = createEmptyRoundState(1, 0)
   let stopped = false
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -158,6 +193,10 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
       const loaded = parseCertificate(persisted.certificate)
       if (loaded !== null) certificate = loaded
     }
+    if (persisted.prevoteQc !== null && persisted.prevoteQc !== undefined) {
+      const loaded = parsePrevoteQc(persisted.prevoteQc)
+      if (loaded !== null) prevoteQc = loaded
+    }
   }
 
   function persist(): void {
@@ -165,6 +204,7 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
       schema: 'DleLabBftStateV1',
       votes: [...votes.values()],
       certificate,
+      prevoteQc,
     })
   }
 
@@ -233,6 +273,50 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
     )
   }
 
+  function indexPrevoteQc(next: ArchivePrevoteQc): void {
+    const hash = normalizeHash32(next.qcRef)
+    if (hash === null || hash === ZERO32) return
+    const height = `0x${next.height.toString(16)}`
+    indexLabHashObject(options.store.hash, labPrevoteLocator(hash, height, next.valueHash), next)
+  }
+
+  function installPrevoteQc(next: ArchivePrevoteQc): void {
+    const previous = prevoteQc
+    if (
+      previous !== null &&
+      previous.qcRef === next.qcRef &&
+      previous.signers.length >= next.signers.length &&
+      previous.signers.every((id) => next.signers.includes(id))
+    ) {
+      indexPrevoteQc(next)
+      return
+    }
+    prevoteQc = next
+    persist()
+    options.store.appendWal({
+      type: 'archive-prevote-qc',
+      qcRef: next.qcRef,
+      valueHash: next.valueHash,
+      signers: next.signers,
+      quorum: next.quorum,
+    })
+    indexPrevoteQc(next)
+  }
+
+  function tryInstallPrevoteQc(): void {
+    if (!replay.ok) return
+    const prevoteSigners = signersFor(VOTE_STEP_PREVOTE)
+    if (!hasQuorum(prevoteSigners)) return
+    const built = buildPrevoteQc({
+      valueHash: valueHash(),
+      membershipRoot,
+      height: 1,
+      round: 0,
+      signers: prevoteSigners,
+    })
+    if (built.ok) installPrevoteQc(built.prevoteQc)
+  }
+
   function installCertificate(next: ArchiveCertificate): void {
     const previous = certificate
     if (
@@ -256,10 +340,13 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
   }
 
   if (certificate !== null) indexCertificate(certificate)
+  if (prevoteQc !== null) indexPrevoteQc(prevoteQc)
+  tryInstallPrevoteQc()
 
   function tryAdvance(): void {
     if (!replay.ok) return
     const prevoteSigners = signersFor(VOTE_STEP_PREVOTE)
+    if (hasQuorum(prevoteSigners)) tryInstallPrevoteQc()
     if (hasQuorum(prevoteSigners) && roundState.step === 'PREVOTE') {
       const qcRef = prevoteTopicRef()
       const transition = applyArchiveRoundInput(roundState, {
@@ -355,6 +442,7 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
       from: options.domainId,
       votes: [...votes.values()],
       certificate,
+      prevoteQc,
     }
     await Promise.all(
       options.peers
@@ -491,6 +579,12 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
       if (certificate === null && body.certificate !== undefined && body.certificate !== null) {
         const incoming = parseCertificate(body.certificate)
         if (incoming !== null) adoptCertificate(incoming)
+      }
+      if (body.prevoteQc !== undefined && body.prevoteQc !== null) {
+        const incoming = parsePrevoteQc(body.prevoteQc)
+        if (incoming !== null && incoming.valueHash === valueHash() && incoming.membershipRoot === membershipRoot) {
+          installPrevoteQc(incoming)
+        }
       }
       tryAdvance()
       return error === undefined ? { ok: true, status: status() } : { ok: false, error, status: status() }

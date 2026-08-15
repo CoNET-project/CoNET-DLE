@@ -23,6 +23,7 @@ const ROUTE_GET_RE = /^\/api\/v2\/dle\/route\/(\d+)$/i
 const PROVIDERS_GET_RE = /^\/api\/v2\/dle\/historyProviders\/(\d+)$/i
 const ARCHIVES_GET_RE = /^\/api\/v2\/dle\/archivesOf\/(\d+)$/i
 const CHAINS_GET_RE = /^\/api\/v2\/dle\/chainsOf\/([^/]+)$/i
+const PROVE_GET_RE = /^\/api\/v2\/dle\/proveHash\/(0x[0-9a-fA-F]{64})$/i
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -186,6 +187,16 @@ export async function listenArchiveHttp(options: ArchiveHttpOptions): Promise<Ar
       const chainsMatch = CHAINS_GET_RE.exec(url.pathname)
       if (chainsMatch?.[1] !== undefined) {
         sendJson(res, 200, lookup.chainsOf(decodeURIComponent(chainsMatch[1])))
+        return
+      }
+      if (url.pathname === '/api/v2/dle/hashIndexRoot') {
+        sendJson(res, 200, lookup.hashIndexRoot())
+        return
+      }
+      const proveMatch = PROVE_GET_RE.exec(url.pathname)
+      if (proveMatch?.[1] !== undefined) {
+        const proof = lookup.proveHash(proveMatch[1])
+        sendJson(res, 200, 'ok' in proof && proof.ok === false ? { error: proof.error } : proof)
         return
       }
     }
