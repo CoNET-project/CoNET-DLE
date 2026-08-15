@@ -12,7 +12,7 @@ This is **not** an L1 Blockscout clone and **not** an `eth_call` browser.
 | No tip VM — `eth_call` is rejected | EVM browser |
 
 Public hostname (user-authorized): **`https://dle.conet.network`** on `70.35.205.77`.
-The SPA is same-origin; nginx proxies `/health`, `/rpc`, and `/api/v2/dle` to lab archives on TCP **27101**.
+The SPA is same-origin; nginx proxies `/health`, `/rpc`, `/api/v2/dle`, and read-only `/ondemand/pool` + `/ondemand/selection` to lab archives on TCP **27101**. It does **not** expose `POST /ondemand/hook` or freeze.
 Do **not** invent additional hostnames, and do **not** write this URL into Solidity constants.
 
 The UI uses a dark neon glass theme and the DLE mark in `explorer/public/dle-mark.png`. Events are listed **newest first**. There is no top navigation bar — main pages use a title capsule, detail pages use a circular back button, and section tabs stay in the footer.
@@ -43,6 +43,7 @@ npm run explorer:build
 ```
 
 The public UI defaults to `https://dle.conet.network` (same origin). Local default remains `http://127.0.0.1:27101`.
+Public nginx also exposes `GET /ondemand/pool` and `GET /ondemand/selection`.
 
 ## Lab hosts
 
