@@ -7,6 +7,7 @@ import {
   normalizeHeightHex,
   type HashLookupHint,
   type HashLocatorV1,
+  DLE_LAB_GROUP_ID,
 } from '../shared/hashLookup.js'
 import {
   CONET_L1_CHAIN_ID,
@@ -15,6 +16,7 @@ import {
   DLE_COMMAND,
   DLE_JSONRPC_BATCH_MAX,
   DLE_LAB_CHAIN_ID,
+  DLE_TESTNET_CHAIN_NAME,
   DLE_RUNTIME,
   DLE_ZERO_ADDRESS,
   DLE_ZERO_HASH,
@@ -75,6 +77,7 @@ export function buildArchiveFacadeInfo(
     batchSupported: true,
     chainId: DLE_LAB_CHAIN_ID,
     chainIdHex: chainIdHex(DLE_LAB_CHAIN_ID),
+    chainName: DLE_TESTNET_CHAIN_NAME,
     port,
     ...(identity ?? {}),
   }
@@ -188,7 +191,7 @@ export async function dispatchArchiveJsonRpc(
         request.id,
         views.waitingPool ?? {
           schema: 'DleWaitingPoolV1',
-          groupId: 'dle.lab.group.v1',
+          groupId: DLE_LAB_GROUP_ID,
           epoch: 1,
           shardId: 'dle.lab.shard.v1',
           frozen: false,
@@ -401,7 +404,7 @@ export async function dispatchArchiveJsonRpc(
           notProductionDepin: true,
           notHotGet: true,
           committedInAc: false,
-          groupId: 'dle.lab.group.v1',
+          groupId: DLE_LAB_GROUP_ID,
           hashIndexRoot: null,
           leafCount: 0,
           reason: 'Hash index tree is not attached.',

@@ -2,11 +2,13 @@
 
 Read-only explorer for **CoNET-DLE** archive events, 5+2 node identity, Archive Certificates, and the lab on-demand waiting pool / 7+2 SelectionLog.
 
+**Programming rules (update in the same task as code/spec changes):** [`RULES.md`](./RULES.md).
+
 This is **not** an L1 Blockscout clone and **not** an `eth_call` browser.
 
 | DLE | L1 Blockscout |
 | --- | --- |
-| Lab chain id `0x44c45` (281669) | CoNET L1 `224422` |
+| CoNET-DLE Testnet EIP-155 `0x44c45` (281669) | CoNET L1 `224422` |
 | Tip finality = Archive Certificate (PrecommitQC) | Blocks / execution receipts |
 | Archive nodes **do not produce blocks** | Full nodes produce and execute |
 | No tip VM — `eth_call` is rejected | EVM browser |
@@ -53,7 +55,7 @@ This explorer does **not** claim 30-day qualification. Heartbeat quorum on 27101
 
 ## What it shows
 
-1. **Home** — chain id, tip height, archive count, 5+2 roles, AC / finalized, waiting pool, 7+2 SelectionLog (`poolRoot` / committee / standbys / endorsed), `producesBlocks=false`, no tip VM.
+1. **Home** — Chain ID (`0x44c45`, hint **CoNET-DLE Testnet**) with a **Group ID** capsule (bootstrap L1 register tx; click opens CoNET Blockscout `/tx/…`; not the decimal / “Not L1 224422” hint), **Clusters** (`liveGroupCount` / \(G_e\); genesis and no fission = **1**; **not** Tip height), archive count, 5+2 roles, AC / finalized, waiting pool, 7+2 SelectionLog (`poolRoot` / committee / standbys / endorsed), `producesBlocks=false`, no tip VM. Tip **hash** stays under the metric row (DLE lookup). Programming rules: [`RULES.md`](./RULES.md).
 2. **Events** — WAL / heartbeat / rpc / lab-start / ondemand-* rows from `/api/v2/dle/events`, or last trusted / demo fixture.
 3. **Archives** — seven-domain identity and live health overlay.
 4. **Certificates** — lab networked 4-of-5 PrecommitQC **and** the on-demand SelectionLog. They are different objects. AC is tip finality; SelectionLog is the recomputable 7+2 draw. Not production SSZ / EIP-712.

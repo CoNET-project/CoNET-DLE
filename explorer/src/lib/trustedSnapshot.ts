@@ -6,8 +6,12 @@ import { LAB_SELECTION_FIXTURE, LAB_WAITING_POOL_FIXTURE } from '../fixtures/lab
 import {
   EMPTY_CERTIFICATE,
   EMPTY_INFO,
+  EMPTY_LIVE_GROUP_IDS,
   EMPTY_TIP,
+  GENESIS_CLUSTER_COUNT,
   emptyRpcRows,
+  parseClusterCount,
+  parseLiveGroupIds,
   parseSelectionLog,
   parseWaitingPool,
 } from './archiveClient'
@@ -46,6 +50,8 @@ export function defaultSnapshot(archiveUrl: string): TrustedExplorerSnapshot {
     health: null,
     info: EMPTY_INFO,
     tip: EMPTY_TIP,
+    clusterCount: GENESIS_CLUSTER_COUNT,
+    liveGroupIds: EMPTY_LIVE_GROUP_IDS,
     certificate: EMPTY_CERTIFICATE,
     waitingPool: LAB_WAITING_POOL_FIXTURE,
     selection: LAB_SELECTION_FIXTURE,
@@ -109,6 +115,8 @@ export function loadTrustedSnapshot(archiveUrl: string): TrustedExplorerSnapshot
       events: sortEventsNewestFirst(parsed.events as TrustedExplorerSnapshot['events']),
       archives: hydrateArchiveWallets(parsed.archives),
       rpc: parsed.rpc as TrustedExplorerSnapshot['rpc'],
+      clusterCount: parseClusterCount(parsed) ?? fallback.clusterCount,
+      liveGroupIds: parseLiveGroupIds(parsed) ?? fallback.liveGroupIds,
     }
   } catch {
     return fallback

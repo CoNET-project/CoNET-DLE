@@ -27,9 +27,9 @@ npm run archive -- --port 27101 --data-dir ./data/dle-archive
 npm run daemon -- --archive http://127.0.0.1:27101 --wait
 ```
 
-`eth_chainId` 返回实验室 DLE id（`0x44c45` / `281669`），**不是** CoNET L1 `224422`。`/rpc` **从不**代理 `publicrpc` / `rpc1` / `base-rpc`。`eth_call` / `eth_getBalance` / `eth_sendRawTransaction` 返回 method-not-found（无 tip VM、无 EVM 账户模型）。支持 JSON-RPC 2.0 **batch**（最多 32）。`lab-cli` 联网后 `dle_getArchiveCertificate` 返回实验室 4-of-5 PrecommitQC（HMAC-SHA256，**可伪造**，不是冻结 EIP-712 / corpus SSZ）。无 roster 的 `startArchiveNode` 仍诚实空。
+`eth_chainId` 返回 **CoNET-DLE Testnet** EIP-155 id（`0x44c45` / `281669`），用来和 CoNET L1 `224422`、Base `8453` 区分；**不是** Group ID。用户可见 Group ID 是引导组 L1 登记交易 hash。`/rpc` **从不**代理 `publicrpc` / `rpc1` / `base-rpc`。`eth_call` / `eth_getBalance` / `eth_sendRawTransaction` 返回 method-not-found（无 tip VM、无 EVM 账户模型）。支持 JSON-RPC 2.0 **batch**（最多 32）。`lab-cli` 联网后 `dle_getArchiveCertificate` 返回实验室 4-of-5 PrecommitQC（HMAC-SHA256，**可伪造**，不是冻结 EIP-712 / corpus SSZ）。无 roster 的 `startArchiveNode` 仍诚实空。
 
-P3 on-demand（`runtime/src/shared/ondemand` + `runtime/src/archive/ondemand`）：实验室自动 seed 9 个 miner 并 freeze `poolRoot`，再按白皮书 \(R_e\) 抽 **7+2**。`dle_getWaitingPool` / `dle_getSelectionLog`、`GET /ondemand/pool`、`GET /ondemand/selection`、`POST /ondemand/hook`。七主机 ≥4 个 active HMAC attest 同一 `poolRoot`/`roulette` 后 `endorsed=true`。单节点本地可复算 committee，但 **诚实 `endorsed=false`**。实验室 beacon = freeze **之后**的 keccak，**不是** CoNET L1 CL RANDAO。SelectionLog **不是** AC，也 **不**改 P1 Mode A `valueHash`。重复钩拒绝（anti-hoard）。HMAC 可伪造，不是 30 天资格。
+P3 on-demand（`runtime/src/shared/ondemand` + `runtime/src/archive/ondemand`；守则 [`src/shared/ondemand/RULES.md`](./src/shared/ondemand/RULES.md)）：实验室自动 seed 9 个 miner 并 freeze `poolRoot`，再按白皮书 \(R_e\) 抽 **7+2**。等待池 **不是** cluster 数 \(G_e\)。`dle_getWaitingPool` / `dle_getSelectionLog`、`GET /ondemand/pool`、`GET /ondemand/selection`、`POST /ondemand/hook`。七主机 ≥4 个 active HMAC attest 同一 `poolRoot`/`roulette` 后 `endorsed=true`。单节点本地可复算 committee，但 **诚实 `endorsed=false`**。实验室 beacon = freeze **之后**的 keccak，**不是** CoNET L1 CL RANDAO。SelectionLog **不是** AC，也 **不**改 P1 Mode A `valueHash`。重复钩拒绝（anti-hoard）。HMAC 可伪造，不是 30 天资格。
 
 ## 源码边界
 
@@ -50,12 +50,15 @@ P1 联网 BFT（独立包 `runtime/src/archive/bft`）：5 个 active 对冻结 
 
 产物必须带 `package.json` `"type":"module"`（系统 Node 18 否则会把 ESM `.js` 当 CJS）。部署只 SIGTERM `agent.mjs` / `lab-cli.js`，不得碰 geth / beacon / validator。
 
+编程守则（改归档 / on-demand / daemon 后必须同任务更新）：[`RULES.md`](./RULES.md)、[`src/shared/ondemand/RULES.md`](./src/shared/ondemand/RULES.md)、[`src/daemon/RULES.md`](./src/daemon/RULES.md)。
+
 只读 explorer 面（P4 脚手架，无新域名）：
 
-- `GET /api/v2/dle` — chain id、tip、`producesBlocks=false`；有实验室 AC 时 tip `finalized=true`；可带 `waitingPool` / `selection`
+- `GET /health` — 进程健康 + **`liveGroupCount` / `liveGroupIds`**（\(G_e\)；无裂变 = **1**）。须写在 `extraHealth` **之后**，避免被覆盖
+- `GET /api/v2/dle` — chain id、tip、`producesBlocks=false`、**`liveGroupCount` / `liveGroupIds`**（顶层与 `archive`）；有实验室 AC 时 tip `finalized=true`；可带 `waitingPool` / `selection`。Explorer Home 用 Clusters 展示 \(G_e\)，**不再**用 Tip height 面板（NFT 42 AC height 恒为 `0x1`）
 - `GET /api/v2/dle/events` — 内存 WAL 环（listen / rpc / lab-start / heartbeat / bft-vote / archive-certificate / ondemand-*）
 - `GET /api/v2/dle/certificate` — 实验室联网 AC（无 BFT 时仍诚实空）
 - `POST /bft/message` / `GET /bft/status` — 实验室 prevote/precommit 交换（复用 27101）
 - `GET /ondemand/pool` / `GET /ondemand/selection` / `POST /ondemand/hook` / `POST /ondemand/freeze` / `POST /ondemand/message` — 实验室等待池与 SelectionLog（复用 27101）
 
-本地 UI：`npm run explorer:dev`（见 `explorer/README.md`）。Home / Certificates 展示 waiting pool、`poolRoot`、7+2、`endorsed`；首屏 seed 七主机 P3 验收，仅可信 live 覆盖。`eth_chainId` 仍是 `0x44c45`，不是 L1 `224422`。
+本地 UI：`npm run explorer:dev`（见 `explorer/README.md`）。Home / Certificates 展示 waiting pool、`poolRoot`、7+2、`endorsed`；首屏 seed 七主机 P3 验收，仅可信 live 覆盖。`eth_chainId` 仍是 CoNET-DLE Testnet `0x44c45`，不是 L1 `224422`。`liveGroupIds` 为引导组登记交易 hash。

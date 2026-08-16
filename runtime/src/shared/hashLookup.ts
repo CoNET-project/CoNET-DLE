@@ -1,7 +1,16 @@
 /** Hash-only locate types. Copied by explorer — do not import archive-a/b. */
 
 export const DLE_LAB_CHAIN_NFT_ID = '42'
-export const DLE_LAB_GROUP_ID = 'dle.lab.group.v1'
+
+/**
+ * L1 tx that registered bootstrap group storage key 1 on GlobalArchiveRoutingRegistry.
+ * User-visible Group ID is this hash — not the uint 1 and not the EIP-155 chain id.
+ */
+export const DLE_BOOTSTRAP_GROUP_REGISTER_TX_HASH =
+  '0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0'
+
+export const DLE_LAB_GROUP_ID = DLE_BOOTSTRAP_GROUP_REGISTER_TX_HASH
+export const DLE_LAB_GROUP_ID_LEGACY = 'dle.lab.group.v1'
 
 export const HASH32_RE = /^0x[0-9a-fA-F]{64}$/
 
@@ -76,6 +85,20 @@ export type HashLookupResult = HashLookupHit | HashLookupUnavailable | HashLooku
 
 export interface HashLookupHint {
   chainNftId?: string
+}
+
+/** Map legacy lab strings / L1 uint 1 onto the bootstrap register-tx Group ID. */
+export function canonicalGroupId(raw: string): string {
+  const trimmed = raw.trim()
+  const lower = trimmed.toLowerCase()
+  if (lower === DLE_LAB_GROUP_ID_LEGACY || lower === '1' || lower === '0x1') {
+    return DLE_LAB_GROUP_ID
+  }
+  return normalizeHash32(trimmed) ?? trimmed
+}
+
+export function sameGroupId(a: string, b: string): boolean {
+  return canonicalGroupId(a) === canonicalGroupId(b)
 }
 
 export function normalizeHash32(raw: unknown): string | null {

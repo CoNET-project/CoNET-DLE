@@ -1,4 +1,5 @@
 import type { Hex } from '../bytes.js'
+import { DLE_LAB_GROUP_ID } from '../hashLookup.js'
 
 export const VALIDATOR_COMMITTEE_SIZE = 7
 export const VALIDATOR_STANDBY_SIZE = 2
@@ -8,7 +9,7 @@ export const MIN_WAIT_POOL = VALIDATOR_COMMITTEE_SIZE + VALIDATOR_STANDBY_SIZE
 
 export const LAB_EPOCH = 1
 export const LAB_SHARD_ID = 'dle.lab.shard.v1'
-export const LAB_GROUP_ID = 'dle.lab.group.v1'
+export const LAB_GROUP_ID = DLE_LAB_GROUP_ID
 export const ROULETTE_DOMAIN = 'dle.roulette.v1'
 export const WAIT_LEAF_DOMAIN = 'dle.wait.leaf.v1'
 export const LAB_BEACON_DOMAIN = 'dle.lab.beacon.afterFreeze.v1'

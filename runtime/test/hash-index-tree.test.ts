@@ -19,6 +19,7 @@ import {
   DLE_COMMAND,
   DLE_JSONRPC_VERSION,
   DLE_LAB_CHAIN_ID,
+  DLE_TESTNET_CHAIN_NAME,
   DLE_RUNTIME,
   chainIdHex,
   type DleArchiveInfo,
@@ -47,6 +48,7 @@ const info: DleArchiveInfo = {
   batchSupported: true,
   chainId: DLE_LAB_CHAIN_ID,
   chainIdHex: chainIdHex(DLE_LAB_CHAIN_ID),
+  chainName: DLE_TESTNET_CHAIN_NAME,
   port: 27101,
 }
 

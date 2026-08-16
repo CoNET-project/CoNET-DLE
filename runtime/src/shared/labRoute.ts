@@ -1,6 +1,12 @@
 /** Laboratory route table. Not L1 Global Archive Routing Registry. Not production DePIN. */
 
-import { DLE_LAB_CHAIN_NFT_ID, DLE_LAB_GROUP_ID, normalizeChainNftId } from './hashLookup.js'
+import {
+  DLE_LAB_CHAIN_NFT_ID,
+  DLE_LAB_GROUP_ID,
+  canonicalGroupId,
+  normalizeChainNftId,
+  sameGroupId,
+} from './hashLookup.js'
 
 export interface LabHistoryWallet {
   domainId: string
@@ -107,7 +113,7 @@ export function routeGroupId(table: LabRouteTable, chainNftId: string): string |
 
 export function isOwnGroup(table: LabRouteTable, chainNftId: string): boolean {
   const groupId = routeGroupId(table, chainNftId)
-  return groupId !== null && groupId === table.ownGroupId
+  return groupId !== null && sameGroupId(groupId, table.ownGroupId)
 }
 
 export function historyProviders(table: LabRouteTable, chainNftId: string): LabHistoryWallet[] {
@@ -120,11 +126,38 @@ export function archivesOf(table: LabRouteTable, chainNftId: string): LabHistory
   return historyProviders(table, chainNftId)
 }
 
+export function registerLabChainNft(table: LabRouteTable, chainNftId: string): boolean {
+  const nft = normalizeChainNftId(chainNftId)
+  if (nft === null) return false
+  if (table.groups[nft] !== undefined) return true
+  const template = table.groups[DLE_LAB_CHAIN_NFT_ID]
+  if (template === undefined) return false
+  table.groups[nft] = {
+    groupId: table.ownGroupId,
+    wallets: template.wallets.map((wallet) => ({ ...wallet })),
+  }
+  return true
+}
+
 export function chainsOf(table: LabRouteTable, groupId: string): string[] {
   if (groupId === '') return []
   return Object.entries(table.groups)
-    .filter(([, group]) => group.groupId === groupId)
+    .filter(([, group]) => sameGroupId(group.groupId, groupId))
     .map(([nft]) => nft)
+}
+
+/** Live archive groups G_e. Genesis is 1; each fission adds a distinct groupId. */
+export function liveGroupIds(table: LabRouteTable): string[] {
+  const ids = new Set<string>()
+  if (table.ownGroupId !== '') ids.add(canonicalGroupId(table.ownGroupId))
+  for (const group of Object.values(table.groups)) {
+    if (group.groupId !== '') ids.add(canonicalGroupId(group.groupId))
+  }
+  return [...ids].sort()
+}
+
+export function liveGroupCount(table: LabRouteTable): number {
+  return Math.max(1, liveGroupIds(table).length)
 }
 
 export function hopTargets(table: LabRouteTable, chainNftId: string): LabHistoryWallet[] {
@@ -171,7 +204,7 @@ export function routeView(table: LabRouteTable, chainNftId: string): DleLabRoute
     l1RouteUnproven: true,
     chainNftId: nft,
     groupId,
-    ownGroup: groupId === table.ownGroupId,
+    ownGroup: sameGroupId(groupId, table.ownGroupId),
   }
 }
 
@@ -189,12 +222,13 @@ export function providersView(table: LabRouteTable, chainNftId: string): DleLabP
 }
 
 export function chainsView(table: LabRouteTable, groupId: string): DleLabChainsV1 {
+  const canonical = canonicalGroupId(groupId)
   return {
     schema: 'DleLabChainsV1',
     labOnly: true,
     notProductionDepin: true,
     l1RouteUnproven: true,
-    groupId,
-    chainNftIds: chainsOf(table, groupId),
+    groupId: canonical,
+    chainNftIds: chainsOf(table, canonical),
   }
 }

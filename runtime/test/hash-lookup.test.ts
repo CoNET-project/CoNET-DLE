@@ -6,13 +6,21 @@ import assert from 'node:assert/strict'
 import { createHashLookupAdapter, indexLabHashObject, labAcLocator, labPrevoteLocator } from '../src/archive/hashPipe.js'
 import { openHashStore } from '../src/archive/hashStore.js'
 import { dispatchArchiveJsonRpc } from '../src/archive/jsonrpcFacade.js'
-import { DLE_LAB_CHAIN_NFT_ID, hashLookupUnavailable } from '../src/shared/hashLookup.js'
+import {
+  DLE_LAB_CHAIN_NFT_ID,
+  DLE_LAB_GROUP_ID,
+  DLE_LAB_GROUP_ID_LEGACY,
+  canonicalGroupId,
+  hashLookupUnavailable,
+  sameGroupId,
+} from '../src/shared/hashLookup.js'
 import {
   CONET_L1_CHAIN_ID,
   DLE_COMMAND,
   DLE_JSONRPC_VERSION,
   DLE_LAB_CHAIN_ID,
   DLE_RUNTIME,
+  DLE_TESTNET_CHAIN_NAME,
   chainIdHex,
   type DleArchiveInfo,
 } from '../src/shared/protocol.js'
@@ -37,6 +45,7 @@ const info: DleArchiveInfo = {
   batchSupported: true,
   chainId: DLE_LAB_CHAIN_ID,
   chainIdHex: chainIdHex(DLE_LAB_CHAIN_ID),
+  chainName: DLE_TESTNET_CHAIN_NAME,
   port: 27101,
 }
 
@@ -143,4 +152,12 @@ test('JSON-RPC hash methods return this-group notFound instead of null', async (
   assert.equal('result' in noLookup && noLookup.result !== null, true)
   const stub = hashLookupUnavailable('x')
   assert.equal(stub.planeWideNull, false)
+})
+
+test('bootstrap Group ID is the L1 register tx hash; legacy strings alias it', () => {
+  assert.equal(canonicalGroupId(DLE_LAB_GROUP_ID_LEGACY), DLE_LAB_GROUP_ID)
+  assert.equal(canonicalGroupId('1'), DLE_LAB_GROUP_ID)
+  assert.equal(canonicalGroupId('0x1'), DLE_LAB_GROUP_ID)
+  assert.equal(sameGroupId(DLE_LAB_GROUP_ID_LEGACY, DLE_LAB_GROUP_ID), true)
+  assert.equal(sameGroupId('dle.lab.group.v2', DLE_LAB_GROUP_ID), false)
 })

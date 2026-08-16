@@ -1,8 +1,18 @@
-/** Lab DLE chain id. Copied locally — never import runtime or archive-a/b. Must never equal CoNET L1 224422. */
-export const DLE_LAB_CHAIN_ID = 0x44c45
+/**
+ * EIP-155 chain id for CoNET-DLE Testnet. Copied locally — never import runtime.
+ * Distinguishes this plane from CoNET L1 224422. Not a group id.
+ */
+export const DLE_TESTNET_CHAIN_ID = 0x44c45
+export const DLE_TESTNET_CHAIN_NAME = 'CoNET-DLE Testnet'
+export const DLE_LAB_CHAIN_ID = DLE_TESTNET_CHAIN_ID
 export const CONET_L1_CHAIN_ID = 224422
 export const DLE_LAB_CHAIN_NFT_ID = '42'
-export const DLE_LAB_GROUP_ID = 'dle.lab.group.v1'
+
+/** User-visible Group ID = L1 bootstrap register tx hash. Copied from l1Routing. */
+export const DLE_BOOTSTRAP_GROUP_REGISTER_TX_HASH =
+  '0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0'
+export const DLE_LAB_GROUP_ID = DLE_BOOTSTRAP_GROUP_REGISTER_TX_HASH
+export const DLE_LAB_GROUP_ID_LEGACY = 'dle.lab.group.v1'
 
 export const DLE_JSONRPC_VERSION = '2.0' as const
 

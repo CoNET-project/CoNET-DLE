@@ -14,7 +14,12 @@ import {
   defaultFacadeViews,
   dispatchArchiveJsonRpcEnvelope,
 } from './jsonrpcFacade.js'
-import { defaultLabRouteTable, type LabRouteTable } from '../shared/labRoute.js'
+import {
+  defaultLabRouteTable,
+  liveGroupCount,
+  liveGroupIds,
+  type LabRouteTable,
+} from '../shared/labRoute.js'
 import type { ArchiveStore } from './store.js'
 
 const HASH_GET_RE = /^\/api\/v2\/dle\/hash\/(0x[0-9a-fA-F]{64})$/i
@@ -82,6 +87,19 @@ function archiveInfo(port: number, identity?: ArchiveHttpOptions['identity']): D
   return buildArchiveFacadeInfo(port, identity)
 }
 
+function clusterView(options: ArchiveHttpOptions): { liveGroupCount: number; liveGroupIds: string[] } {
+  const table =
+    options.routeTable ??
+    defaultLabRouteTable({
+      domainId: options.identity?.domainId ?? 'local',
+      role: options.identity?.role ?? 'active',
+    })
+  return {
+    liveGroupCount: liveGroupCount(table),
+    liveGroupIds: liveGroupIds(table),
+  }
+}
+
 function lookupAdapter(options: ArchiveHttpOptions) {
   return createHashLookupAdapter(options.store.hash, {
     table:
@@ -114,12 +132,14 @@ export async function listenArchiveHttp(options: ArchiveHttpOptions): Promise<Ar
         ...info,
         ...(options.identity ?? {}),
         ...(options.extraHealth?.() ?? {}),
+        ...clusterView(options),
       })
       return
     }
     if (req.method === 'GET' && url.pathname === '/api/v2/dle') {
       const extra = options.extraHealth?.() ?? {}
       const views = options.facadeViews?.() ?? defaultFacadeViews()
+      const clusters = clusterView(options)
       sendJson(res, 200, {
         schema: 'DleExplorerApiV1',
         chainId: info.chainId,
@@ -128,6 +148,7 @@ export async function listenArchiveHttp(options: ArchiveHttpOptions): Promise<Ar
         hasTipVm: false,
         l1Isolated: true,
         batchSupported: true,
+        ...clusters,
         tip: views.tip,
         certificate: views.certificate,
         waitingPool: views.waitingPool ?? null,
@@ -137,6 +158,7 @@ export async function listenArchiveHttp(options: ArchiveHttpOptions): Promise<Ar
           ...info,
           ...(options.identity ?? {}),
           ...extra,
+          ...clusters,
         },
       })
       return

@@ -15,6 +15,7 @@ import {
   type WaitMiner,
   type WaitingPoolView,
 } from '../../shared/ondemand/index.js'
+import { sameGroupId } from '../../shared/hashLookup.js'
 import type { Hex } from '../../shared/bytes.js'
 import type { ArchiveStore } from '../store.js'
 import { signLabPoolAttest, verifyLabPoolAttest, type PoolAttest } from './mac.js'
@@ -281,7 +282,7 @@ export function createOnDemandEngine(options: OnDemandOptions): OnDemandEngine {
       return { status: 400, body: { ok: false, error: 'ERR_INVALID_HOOK' } }
     }
     const requestedGroup = typeof body.groupId === 'string' ? body.groupId : groupId
-    if (requestedGroup !== groupId) {
+    if (!sameGroupId(requestedGroup, groupId)) {
       return { status: 400, body: { ok: false, error: 'ERR_UNKNOWN_GROUP' } }
     }
     const key = miner.toLowerCase()

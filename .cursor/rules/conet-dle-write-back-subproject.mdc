@@ -1,0 +1,17 @@
+---
+description: DLE 编程/规格改动完成后必须写回对应子项目守则
+alwaysApply: true
+---
+
+# DLE 改动写回子项目
+
+与仓库 `.cursor/rules/conet-dle-write-back-subproject.mdc` 同一规则。
+
+| 面 | 写回 |
+|---|---|
+| 归档 | `runtime/RULES.md` §Archive |
+| on-demand | `runtime/src/shared/ondemand/RULES.md` |
+| Explorer | `explorer/RULES.md` |
+| client | `runtime/src/daemon/RULES.md` |
+
+同一任务写完代码与守则。UI/HTTP 细节不进白皮书。

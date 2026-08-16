@@ -15,8 +15,12 @@ import {
   fetchOnDemandPool,
   fetchOnDemandSelection,
   mergeArchivesWithHealth,
+  EMPTY_LIVE_GROUP_IDS,
+  GENESIS_CLUSTER_COUNT,
   parseArchiveInfo,
   parseCertificate,
+  parseClusterCount,
+  parseLiveGroupIds,
   parseSelectionLog,
   parseTip,
   parseWaitingPool,
@@ -134,6 +138,14 @@ export function useArchiveFeed() {
       const selectionFromRpc = rpcSettled.find(
         (row) => row.method === 'dle_getSelectionLog' && row.status === 'ok',
       )
+      const clusterFromHealth = healthResult.ok ? parseClusterCount(healthResult.value) : null
+      const clusterFromOverview = overview
+        ? parseClusterCount(overview) ?? parseClusterCount(overview.archive)
+        : null
+      const groupsFromHealth = healthResult.ok ? parseLiveGroupIds(healthResult.value) : null
+      const groupsFromOverview = overview
+        ? parseLiveGroupIds(overview) ?? parseLiveGroupIds(overview.archive)
+        : null
 
       const next: TrustedExplorerSnapshot = {
         fetchedAt: new Date().toISOString(),
@@ -142,6 +154,9 @@ export function useArchiveFeed() {
         health: healthResult.ok ? healthResult.value : previous.health,
         info: infoFromOverview ?? infoFromHealth ?? parseArchiveInfo(infoFromRpc?.result) ?? previous.info,
         tip: tipFromOverview ?? parseTip(tipFromRpc?.result) ?? previous.tip,
+        clusterCount:
+          clusterFromHealth ?? clusterFromOverview ?? previous.clusterCount ?? GENESIS_CLUSTER_COUNT,
+        liveGroupIds: groupsFromHealth ?? groupsFromOverview ?? previous.liveGroupIds ?? EMPTY_LIVE_GROUP_IDS,
         certificate:
           liveCertificate ??
           certFromOverview ??

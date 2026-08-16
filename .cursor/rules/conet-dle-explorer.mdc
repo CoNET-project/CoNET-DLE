@@ -1,0 +1,9 @@
+---
+description: DLE Explorer Home：Clusters，禁止 Tip height 面板
+globs: explorer/**
+alwaysApply: false
+---
+
+# Explorer
+
+见 `explorer/RULES.md`。Home 第一格 **Chain ID** 只显示 `0x44c45`（hint **CoNET-DLE Testnet**），其下 **Group ID** 胶囊 = L1 bootstrap `registerTxHash`（点击打开 Blockscout `/tx/…`），禁止 `Decimal 281,669. Not CoNET L1 224422.`。第二格是 **Clusters**（\(G_e\)，无裂变 = 1），不是 Tip height。保留 Tip hash 行（DLE `/hash/`）。

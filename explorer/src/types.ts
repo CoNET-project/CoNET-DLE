@@ -10,6 +10,7 @@ export interface DleArchiveInfo {
   batchSupported?: true
   chainId: number
   chainIdHex: string
+  chainName?: string
   port: number
   domainId?: string
   role?: string
@@ -144,6 +145,9 @@ export interface TrustedExplorerSnapshot {
   certificate: DleCertificateView | null
   waitingPool: DleWaitingPoolView | null
   selection: DleSelectionLogView | null
+  /** Live archive groups G_e. Genesis is 1; each fission adds one. */
+  clusterCount: number
+  liveGroupIds: string[]
   events: DleEventRow[]
   archives: LabArchiveRow[]
   rpc: RpcProbeRow[]

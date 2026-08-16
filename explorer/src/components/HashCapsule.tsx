@@ -2,14 +2,17 @@ import { Check, Copy } from 'lucide-react'
 import { useCallback, useState, type MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { shortenHash } from '../lib/format'
+import { openExternalUrl } from '../lib/openExternalUrl'
 
 export function HashCapsule({
   value,
   to,
+  href,
   className = 'max-w-full border-cyan-400/20 bg-white/10 text-white/85',
 }: {
   value: string
   to?: string
+  href?: string
   className?: string
 }) {
   const [copied, setCopied] = useState(false)
@@ -31,11 +34,27 @@ export function HashCapsule({
     [value],
   )
 
+  const handleOpenExternal = (event: MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (href) openExternalUrl(href)
+  }
+
   return (
     <div
       className={`inline-flex items-center gap-2 rounded-full border py-1.5 pl-3 pr-2 font-mono text-[11px] font-semibold ${className}`}
     >
-      {to !== undefined ? (
+      {href !== undefined ? (
+        <button
+          type="button"
+          onClick={handleOpenExternal}
+          className="min-w-0 truncate hover:text-white hover:underline"
+          title={value}
+          aria-label="View hash on CoNET L1 Blockscout"
+        >
+          {short}
+        </button>
+      ) : to !== undefined ? (
         <Link to={to} className="min-w-0 truncate hover:text-white" title={value}>
           {short}
         </Link>

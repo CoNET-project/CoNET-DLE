@@ -1,5 +1,12 @@
-/** Lab DLE chain id for the ethers-shaped facade. Must never equal CoNET L1 224422. */
-export const DLE_LAB_CHAIN_ID = 0x44c45
+/**
+ * EIP-155 chain id for this DLE plane (CoNET-DLE Testnet).
+ * Unique versus CoNET L1 224422, Base 8453, and other EVM networks.
+ * `eth_chainId` / `net_version` MUST return this uint. It is not a group id.
+ */
+export const DLE_TESTNET_CHAIN_ID = 0x44c45
+export const DLE_TESTNET_CHAIN_NAME = 'CoNET-DLE Testnet'
+/** Alias kept for existing imports. Same value as DLE_TESTNET_CHAIN_ID. */
+export const DLE_LAB_CHAIN_ID = DLE_TESTNET_CHAIN_ID
 
 /** CoNET L1 chain id. DLE `/rpc` must never return this or proxy its public RPC. */
 export const CONET_L1_CHAIN_ID = 224422
@@ -78,6 +85,7 @@ export interface DleArchiveInfo {
   batchSupported: true
   chainId: number
   chainIdHex: string
+  chainName: string
   port: number
 }
 

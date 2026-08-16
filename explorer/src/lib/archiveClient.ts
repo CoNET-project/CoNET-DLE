@@ -3,6 +3,8 @@ import {
   DLE_JSONRPC_VERSION,
   DLE_LAB_CHAIN_ID,
   DLE_LAB_CHAIN_ID_HEX,
+  DLE_LAB_GROUP_ID,
+  DLE_TESTNET_CHAIN_NAME,
   DLE_REJECTED_METHODS,
 } from '../protocol'
 import type {
@@ -163,10 +165,35 @@ export function parseArchiveInfo(value: unknown): DleArchiveInfo | null {
     ...(value.batchSupported === true ? { batchSupported: true as const } : {}),
     chainId: value.chainId,
     chainIdHex: value.chainIdHex,
+    ...(typeof value.chainName === 'string' && value.chainName !== ''
+      ? { chainName: value.chainName }
+      : {}),
     port: typeof value.port === 'number' ? value.port : 27101,
     domainId: typeof value.domainId === 'string' ? value.domainId : undefined,
     role: typeof value.role === 'string' ? value.role : undefined,
   }
+}
+
+export const GENESIS_CLUSTER_COUNT = 1
+
+export function parseClusterCount(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 1 && value < 1_000_000) {
+    return value
+  }
+  if (!isRecord(value)) return null
+  if (typeof value.liveGroupCount === 'number') return parseClusterCount(value.liveGroupCount)
+  if (typeof value.clusterCount === 'number') return parseClusterCount(value.clusterCount)
+  if (Array.isArray(value.liveGroupIds)) {
+    const unique = new Set(value.liveGroupIds.filter((id): id is string => typeof id === 'string' && id !== ''))
+    return unique.size >= 1 ? unique.size : null
+  }
+  return null
+}
+
+export function parseLiveGroupIds(value: unknown): string[] | null {
+  if (!isRecord(value) || !Array.isArray(value.liveGroupIds)) return null
+  const ids = [...new Set(value.liveGroupIds.filter((id): id is string => typeof id === 'string' && id !== ''))].sort()
+  return ids.length > 0 ? ids : null
 }
 
 export function parseTip(value: unknown): DleTipView | null {
@@ -359,7 +386,7 @@ export const EMPTY_CERTIFICATE: DleCertificateView = {
 
 export const EMPTY_WAITING_POOL: DleWaitingPoolView = {
   schema: 'DleWaitingPoolV1',
-  groupId: 'dle.lab.group.v1',
+  groupId: DLE_LAB_GROUP_ID,
   epoch: 1,
   shardId: 'dle.lab.shard.v1',
   frozen: false,
@@ -383,6 +410,8 @@ export const EMPTY_TIP: DleTipView = {
   note: 'Archive node does not produce blocks; tip finality is an Archive Certificate.',
 }
 
+export const EMPTY_LIVE_GROUP_IDS = [DLE_LAB_GROUP_ID]
+
 export const EMPTY_INFO: DleArchiveInfo = {
   command: 'archive',
   runtime: 'nodejs',
@@ -393,5 +422,6 @@ export const EMPTY_INFO: DleArchiveInfo = {
   batchSupported: true,
   chainId: DLE_LAB_CHAIN_ID,
   chainIdHex: DLE_LAB_CHAIN_ID_HEX,
+  chainName: DLE_TESTNET_CHAIN_NAME,
   port: 27101,
 }

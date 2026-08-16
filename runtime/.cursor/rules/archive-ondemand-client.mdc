@@ -1,0 +1,13 @@
+---
+description: Runtime 归档 / on-demand / daemon 守则入口
+globs: "**/*"
+alwaysApply: false
+---
+
+# Runtime faces
+
+| Face | RULES |
+|---|---|
+| Archive | `../RULES.md` §Archive — `liveGroupCount` after `extraHealth` |
+| On-demand | `../src/shared/ondemand/RULES.md` — not \(G_e\) |
+| Client | `../src/daemon/RULES.md` — no tip-height-as-cluster |

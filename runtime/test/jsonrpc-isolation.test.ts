@@ -12,6 +12,7 @@ import {
   DLE_JSONRPC_VERSION,
   DLE_LAB_CHAIN_ID,
   DLE_RUNTIME,
+  DLE_TESTNET_CHAIN_NAME,
   chainIdHex,
   type DleArchiveInfo,
 } from '../src/shared/protocol.js'
@@ -28,6 +29,7 @@ const info: DleArchiveInfo = {
   batchSupported: true,
   chainId: DLE_LAB_CHAIN_ID,
   chainIdHex: chainIdHex(DLE_LAB_CHAIN_ID),
+  chainName: DLE_TESTNET_CHAIN_NAME,
   port: 27101,
 }
 

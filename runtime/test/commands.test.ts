@@ -12,9 +12,11 @@ import {
   DLE_COMMAND,
   DLE_LAB_CHAIN_ID,
   DLE_RUNTIME,
+  DLE_TESTNET_CHAIN_NAME,
   DLE_ZERO_HASH,
   chainIdHex,
 } from '../src/shared/protocol.js'
+import { DLE_LAB_GROUP_ID } from '../src/shared/hashLookup.js'
 
 const dataDir = await mkdtemp(join(tmpdir(), 'dle-archive-'))
 const archive = await startArchiveNode({ port: 0, dataDir })
@@ -36,6 +38,7 @@ test('archive command identifies as a Node.js archive that does not produce bloc
   assert.equal(body.l1Isolated, true)
   assert.equal(body.batchSupported, true)
   assert.equal(body.chainId, DLE_LAB_CHAIN_ID)
+  assert.equal(body.chainName, DLE_TESTNET_CHAIN_NAME)
 })
 
 test('archive JSON-RPC returns a DLE chain id and rejects tip VM calls', async () => {
@@ -101,6 +104,11 @@ test('archive exposes a read-only /api/v2/dle explorer surface', async () => {
   assert.equal(body.hasTipVm, false)
   assert.equal(body.l1Isolated, true)
   assert.equal(body.chainId, DLE_LAB_CHAIN_ID)
+  assert.equal(body.liveGroupCount, 1)
+  assert.deepEqual(body.liveGroupIds, [DLE_LAB_GROUP_ID])
+  const health = await fetch(`${archiveUrl}/health`)
+  const healthBody = (await health.json()) as Record<string, unknown>
+  assert.equal(healthBody.liveGroupCount, 1)
   const events = await fetch(`${archiveUrl}/api/v2/dle/events`)
   assert.equal(events.status, 200)
   const eventBody = (await events.json()) as { schema: string; events: unknown[] }

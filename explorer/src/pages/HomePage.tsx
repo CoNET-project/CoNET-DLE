@@ -11,8 +11,12 @@ import { RefreshButton } from '../components/RefreshButton'
 import { StatusPill } from '../components/StatusPill'
 import { MainPageShell } from '../components/TitleCapsule'
 import { sortEventsNewestFirst } from '../lib/events'
-import { formatHeight, formatInteger, shortenHash } from '../lib/format'
-import { CONET_L1_CHAIN_ID, DLE_LAB_CHAIN_ID_HEX, HASH32_RE } from '../protocol'
+import { formatInteger, shortenHash } from '../lib/format'
+import {
+  BOOTSTRAP_GROUP_REGISTER_TX_HASH,
+  CONET_BLOCKSCOUT_TX_URL,
+} from '../config/l1Routing'
+import { CONET_L1_CHAIN_ID, DLE_LAB_CHAIN_ID_HEX, DLE_TESTNET_CHAIN_NAME, HASH32_RE } from '../protocol'
 import { useExplorer } from '../providers/ExplorerProvider'
 
 export function HomePage() {
@@ -94,13 +98,31 @@ export function HomePage() {
         <MetricCard
           label="Chain ID"
           value={info?.chainIdHex ?? DLE_LAB_CHAIN_ID_HEX}
-          hint={`Decimal ${formatInteger(info?.chainId ?? 0x44c45)}. Not CoNET L1 ${CONET_L1_CHAIN_ID}.`}
+          hint={
+            <>
+              <p className="text-xs leading-5 text-slate-400">{info?.chainName ?? DLE_TESTNET_CHAIN_NAME}</p>
+              {HASH32_RE.test(BOOTSTRAP_GROUP_REGISTER_TX_HASH) ? (
+                <div className="mt-2">
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-200/70">
+                    Group ID
+                  </p>
+                  <HashCapsule
+                    value={BOOTSTRAP_GROUP_REGISTER_TX_HASH}
+                    href={`${CONET_BLOCKSCOUT_TX_URL}${BOOTSTRAP_GROUP_REGISTER_TX_HASH}`}
+                  />
+                </div>
+              ) : null}
+            </>
+          }
         />
         <MetricCard
-          label="Tip height"
-          value={formatHeight(tip?.height ?? '0x0')}
-          hint={tip?.finalized ? 'Finalized by Archive Certificate' : 'Not finalized — AC not produced yet'}
-          tone={tip?.finalized ? 'default' : 'warn'}
+          label="Clusters"
+          value={formatInteger(snapshot.clusterCount >= 1 ? snapshot.clusterCount : 1)}
+          hint={
+            snapshot.clusterCount <= 1
+              ? 'Genesis cluster — no fission yet'
+              : `${formatInteger(snapshot.clusterCount)} live archive groups after fission`
+          }
         />
         <MetricCard
           label="Archives"
@@ -241,8 +263,9 @@ export function HomePage() {
       <section className="dle-glass mt-4 rounded-2xl p-4 text-sm leading-6 text-slate-400">
         <p>
           <span className="font-semibold text-white">Why this is not Blockscout:</span> archive nodes do not produce
-          blocks, there is no tip VM, and {CONET_L1_CHAIN_ID} is the CoNET L1 chain id — DLE uses{' '}
-          <span className="dle-mono text-cyan-300">{DLE_LAB_CHAIN_ID_HEX}</span>.
+          blocks, there is no tip VM, and {CONET_L1_CHAIN_ID} is the CoNET L1 chain id — {DLE_TESTNET_CHAIN_NAME} uses{' '}
+          <span className="dle-mono text-cyan-300">{DLE_LAB_CHAIN_ID_HEX}</span>. Group ID is the L1 bootstrap
+          register transaction hash.
         </p>
       </section>
     </MainPageShell>

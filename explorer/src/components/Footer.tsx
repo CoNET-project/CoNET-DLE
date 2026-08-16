@@ -2,7 +2,7 @@ import { Award, Braces, LayoutDashboard, ScrollText, Server } from 'lucide-react
 import { NavLink } from 'react-router-dom'
 import { useScrollFooterOpacity } from '../hooks/useScrollFooterOpacity'
 import { formatEventTime } from '../lib/format'
-import { DLE_LAB_CHAIN_ID_HEX } from '../protocol'
+import { DLE_LAB_CHAIN_ID_HEX, DLE_TESTNET_CHAIN_NAME } from '../protocol'
 import { useExplorer } from '../providers/ExplorerProvider'
 
 export const FOOTER_RESERVE_STYLE = {
@@ -35,7 +35,8 @@ export function Footer() {
     >
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-2 text-[11px] text-slate-400">
         <p>
-          DLE lab · Chain ID <span className="dle-mono text-cyan-300">{DLE_LAB_CHAIN_ID_HEX}</span>
+          {DLE_TESTNET_CHAIN_NAME} · Chain ID{' '}
+          <span className="dle-mono text-cyan-300">{DLE_LAB_CHAIN_ID_HEX}</span>
           <span className="mx-2 text-cyan-500/40">•</span>
           <span className={snapshot.live ? 'text-[#00ffa3]' : 'text-amber-300'}>
             {snapshot.live ? 'Archive reachable' : 'Last trusted / fixture'}

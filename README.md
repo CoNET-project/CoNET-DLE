@@ -57,9 +57,9 @@ Lab `/health` mesh (7×7 HTTP 200) is a **heartbeat quorum**, not consensus.
 | [`conformance/`](conformance/) | Canonical v2 corpus, JSON schema, independent-process differential runner |
 | [`implementations/archive-a/`](implementations/archive-a/) | Archive A TypeScript MVP (no shared consensus core) |
 | [`implementations/archive-b/`](implementations/archive-b/) | Archive B TypeScript MVP (must not import Archive A) |
-| [`runtime/`](runtime/) | Archive node + daemon scaffolding (Node archive; isomorphic daemon; **does not produce blocks**) |
+| [`runtime/`](runtime/) | Archive node + daemon scaffolding (Node archive; isomorphic daemon; **does not produce blocks**). Programming: [`runtime/RULES.md`](runtime/RULES.md) |
 | [`pilot/`](pilot/) | Dry-run DSL + isolated 30-day lab CLI, inventories, evidence schemas |
-| [`explorer/`](explorer/) | Read-only SPA for lab archive events / 5+2 identity / certificates |
+| [`explorer/`](explorer/) | Read-only SPA. Home **Clusters** = \(G_e\) (no Tip height panel). Programming: [`explorer/RULES.md`](explorer/RULES.md) |
 | [`evidence/`](evidence/) | CI evidence scripts (local, no SSH, no secrets) |
 | [`docs/`](docs/) | Pilot notes, CI evidence contract |
 | [`.github/workflows/`](.github/workflows/) | TypeScript MVP CI + pilot lint/test/dry-run |
@@ -116,7 +116,7 @@ See [`docs/ci-evidence.md`](docs/ci-evidence.md) and [`conformance/README.md`](c
 
 ## Local archive + explorer
 
-Archive listens on **TCP 27101**, `command: archive`, `producesBlocks: false`. `eth_chainId` for the lab profile is `0x44c45` (**not** CoNET L1 `224422`). `eth_call` / `eth_sendRawTransaction` are rejected (no tip VM).
+Archive listens on **TCP 27101**, `command: archive`, `producesBlocks: false`. `eth_chainId` is **CoNET-DLE Testnet** EIP-155 `0x44c45` (**not** CoNET L1 `224422`, **not** a group id). User-visible **Group ID** is the L1 bootstrap register tx hash. `eth_call` / `eth_sendRawTransaction` are rejected (no tip VM).
 
 ```bash
 npm run archive -- --port 27101 --data-dir ./data/dle-archive

@@ -1,3 +1,4 @@
+import { DLE_LAB_GROUP_ID } from '../protocol'
 import type { DleSelectionLogAvailable, DleWaitingPoolView } from '../types'
 
 /** Copied from lab accept `ondemand-p3-accept.json`. Not a 30-day qualification claim. */
@@ -43,7 +44,7 @@ const LAB_ATTESTORS = [
 
 export const LAB_WAITING_POOL_FIXTURE: DleWaitingPoolView = {
   schema: 'DleWaitingPoolV1',
-  groupId: 'dle.lab.group.v1',
+  groupId: DLE_LAB_GROUP_ID,
   epoch: 1,
   shardId: 'dle.lab.shard.v1',
   frozen: true,
@@ -59,7 +60,7 @@ export const LAB_SELECTION_FIXTURE: DleSelectionLogAvailable = {
   endorsed: true,
   epoch: 1,
   shardId: 'dle.lab.shard.v1',
-  groupId: 'dle.lab.group.v1',
+  groupId: DLE_LAB_GROUP_ID,
   poolRoot: LAB_P3_POOL_ROOT,
   beacon: LAB_P3_BEACON,
   roulette: LAB_P3_ROULETTE,
