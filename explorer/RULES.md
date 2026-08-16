@@ -6,14 +6,14 @@ Public host: `https://dle.conet.network` (authorized). Do not invent extra `dle.
 
 After any Explorer programming or display-spec change, **update this file in the same task** (`conet-dle-write-back-subproject.mdc`).
 
-## Home metrics (2026-08-15)
+## Home metrics (2026-08-16)
 
 The first metric row is:
 
 | Slot | Label | Value | Notes |
 |---|---|---|---|
 | 1 | Chain ID | `0x44c45` | **CoNET-DLE Testnet** EIP-155 `eth_chainId`. Hint = `CoNET-DLE Testnet`. **No** “Decimal 281,669. Not CoNET L1 224422.” Under the value: **Group ID** capsule = bootstrap L1 `registerTxHash` `0x3076a806…6f2ad0`. Click opens CoNET L1 Blockscout `/tx/{hash}` via `openExternalUrl`. Not `tip.hash`. |
-| 2 | **Clusters** | `liveGroupCount` | Live archive groups \(G_e\). Genesis is **1**. |
+| 2 | **Clusters** | `liveGroupCount` | Live archive groups \(G_e\). Genesis is **1**. After lab M6 fission = **2**. |
 | 3 | Archives | roster length · 5+2 | Node count, not cluster fission. |
 | 4 | Archive Certificate | Available / Empty | Tip finality object. |
 
@@ -32,7 +32,7 @@ The first metric row is:
 
 - **Clusters = \(G_e\)** = distinct live `groupId`s on the lab route table (including the genesis group).
 - **No fission ⇒ 1.** Creating asset / storage / trade lab chains copies NFT 42’s Group ID (bootstrap register tx hash) and **must not** increment this number.
-- A later fission that introduces a **new** Group ID (that group’s own L1 register tx hash) increments \(G_e\) by 1.
+- A later fission that introduces a **new** Group ID increments \(G_e\) by 1. Production Group ID is that group’s L1 register tx hash. **Lab M6 (2026-08-16)** uses a laboratory hash `0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07` = `keccak256(utf8("dle.lab.group.m6.g2.v1"))` because L1 `registerLiveGroup` is still pending. Show that hash under Clusters **without** a Blockscout `/tx/` link. The Chain ID Group ID capsule stays the first-group bootstrap tx only.
 
 Trusted fields (Explorer must not `../..` import runtime):
 

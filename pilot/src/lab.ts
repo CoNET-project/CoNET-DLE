@@ -7,6 +7,17 @@ import { AppendOnlyNdjsonWriter, PublicEvidenceRedactor } from './evidence.js'
 import { PilotQualificationGate } from './gate.js'
 import { assertOperatorDomainPreflight, preflightOperatorDomains } from './inventory.js'
 import type { MeterSampleV1, PilotInventoryV1 } from './model.js'
+const DLE_LAB_GROUP_ID = '0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0'
+const DLE_LAB_GROUP_ID_LEGACY = 'dle.lab.group.v1'
+
+function sameGroupId(left: string, right: string): boolean {
+  const canon = (raw: string): string => {
+    const lower = raw.trim().toLowerCase()
+    if (lower === DLE_LAB_GROUP_ID_LEGACY || lower === '1' || lower === '0x1') return DLE_LAB_GROUP_ID
+    return /^0x[0-9a-f]{64}$/.test(lower) ? lower : raw.trim()
+  }
+  return canon(left) === canon(right)
+}
 
 export const PILOT_LAB_ID = 'conet-dle-30d-lab-2026-08'
 export const LAB_PORT = 27101
@@ -101,9 +112,14 @@ export const DAEMON_PROBE_PATH = resolve(here, '../../runtime/src/daemon/probe.m
 export const HTTP_QUEUE_CLIENT_HOST = '70.35.205.77'
 export const HTTP_QUEUE_CLIENT_DIR = '/home/peter/dle-ondemand-clients'
 export const HTTP_QUEUE_CLIENT_COUNT = 30
-export const HTTP_QUEUE_GROUP_ID = 'dle.lab.group.v1'
+export const HTTP_QUEUE_GROUP_ID = DLE_LAB_GROUP_ID
 export const DEFAULT_FLEET_DIST_DIR = resolve(LAYER2_ROOT, 'runtime/dist/fleet')
 export const REMOTE_FLEET_ENTRY = `${HTTP_QUEUE_CLIENT_DIR}/app/daemon/fleet-cli.js`
+export const NEWCHAIN_USER_HOST = HTTP_QUEUE_CLIENT_HOST
+export const NEWCHAIN_USER_DIR = '/home/peter/dle-newchain-user'
+export const DEFAULT_NEWCHAIN_USER_DIST_DIR = resolve(LAYER2_ROOT, 'runtime/dist/newchain-user')
+export const REMOTE_NEWCHAIN_USER_ENTRY = `${NEWCHAIN_USER_DIR}/app/daemon/newchain-user-cli.js`
+export const LAB_BFT_CHAIN_NFT_ID = '42'
 
 export async function loadOfficialLabInventory(path = DEFAULT_INVENTORY_PATH): Promise<PilotInventoryV1> {
   const inventory = JSON.parse(await readFile(path, 'utf8')) as PilotInventoryV1
@@ -187,7 +203,7 @@ export async function runSsh(host: string, remoteCommand: string): Promise<{ cod
   })
 }
 
-async function runLocal(
+export async function runLocal(
   command: string,
   args: string[],
   options?: { env?: NodeJS.ProcessEnv },
@@ -232,11 +248,46 @@ export async function runScp(localPath: string, host: string, remotePath: string
   })
 }
 
+export interface AgentConfigExtras {
+  autoSeedLabMiners?: boolean
+  autoFreeze?: boolean
+  ownGroupId?: string
+  enableBft?: boolean
+  enableOndemand?: boolean
+  seedFissionMarker?: boolean
+  planeDirectory?: Array<{
+    groupId: string
+    wallets: Array<{ domainId: string; role: string; url?: string; labOnly: true }>
+  }>
+  foreignChains?: Array<{ chainNftId: string; groupId: string }>
+}
+
+export function planeDirectoryFromHosts(
+  groupId: string,
+  hosts: PilotLabHostsV1,
+  inventory: PilotInventoryV1,
+): AgentConfigExtras['planeDirectory'] {
+  return [
+    {
+      groupId,
+      wallets: hosts.hosts.map((item) => {
+        const peerDomain = inventory.domains.find((row) => row.domainId === item.domainId)
+        return {
+          domainId: item.domainId,
+          role: peerDomain?.role ?? 'standby',
+          url: `http://${item.sshHost}:${hosts.labPort}`,
+          labOnly: true as const,
+        }
+      }),
+    },
+  ]
+}
+
 export function agentConfigFor(
   inventory: PilotInventoryV1,
   hosts: PilotLabHostsV1,
   domainId: string,
-  extras?: { autoSeedLabMiners?: boolean; autoFreeze?: boolean },
+  extras?: AgentConfigExtras,
 ): Record<string, unknown> {
   const domain = inventory.domains.find((item) => item.domainId === domainId)
   const self = hosts.hosts.find((item) => item.domainId === domainId)
@@ -264,6 +315,12 @@ export function agentConfigFor(
   }
   if (extras?.autoSeedLabMiners !== undefined) config.autoSeedLabMiners = extras.autoSeedLabMiners
   if (extras?.autoFreeze !== undefined) config.autoFreeze = extras.autoFreeze
+  if (extras?.ownGroupId !== undefined) config.ownGroupId = extras.ownGroupId
+  if (extras?.enableBft !== undefined) config.enableBft = extras.enableBft
+  if (extras?.enableOndemand !== undefined) config.enableOndemand = extras.enableOndemand
+  if (extras?.seedFissionMarker !== undefined) config.seedFissionMarker = extras.seedFissionMarker
+  if (extras?.planeDirectory !== undefined) config.planeDirectory = extras.planeDirectory
+  if (extras?.foreignChains !== undefined) config.foreignChains = extras.foreignChains
   return config
 }
 
@@ -410,6 +467,7 @@ export async function deployArchiveRuntime(options?: {
   archiveDistDir?: string
   daemonProbePath?: string
   keepData?: boolean
+  extras?: AgentConfigExtras
 }): Promise<{ ok: boolean; results: Array<{ domainId: string; host: string; ok: boolean; detail: string }> }> {
   const inventory = await loadOfficialLabInventory(options?.inventoryPath)
   const hosts = await loadLabHosts(options?.hostsPath)
@@ -431,7 +489,7 @@ export async function deployArchiveRuntime(options?: {
       })
       continue
     }
-    const config = agentConfigFor(inventory, hosts, host.domainId)
+    const config = agentConfigFor(inventory, hosts, host.domainId, options?.extras)
     const tmpConfig = `/tmp/dle-lab-${host.domainId}.json`
     await writeFile(tmpConfig, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
     await runSsh(
@@ -1171,6 +1229,235 @@ export async function deployOnDemandHttpClients(options?: {
     clientHost: HTTP_QUEUE_CLIENT_HOST,
     results: { opened: opened.results, start: started.stdout.trim(), lastPools },
   }
+}
+
+const STOP_NEWCHAIN_USER = [
+  'set -euo pipefail',
+  `PIDS=$(pgrep -f '[n]ode .*dle-newchain-user/' || true)`,
+  'for pid in $PIDS; do',
+  '  comm=$(ps -p "$pid" -o comm= || true)',
+  '  args=$(ps -p "$pid" -o args= || true)',
+  '  case "$comm $args" in',
+  '    *geth*|*beacon-chain*|*validator*|*prysm*) echo PROTECTED; exit 3 ;;',
+  '    *dle-30d-lab*) echo PROTECTED_LAB; exit 3 ;;',
+  '    *dle-ondemand-clients*) echo PROTECTED_ONDEMAND; exit 3 ;;',
+  '  esac',
+  '  kill -TERM "$pid" || true',
+  '  echo STOPPED=$pid',
+  'done',
+  'sleep 1',
+].join('\n')
+
+const START_NEWCHAIN_USER = [
+  'set -euo pipefail',
+  `mkdir -p '${NEWCHAIN_USER_DIR}/data'`,
+  `cd '${NEWCHAIN_USER_DIR}'`,
+  'NODE=$(command -v node)',
+  `PIDS=$(pgrep -f '[n]ode .*dle-newchain-user/' || true)`,
+  'if [ -n "$PIDS" ]; then echo ALREADY=$PIDS; exit 0; fi',
+  `nohup "$NODE" '${REMOTE_NEWCHAIN_USER_ENTRY}' --archives-file '${NEWCHAIN_USER_DIR}/archives.json' --data-dir '${NEWCHAIN_USER_DIR}/data' >> '${NEWCHAIN_USER_DIR}/user.log' 2>&1 &`,
+  'echo STARTED=$!',
+  'sleep 2',
+  `echo USER_PIDS=$(pgrep -f '[n]ode .*dle-newchain-user/' | tr '\\n' ' ')`,
+].join('\n')
+
+function classCounts(chains: unknown): { asset: number; storage: number; trade: number } {
+  const counts = { asset: 0, storage: 0, trade: 0 }
+  if (!Array.isArray(chains)) return counts
+  for (const row of chains) {
+    if (row === null || typeof row !== 'object' || Array.isArray(row)) continue
+    const name = (row as { className?: unknown }).className
+    if (name === 'asset' || name === 'storage' || name === 'trade') counts[name] += 1
+  }
+  return counts
+}
+
+export async function deployNewChainUser(options?: {
+  hostsPath?: string
+  userDistDir?: string
+  waitMs?: number
+}): Promise<{
+  ok: boolean
+  clientHost: string
+  genesis: { asset: boolean; storage: boolean; trade: boolean }
+  archiveAgree: boolean
+  nft42Alive: boolean
+  ondemandUntouched: boolean
+  results: unknown
+}> {
+  const hosts = await loadLabHosts(options?.hostsPath)
+  const userDistDir = options?.userDistDir ?? DEFAULT_NEWCHAIN_USER_DIST_DIR
+  const bundlePath = '/tmp/dle-newchain-user.tgz'
+  await runLocal('tar', ['-czf', bundlePath, '--exclude', '._*', '-C', userDistDir, '.'], {
+    env: { ...process.env, COPYFILE_DISABLE: '1' },
+  })
+  const archives = httpArchiveUrls(hosts)
+  const archivesFile = {
+    schema: 'DleLabNewChainArchivesV1',
+    groupId: HTTP_QUEUE_GROUP_ID,
+    archives,
+  }
+  const tmpArchives = '/tmp/dle-newchain-archives.json'
+  await writeFile(tmpArchives, `${JSON.stringify(archivesFile, null, 2)}\n`, 'utf8')
+  const ensure = await runSsh(
+    NEWCHAIN_USER_HOST,
+    `mkdir -p '${NEWCHAIN_USER_DIR}/app' '${NEWCHAIN_USER_DIR}/data'`,
+  )
+  if (ensure.code !== 0) {
+    return {
+      ok: false,
+      clientHost: NEWCHAIN_USER_HOST,
+      genesis: { asset: false, storage: false, trade: false },
+      archiveAgree: false,
+      nft42Alive: false,
+      ondemandUntouched: true,
+      results: ensure.stderr || ensure.stdout,
+    }
+  }
+  const ondemandBefore = await runSsh(
+    NEWCHAIN_USER_HOST,
+    `pgrep -f '[n]ode .*dle-ondemand-clients/' | tr '\\n' ' ' || true`,
+  )
+  const stopped = await runSsh(NEWCHAIN_USER_HOST, STOP_NEWCHAIN_USER)
+  if (stopped.code !== 0) {
+    return {
+      ok: false,
+      clientHost: NEWCHAIN_USER_HOST,
+      genesis: { asset: false, storage: false, trade: false },
+      archiveAgree: false,
+      nft42Alive: false,
+      ondemandUntouched: true,
+      results: stopped.stderr || stopped.stdout || 'refused to stop protected process',
+    }
+  }
+  await runScp(bundlePath, NEWCHAIN_USER_HOST, '/tmp/dle-newchain-user.tgz')
+  await runScp(tmpArchives, NEWCHAIN_USER_HOST, `${NEWCHAIN_USER_DIR}/archives.json`)
+  const unpacked = await runSsh(
+    NEWCHAIN_USER_HOST,
+    `rm -rf '${NEWCHAIN_USER_DIR}/app' && mkdir -p '${NEWCHAIN_USER_DIR}/app' && tar -xzf /tmp/dle-newchain-user.tgz -C '${NEWCHAIN_USER_DIR}/app' && printf '%s\\n' '{"type":"module","private":true,"name":"@conet/dle-newchain-user"}' > '${NEWCHAIN_USER_DIR}/app/package.json'`,
+  )
+  if (unpacked.code !== 0) {
+    return {
+      ok: false,
+      clientHost: NEWCHAIN_USER_HOST,
+      genesis: { asset: false, storage: false, trade: false },
+      archiveAgree: false,
+      nft42Alive: false,
+      ondemandUntouched: true,
+      results: unpacked.stderr || unpacked.stdout,
+    }
+  }
+  const started = await runSsh(NEWCHAIN_USER_HOST, START_NEWCHAIN_USER)
+  const ondemandAfter = await runSsh(
+    NEWCHAIN_USER_HOST,
+    `pgrep -f '[n]ode .*dle-ondemand-clients/' | tr '\\n' ' ' || true`,
+  )
+  const ondemandUntouched = ondemandBefore.stdout.trim() === ondemandAfter.stdout.trim()
+  const deadline = Date.now() + (options?.waitMs ?? 120_000)
+  let genesis = { asset: false, storage: false, trade: false }
+  let archiveAgree = false
+  let nft42Alive = false
+  let hashHit = false
+  let lastLists: unknown = null
+  let sampleNft: string | null = null
+  let sampleHash: string | null = null
+  while (Date.now() < deadline) {
+    const lists = []
+    for (const url of archives) {
+      try {
+        const list = await fetchArchiveJson(`${url}/newchain/chains`)
+        const health = await fetchArchiveJson(`${url}/health`)
+        const route42 = await fetchArchiveJson(`${url}/api/v2/dle/route/${LAB_BFT_CHAIN_NFT_ID}`)
+        const counts = classCounts(list.chains)
+        lists.push({
+          url,
+          count: list.count,
+          counts,
+          newchainCount: health.newchainCount,
+          certificateAvailable: health.bftCertificateAvailable,
+          route42: route42.groupId,
+        })
+        if (Array.isArray(list.chains) && list.chains[0] !== undefined && isRecordish(list.chains[0])) {
+          const first = list.chains[0] as { chainNftId?: unknown; valueHash?: unknown }
+          if (typeof first.chainNftId === 'string') sampleNft = first.chainNftId
+          if (typeof first.valueHash === 'string') sampleHash = first.valueHash
+        }
+      } catch (error) {
+        lists.push({ url, error: error instanceof Error ? error.message : String(error) })
+      }
+    }
+    lastLists = lists
+    genesis = {
+      asset: lists.every((row) => 'counts' in row && row.counts?.asset >= 1),
+      storage: lists.every((row) => 'counts' in row && row.counts?.storage >= 1),
+      trade: lists.every((row) => 'counts' in row && row.counts?.trade >= 1),
+    }
+    const requestSets = lists
+      .map((row) => ('counts' in row ? JSON.stringify(row.counts) : ''))
+      .filter((item) => item !== '')
+    archiveAgree = requestSets.length === archives.length && requestSets.every((item) => item === requestSets[0])
+    nft42Alive = lists.every(
+      (row) =>
+        'certificateAvailable' in row &&
+        row.certificateAvailable === true &&
+        sameGroupId(String(row.route42 ?? ''), HTTP_QUEUE_GROUP_ID),
+    )
+    if (sampleNft !== null && sampleHash !== null) {
+      try {
+        const route = await fetchArchiveJson(`${archives[0]}/api/v2/dle/route/${sampleNft}`)
+        const hashed = await fetchArchiveJson(`${archives[0]}/api/v2/dle/hash/${sampleHash}`)
+        hashHit = sameGroupId(String(route.groupId ?? ''), HTTP_QUEUE_GROUP_ID) && hashed.status === 'hit'
+      } catch {
+        hashHit = false
+      }
+    }
+    if (genesis.asset && genesis.storage && genesis.trade && archiveAgree && nft42Alive && hashHit) break
+    await delay(5_000)
+  }
+  const evidence = {
+    schema: 'DleLabNewChainUserDeployV1',
+    pilotId: PILOT_LAB_ID,
+    acceptedAt: new Date().toISOString(),
+    clientHost: NEWCHAIN_USER_HOST,
+    clientDir: NEWCHAIN_USER_DIR,
+    labOnly: true,
+    notL1Nft: true,
+    note: 'Lab Mode A genesis replay user. Not an L1 birth certificate, Treasury burn, Settlement escrow, or 30-day qualification.',
+    genesis,
+    archiveAgree,
+    nft42Alive,
+    hashHit,
+    ondemandUntouched,
+    start: started.stdout.trim() || started.stderr.trim(),
+    lastLists,
+  }
+  await mkdir(DEFAULT_EVIDENCE_DIR, { recursive: true })
+  await writeFile(
+    join(DEFAULT_EVIDENCE_DIR, 'newchain-user-deploy.json'),
+    `${JSON.stringify(evidence, null, 2)}\n`,
+    'utf8',
+  )
+  return {
+    ok:
+      started.code === 0 &&
+      genesis.asset &&
+      genesis.storage &&
+      genesis.trade &&
+      archiveAgree &&
+      nft42Alive &&
+      hashHit &&
+      ondemandUntouched,
+    clientHost: NEWCHAIN_USER_HOST,
+    genesis,
+    archiveAgree,
+    nft42Alive,
+    ondemandUntouched,
+    results: { start: started.stdout.trim(), lastLists, hashHit },
+  }
+}
+
+function isRecordish(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
 export async function injectIsolatedProcessCrash(domainId: string): Promise<{ ok: boolean; detail: string }> {

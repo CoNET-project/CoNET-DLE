@@ -1,0 +1,73 @@
+{
+  "schema": "PilotLabHostsV1",
+  "pilotId": "conet-dle-m6-g2-2026-08",
+  "sshUser": "peter",
+  "labPort": 27101,
+  "labDir": "/home/peter/dle-m6-g2",
+  "protectedProcessNames": [
+    "geth",
+    "beacon-chain",
+    "validator",
+    "prysm",
+    "conet-geth-load-guard",
+    "conet_load15_geth_watch"
+  ],
+  "hosts": [
+    {
+      "domainId": "fd-g2-01-tokyo4",
+      "sshHost": "170.205.39.135",
+      "class": "greenfield-lab",
+      "leftoverElCl": false,
+      "doNotStartValidator": true,
+      "notes": "Fresh HostHatch Tokyo host tokyo4. M6 second archive group active. Isolated DLE only. Never start EL/CL."
+    },
+    {
+      "domainId": "fd-g2-02-tokyo3",
+      "sshHost": "167.254.243.162",
+      "class": "greenfield-lab",
+      "leftoverElCl": false,
+      "doNotStartValidator": true,
+      "notes": "Fresh HostHatch Tokyo host tokyo3. M6 second archive group active. Isolated DLE only."
+    },
+    {
+      "domainId": "fd-g2-03-tokyo9",
+      "sshHost": "212.52.0.166",
+      "class": "greenfield-lab",
+      "leftoverElCl": false,
+      "doNotStartValidator": true,
+      "notes": "Fresh lab host tokyo9. M6 second archive group active. Isolated DLE only."
+    },
+    {
+      "domainId": "fd-g2-04-tokyo8",
+      "sshHost": "212.52.0.165",
+      "class": "greenfield-lab",
+      "leftoverElCl": false,
+      "doNotStartValidator": true,
+      "notes": "Fresh lab host tokyo8. M6 second archive group active. Isolated DLE only."
+    },
+    {
+      "domainId": "fd-g2-05-tokyo7",
+      "sshHost": "212.52.0.164",
+      "class": "greenfield-lab",
+      "leftoverElCl": false,
+      "doNotStartValidator": true,
+      "notes": "Fresh lab host tokyo7. M6 second archive group active. Isolated DLE only."
+    },
+    {
+      "domainId": "fd-g2-06-tokyo6",
+      "sshHost": "212.52.0.160",
+      "class": "greenfield-lab",
+      "leftoverElCl": false,
+      "doNotStartValidator": true,
+      "notes": "Fresh lab host tokyo6. M6 second archive group standby. Isolated DLE only."
+    },
+    {
+      "domainId": "fd-g2-07-tokyo5",
+      "sshHost": "212.52.0.149",
+      "class": "greenfield-lab",
+      "leftoverElCl": false,
+      "doNotStartValidator": true,
+      "notes": "Fresh lab host tokyo5. M6 second archive group standby. Isolated DLE only."
+    }
+  ]
+}

@@ -16,7 +16,14 @@ import {
   BOOTSTRAP_GROUP_REGISTER_TX_HASH,
   CONET_BLOCKSCOUT_TX_URL,
 } from '../config/l1Routing'
-import { CONET_L1_CHAIN_ID, DLE_LAB_CHAIN_ID_HEX, DLE_TESTNET_CHAIN_NAME, HASH32_RE } from '../protocol'
+import {
+  CONET_L1_CHAIN_ID,
+  DLE_LAB_CHAIN_ID_HEX,
+  DLE_LAB_GROUP_ID,
+  DLE_TESTNET_CHAIN_NAME,
+  HASH32_RE,
+  sameGroupId,
+} from '../protocol'
 import { useExplorer } from '../providers/ExplorerProvider'
 
 export function HomePage() {
@@ -119,9 +126,28 @@ export function HomePage() {
           label="Clusters"
           value={formatInteger(snapshot.clusterCount >= 1 ? snapshot.clusterCount : 1)}
           hint={
-            snapshot.clusterCount <= 1
-              ? 'Genesis cluster — no fission yet'
-              : `${formatInteger(snapshot.clusterCount)} live archive groups after fission`
+            snapshot.clusterCount <= 1 ? (
+              'Genesis cluster — no fission yet'
+            ) : (
+              <>
+                <p className="text-xs leading-5 text-slate-400">
+                  {`${formatInteger(snapshot.clusterCount)} live archive groups after fission`}
+                </p>
+                {snapshot.liveGroupIds
+                  .filter((id) => HASH32_RE.test(id) && !sameGroupId(id, DLE_LAB_GROUP_ID))
+                  .map((id) => (
+                    <div key={id} className="mt-2">
+                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-200/70">
+                        Lab Group ID
+                      </p>
+                      <HashCapsule value={id} />
+                      <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                        Laboratory fission hash — not an L1 register transaction
+                      </p>
+                    </div>
+                  ))}
+              </>
+            )
           }
         />
         <MetricCard

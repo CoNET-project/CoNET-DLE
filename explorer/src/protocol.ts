@@ -13,6 +13,9 @@ export const DLE_BOOTSTRAP_GROUP_REGISTER_TX_HASH =
   '0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0'
 export const DLE_LAB_GROUP_ID = DLE_BOOTSTRAP_GROUP_REGISTER_TX_HASH
 export const DLE_LAB_GROUP_ID_LEGACY = 'dle.lab.group.v1'
+/** Lab M6 second-group hash. Copied from runtime — never import runtime. Not an L1 register tx. */
+export const DLE_LAB_M6_GROUP_ID =
+  '0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07'
 
 export const DLE_JSONRPC_VERSION = '2.0' as const
 

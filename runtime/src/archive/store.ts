@@ -13,6 +13,8 @@ export interface ArchiveStore {
   loadBftState(): unknown | null
   persistOnDemandState(state: unknown): void
   loadOnDemandState(): unknown | null
+  persistNewChainState(state: unknown): void
+  loadNewChainState(): unknown | null
 }
 
 export function openArchiveStore(dataDir: string): ArchiveStore {
@@ -21,6 +23,7 @@ export function openArchiveStore(dataDir: string): ArchiveStore {
   const identityPath = join(dataDir, 'archive-identity.json')
   const bftPath = join(dataDir, 'bft-state.json')
   const ondemandPath = join(dataDir, 'ondemand-state.json')
+  const newchainPath = join(dataDir, 'newchain-state.json')
   const ring: Array<Record<string, unknown>> = []
   writeFileSync(
     identityPath,
@@ -67,6 +70,17 @@ export function openArchiveStore(dataDir: string): ArchiveStore {
       if (!existsSync(ondemandPath)) return null
       try {
         return JSON.parse(readFileSync(ondemandPath, 'utf8')) as unknown
+      } catch {
+        return null
+      }
+    },
+    persistNewChainState(state) {
+      writeFileSync(newchainPath, `${JSON.stringify(state)}\n`, 'utf8')
+    },
+    loadNewChainState() {
+      if (!existsSync(newchainPath)) return null
+      try {
+        return JSON.parse(readFileSync(newchainPath, 'utf8')) as unknown
       } catch {
         return null
       }

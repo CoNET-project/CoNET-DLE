@@ -20,6 +20,11 @@ export interface LabRouteGroup {
   wallets: LabHistoryWallet[]
 }
 
+export interface LabPlaneGroup {
+  groupId: string
+  wallets: LabHistoryWallet[]
+}
+
 export interface LabRouteTable {
   schema: 'DleLabRouteTableV1'
   labOnly: true
@@ -28,6 +33,13 @@ export interface LabRouteTable {
   ownGroupId: string
   selfDomainId: string
   groups: Record<string, LabRouteGroup>
+  planeDirectory?: Record<string, LabPlaneGroup>
+}
+
+export interface LabRouteTableOptions {
+  ownGroupId?: string
+  planeDirectory?: LabPlaneGroup[]
+  foreignChains?: Array<{ chainNftId: string; groupId: string }>
 }
 
 export interface LabPeerInput {
@@ -71,10 +83,16 @@ export function defaultLabRouteTable(self: { domainId: string; role: string; url
   return labRouteTableFromPeers(self, [])
 }
 
+function cloneWallets(wallets: LabHistoryWallet[]): LabHistoryWallet[] {
+  return wallets.map((wallet) => ({ ...wallet }))
+}
+
 export function labRouteTableFromPeers(
   self: { domainId: string; role: string; url?: string },
   peers: LabPeerInput[],
+  options: LabRouteTableOptions = {},
 ): LabRouteTable {
+  const ownGroupId = canonicalGroupId(options.ownGroupId ?? DLE_LAB_GROUP_ID)
   const wallets: LabHistoryWallet[] = [
     {
       domainId: self.domainId,
@@ -89,19 +107,39 @@ export function labRouteTableFromPeers(
       labOnly: true as const,
     })),
   ]
+  const groups: Record<string, LabRouteGroup> = {}
+  if (sameGroupId(ownGroupId, DLE_LAB_GROUP_ID)) {
+    groups[DLE_LAB_CHAIN_NFT_ID] = {
+      groupId: ownGroupId,
+      wallets: cloneWallets(wallets),
+    }
+  }
+  const planeDirectory: Record<string, LabPlaneGroup> = {
+    [ownGroupId]: { groupId: ownGroupId, wallets: cloneWallets(wallets) },
+  }
+  for (const row of options.planeDirectory ?? []) {
+    const groupId = canonicalGroupId(row.groupId)
+    if (groupId === '') continue
+    planeDirectory[groupId] = { groupId, wallets: cloneWallets(row.wallets) }
+  }
+  for (const row of options.foreignChains ?? []) {
+    const nft = normalizeChainNftId(row.chainNftId)
+    const groupId = canonicalGroupId(row.groupId)
+    if (nft === null || groupId === '') continue
+    groups[nft] = {
+      groupId,
+      wallets: cloneWallets(planeDirectory[groupId]?.wallets ?? []),
+    }
+  }
   return {
     schema: 'DleLabRouteTableV1',
     labOnly: true,
     notProductionDepin: true,
     l1RouteUnproven: true,
-    ownGroupId: DLE_LAB_GROUP_ID,
+    ownGroupId,
     selfDomainId: self.domainId,
-    groups: {
-      [DLE_LAB_CHAIN_NFT_ID]: {
-        groupId: DLE_LAB_GROUP_ID,
-        wallets,
-      },
-    },
+    groups,
+    planeDirectory,
   }
 }
 
@@ -128,15 +166,29 @@ export function archivesOf(table: LabRouteTable, chainNftId: string): LabHistory
   return historyProviders(table, chainNftId)
 }
 
+export function planeWallets(table: LabRouteTable, groupId: string): LabHistoryWallet[] {
+  const canonical = canonicalGroupId(groupId)
+  if (canonical === '') return []
+  return table.planeDirectory?.[canonical]?.wallets ?? []
+}
+
+export function registerForeignGroup(table: LabRouteTable, groupId: string, wallets: LabHistoryWallet[]): void {
+  const canonical = canonicalGroupId(groupId)
+  if (canonical === '') return
+  if (table.planeDirectory === undefined) table.planeDirectory = {}
+  table.planeDirectory[canonical] = { groupId: canonical, wallets: cloneWallets(wallets) }
+}
+
 export function registerLabChainNft(table: LabRouteTable, chainNftId: string): boolean {
   const nft = normalizeChainNftId(chainNftId)
   if (nft === null) return false
   if (table.groups[nft] !== undefined) return true
+  const ownWallets = planeWallets(table, table.ownGroupId)
   const template = table.groups[DLE_LAB_CHAIN_NFT_ID]
-  if (template === undefined) return false
+  const wallets = ownWallets.length > 0 ? ownWallets : (template?.wallets ?? [])
   table.groups[nft] = {
     groupId: canonicalGroupId(table.ownGroupId),
-    wallets: template.wallets.map((wallet) => ({ ...wallet })),
+    wallets: cloneWallets(wallets),
   }
   return true
 }
@@ -155,6 +207,9 @@ export function liveGroupIds(table: LabRouteTable): string[] {
   for (const group of Object.values(table.groups)) {
     if (group.groupId !== '') ids.add(canonicalGroupId(group.groupId))
   }
+  for (const group of Object.values(table.planeDirectory ?? {})) {
+    if (group.groupId !== '') ids.add(canonicalGroupId(group.groupId))
+  }
   return [...ids].sort()
 }
 
@@ -170,6 +225,41 @@ export function hopTargets(table: LabRouteTable, chainNftId: string): LabHistory
   const active = others.filter((wallet) => wallet.role === 'active')
   const rest = others.filter((wallet) => wallet.role !== 'active')
   return [...active, ...rest]
+}
+
+export function hopTargetsForGroup(table: LabRouteTable, groupId: string): LabHistoryWallet[] {
+  const others = planeWallets(table, groupId).filter(
+    (wallet) =>
+      wallet.domainId !== table.selfDomainId && typeof wallet.url === 'string' && wallet.url !== '',
+  )
+  const active = others.filter((wallet) => wallet.role === 'active')
+  const rest = others.filter((wallet) => wallet.role !== 'active')
+  return [...active, ...rest]
+}
+
+export function hopTargetsForLocator(
+  table: LabRouteTable,
+  locator: { chainNftId: string; groupId?: string },
+): LabHistoryWallet[] {
+  const fromNft = hopTargets(table, locator.chainNftId)
+  if (fromNft.length > 0) return fromNft
+  const groupId =
+    locator.groupId !== undefined && locator.groupId !== ''
+      ? canonicalGroupId(locator.groupId)
+      : routeGroupId(table, locator.chainNftId)
+  if (groupId === null || groupId === '') return []
+  return hopTargetsForGroup(table, groupId)
+}
+
+export function locatorIsOwnGroup(
+  table: LabRouteTable,
+  locator: { chainNftId: string; groupId?: string },
+): boolean {
+  const groupId =
+    locator.groupId !== undefined && locator.groupId !== ''
+      ? canonicalGroupId(locator.groupId)
+      : routeGroupId(table, locator.chainNftId)
+  return groupId !== null && groupId !== '' && sameGroupId(groupId, table.ownGroupId)
 }
 
 export function routeView(table: LabRouteTable, chainNftId: string): DleLabRouteV1 {

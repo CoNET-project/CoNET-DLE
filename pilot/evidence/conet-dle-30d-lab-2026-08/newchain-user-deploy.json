@@ -1,0 +1,106 @@
+{
+  "schema": "DleLabNewChainUserDeployV1",
+  "pilotId": "conet-dle-30d-lab-2026-08",
+  "acceptedAt": "2026-08-16T10:20:20.337Z",
+  "clientHost": "70.35.205.77",
+  "clientDir": "/home/peter/dle-newchain-user",
+  "labOnly": true,
+  "notL1Nft": true,
+  "note": "Lab Mode A genesis replay user. Not an L1 birth certificate, Treasury burn, Settlement escrow, or 30-day qualification.",
+  "genesis": {
+    "asset": true,
+    "storage": true,
+    "trade": true
+  },
+  "archiveAgree": true,
+  "nft42Alive": true,
+  "hashHit": true,
+  "ondemandUntouched": true,
+  "start": "STARTED=111957\nUSER_PIDS=111957",
+  "lastLists": [
+    {
+      "url": "http://74.208.224.45:27101",
+      "count": 3,
+      "counts": {
+        "asset": 1,
+        "storage": 1,
+        "trade": 1
+      },
+      "newchainCount": 3,
+      "certificateAvailable": true,
+      "route42": "0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0"
+    },
+    {
+      "url": "http://216.225.197.189:27101",
+      "count": 3,
+      "counts": {
+        "asset": 1,
+        "storage": 1,
+        "trade": 1
+      },
+      "newchainCount": 3,
+      "certificateAvailable": true,
+      "route42": "0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0"
+    },
+    {
+      "url": "http://198.251.77.98:27101",
+      "count": 3,
+      "counts": {
+        "asset": 1,
+        "storage": 1,
+        "trade": 1
+      },
+      "newchainCount": 3,
+      "certificateAvailable": true,
+      "route42": "0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0"
+    },
+    {
+      "url": "http://167.254.243.38:27101",
+      "count": 3,
+      "counts": {
+        "asset": 1,
+        "storage": 1,
+        "trade": 1
+      },
+      "newchainCount": 3,
+      "certificateAvailable": true,
+      "route42": "0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0"
+    },
+    {
+      "url": "http://170.205.39.67:27101",
+      "count": 3,
+      "counts": {
+        "asset": 1,
+        "storage": 1,
+        "trade": 1
+      },
+      "newchainCount": 3,
+      "certificateAvailable": true,
+      "route42": "0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0"
+    },
+    {
+      "url": "http://216.225.193.174:27101",
+      "count": 3,
+      "counts": {
+        "asset": 1,
+        "storage": 1,
+        "trade": 1
+      },
+      "newchainCount": 3,
+      "certificateAvailable": true,
+      "route42": "0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0"
+    },
+    {
+      "url": "http://212.227.242.207:27101",
+      "count": 3,
+      "counts": {
+        "asset": 1,
+        "storage": 1,
+        "trade": 1
+      },
+      "newchainCount": 3,
+      "certificateAvailable": true,
+      "route42": "0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0"
+    }
+  ]
+}

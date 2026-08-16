@@ -54,11 +54,12 @@ P1 联网 BFT（独立包 `runtime/src/archive/bft`）：5 个 active 对冻结 
 
 只读 explorer 面（P4 脚手架，无新域名）：
 
-- `GET /health` — 进程健康 + **`liveGroupCount` / `liveGroupIds`**（\(G_e\)；无裂变 = **1**）。须写在 `extraHealth` **之后**，避免被覆盖
-- `GET /api/v2/dle` — chain id、**`chainName: CoNET-DLE Testnet`**、tip、`producesBlocks=false`、**`liveGroupCount` / `liveGroupIds`**（顶层与 `archive`；发出面一律 `canonicalGroupId`）；有实验室 AC 时 tip `finalized=true`；可带 `waitingPool` / `selection`。Explorer Home 用 Clusters 展示 \(G_e\)，**不再**用 Tip height 面板（NFT 42 AC height 恒为 `0x1`）
+- `GET /health` — 进程健康 + **`liveGroupCount` / `liveGroupIds`**（\(G_e\)；无裂变 = **1**；实验室 M6 第二组后 = **2**）。须写在 `extraHealth` **之后**，避免被覆盖
+- `GET /api/v2/dle` — chain id、**`chainName: CoNET-DLE Testnet`**、tip、`producesBlocks=false`、**`liveGroupCount` / `liveGroupIds`**（顶层与 `archive`；发出面一律 `canonicalGroupId`）；有实验室 AC 时 tip `finalized=true`；可带 `waitingPool` / `selection`。Explorer Home 用 Clusters 展示 \(G_e\)，**不再**用 Tip height 面板（NFT 42 AC height 恒为 `0x1`）。第二组 Group ID 是实验室 hash，**不是** L1 登记交易
 - `GET /api/v2/dle/events` — 内存 WAL 环（listen / rpc / lab-start / heartbeat / bft-vote / archive-certificate / ondemand-*）
 - `GET /api/v2/dle/certificate` — 实验室联网 AC（无 BFT 时仍诚实空）
 - `POST /bft/message` / `GET /bft/status` — 实验室 prevote/precommit 交换（复用 27101）
 - `GET /ondemand/pool` / `GET /ondemand/selection` / `POST /ondemand/hook` / `POST /ondemand/freeze` / `POST /ondemand/message` — 实验室等待池与 SelectionLog（复用 27101）
+- `POST /newchain/request` / `GET /newchain/chains` — 实验室 Mode A 三类新链创世（**不是** L1 NFT / 30 天资格）。随机用户：`70.35.205.77:/home/peter/dle-newchain-user`（`npm run lab:deploy-newchain-user`）
 
-本地 UI：`npm run explorer:dev`（见 `explorer/README.md`）。Home / Certificates 展示 waiting pool、`poolRoot`、7+2、`endorsed`；首屏 seed 七主机 P3 验收，仅可信 live 覆盖。`eth_chainId` 仍是 CoNET-DLE Testnet `0x44c45`，不是 L1 `224422`。`liveGroupIds` 为引导组登记交易 hash。
+本地 UI：`npm run explorer:dev`（见 `explorer/README.md`）。Home / Certificates 展示 waiting pool、`poolRoot`、7+2、`endorsed`；首屏 seed 七主机 P3 验收，仅可信 live 覆盖。`eth_chainId` 仍是 CoNET-DLE Testnet `0x44c45`，不是 L1 `224422`。`liveGroupIds` 含引导组 L1 登记交易 hash；实验室 M6 另含第二组实验室 hash（无 Blockscout `/tx/`）。`dle_locateHash` 在 \(G_e \ge 2\) 走 `locatePlane`；全平面 JSON-RPC `null` 仅当每个活跃组都返回可信本组 `notFound`。一组超时是 `unavailable`，不是 `null`。

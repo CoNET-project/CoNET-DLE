@@ -11,6 +11,7 @@ import {
   acceptOnDemandRuntime,
   deployArchiveRuntime,
   deployIsolatedLab,
+  deployNewChainUser,
   deployOnDemandHttpClients,
   injectIsolatedProcessCrash,
   labCorrelationReport,
@@ -18,6 +19,7 @@ import {
   startOfficialWarmup,
   statusIsolatedLab,
 } from './lab.js'
+import { acceptM6Plane, deployM6Plane } from './m6.js'
 import type { PilotGateSnapshotV1, PilotInventoryV1 } from './model.js'
 import { runDryRunSimulation } from './simulation.js'
 
@@ -126,6 +128,12 @@ async function main(): Promise<void> {
       if (!result.ok) process.exitCode = 2
       return
     }
+    case 'lab-deploy-newchain-user': {
+      const result = await deployNewChainUser()
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
     case 'lab-status': {
       const rows = await statusIsolatedLab()
       process.stdout.write(`${JSON.stringify({ ok: true, command, rows }, null, 2)}\n`)
@@ -142,9 +150,21 @@ async function main(): Promise<void> {
       if (!result.ok) process.exitCode = 2
       return
     }
+    case 'lab-deploy-m6': {
+      const result = await deployM6Plane()
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
+    case 'lab-accept-m6': {
+      const result = await acceptM6Plane()
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
     default:
       throw new Error(
-        'usage: cli preflight --inventory FILE | dry-run [--output DIR] | bundle --source DIR --output DIR --pilot-id ID --gate FILE [--simulation-only true] [--redaction-salt SALT] | verify --bundle DIR | lab-preflight [--inventory FILE] | lab-deploy | lab-deploy-archive | lab-deploy-archive-keep | lab-accept-archive | lab-accept-ondemand | lab-deploy-ondemand-http-clients | lab-status | lab-warmup [--evidence DIR] | lab-inject-crash --domain ID',
+        'usage: cli preflight --inventory FILE | dry-run [--output DIR] | bundle --source DIR --output DIR --pilot-id ID --gate FILE [--simulation-only true] [--redaction-salt SALT] | verify --bundle DIR | lab-preflight [--inventory FILE] | lab-deploy | lab-deploy-archive | lab-deploy-archive-keep | lab-accept-archive | lab-accept-ondemand | lab-deploy-ondemand-http-clients | lab-deploy-newchain-user | lab-deploy-m6 | lab-accept-m6 | lab-status | lab-warmup [--evidence DIR] | lab-inject-crash --domain ID',
       )
   }
 }

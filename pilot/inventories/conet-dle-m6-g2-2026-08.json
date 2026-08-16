@@ -1,0 +1,91 @@
+{
+  "schema": "PilotInventoryV1",
+  "pilotId": "conet-dle-m6-g2-2026-08",
+  "generatedAt": "2026-08-16T11:00:00.000Z",
+  "domains": [
+    {
+      "domainId": "fd-g2-01-tokyo4",
+      "operatorDomainId": "op-hosthatch-lease-170-205-39-135",
+      "operatorLegalName": "CoNET Labs HostHatch Tokyo lease 170.205.39.135",
+      "hostId": "host-hosthatch-tokyo4-170-205-39-135",
+      "provider": "HostHatch, LLC",
+      "region": "ap-northeast-tokyo",
+      "networkAsn": "AS63473",
+      "role": "active",
+      "billingRef": "usd-4-unmetered-host-hosthatch-tokyo4-170-205-39-135",
+      "participantWallet": "0xd67437B6c13f2FC3f929050cadaBf2eBA1c1b394"
+    },
+    {
+      "domainId": "fd-g2-02-tokyo3",
+      "operatorDomainId": "op-hosthatch-lease-167-254-243-162",
+      "operatorLegalName": "CoNET Labs HostHatch Tokyo lease 167.254.243.162",
+      "hostId": "host-hosthatch-tokyo3-167-254-243-162",
+      "provider": "HostHatch, LLC",
+      "region": "ap-northeast-tokyo",
+      "networkAsn": "AS63473",
+      "role": "active",
+      "billingRef": "usd-4-unmetered-host-hosthatch-tokyo3-167-254-243-162",
+      "participantWallet": "0xCc6A279F7b22D6ebfF20Be89b631eC699D2feb07"
+    },
+    {
+      "domainId": "fd-g2-03-tokyo9",
+      "operatorDomainId": "op-lab-lease-212-52-0-166",
+      "operatorLegalName": "CoNET Labs Tokyo lease 212.52.0.166",
+      "hostId": "host-tokyo9-212-52-0-166",
+      "provider": "HostHatch, LLC",
+      "region": "ap-northeast-tokyo",
+      "networkAsn": "AS63473",
+      "role": "active",
+      "billingRef": "usd-4-unmetered-host-tokyo9-212-52-0-166",
+      "participantWallet": "0x06Ccec85fb8aF48135947f23aec272869667a5a6"
+    },
+    {
+      "domainId": "fd-g2-04-tokyo8",
+      "operatorDomainId": "op-lab-lease-212-52-0-165",
+      "operatorLegalName": "CoNET Labs Tokyo lease 212.52.0.165",
+      "hostId": "host-tokyo8-212-52-0-165",
+      "provider": "HostHatch, LLC",
+      "region": "ap-northeast-tokyo",
+      "networkAsn": "AS63473",
+      "role": "active",
+      "billingRef": "usd-4-unmetered-host-tokyo8-212-52-0-165",
+      "participantWallet": "0x8bEE1097614c78D2ebbF5CF4D0c92827c7D6B090"
+    },
+    {
+      "domainId": "fd-g2-05-tokyo7",
+      "operatorDomainId": "op-lab-lease-212-52-0-164",
+      "operatorLegalName": "CoNET Labs Tokyo lease 212.52.0.164",
+      "hostId": "host-tokyo7-212-52-0-164",
+      "provider": "HostHatch, LLC",
+      "region": "ap-northeast-tokyo",
+      "networkAsn": "AS63473",
+      "role": "active",
+      "billingRef": "usd-4-unmetered-host-tokyo7-212-52-0-164",
+      "participantWallet": "0x7d3DE56898b751984B41474353E2EBDC97592CFF"
+    },
+    {
+      "domainId": "fd-g2-06-tokyo6",
+      "operatorDomainId": "op-lab-lease-212-52-0-160",
+      "operatorLegalName": "CoNET Labs Tokyo lease 212.52.0.160",
+      "hostId": "host-tokyo6-212-52-0-160",
+      "provider": "HostHatch, LLC",
+      "region": "ap-northeast-tokyo",
+      "networkAsn": "AS63473",
+      "role": "standby",
+      "billingRef": "usd-4-unmetered-host-tokyo6-212-52-0-160",
+      "participantWallet": "0xD3Bb911632CeF5b46A949bCD4e91d7C53ED05B73"
+    },
+    {
+      "domainId": "fd-g2-07-tokyo5",
+      "operatorDomainId": "op-lab-lease-212-52-0-149",
+      "operatorLegalName": "CoNET Labs Tokyo lease 212.52.0.149",
+      "hostId": "host-tokyo5-212-52-0-149",
+      "provider": "HostHatch, LLC",
+      "region": "ap-northeast-tokyo",
+      "networkAsn": "AS63473",
+      "role": "standby",
+      "billingRef": "usd-4-unmetered-host-tokyo5-212-52-0-149",
+      "participantWallet": "0x58096C8f9CaD6D1133B902AD7e696cAc1651ef39"
+    }
+  ]
+}

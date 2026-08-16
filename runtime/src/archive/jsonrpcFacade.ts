@@ -127,8 +127,14 @@ function parseHashHint(raw: unknown): HashLookupHint | undefined {
     return chainNftId === null ? undefined : { chainNftId }
   }
   if (typeof raw !== 'object' || Array.isArray(raw)) return undefined
-  const chainNftId = normalizeChainNftId((raw as { chainNftId?: unknown }).chainNftId)
-  return chainNftId === null ? undefined : { chainNftId }
+  const rec = raw as { chainNftId?: unknown; thisGroupOnly?: unknown }
+  const chainNftId = normalizeChainNftId(rec.chainNftId)
+  const thisGroupOnly = rec.thisGroupOnly === true
+  if (chainNftId === null && !thisGroupOnly) return undefined
+  return {
+    ...(chainNftId !== null ? { chainNftId } : {}),
+    ...(thisGroupOnly ? { thisGroupOnly: true } : {}),
+  }
 }
 
 function wrapBlockHit(block: Record<string, unknown>, locator: HashLocatorV1): Record<string, unknown> {
@@ -237,6 +243,9 @@ export async function dispatchArchiveJsonRpc(
       }
       if (lookup !== undefined) {
         const found = await lookup.get(hash)
+        if (found.status === 'notFound' && found.planeWideNull === true) {
+          return jsonRpcSuccess(request.id, null)
+        }
         if (found.status === 'notFound' || found.status === 'unavailable') {
           return jsonRpcSuccess(request.id, found)
         }
@@ -276,6 +285,9 @@ export async function dispatchArchiveJsonRpc(
       }
       if (lookup !== undefined) {
         const found = await lookup.get(hash)
+        if (found.status === 'notFound' && found.planeWideNull === true) {
+          return jsonRpcSuccess(request.id, null)
+        }
         if (found.status === 'notFound' || found.status === 'unavailable') {
           return jsonRpcSuccess(request.id, found)
         }
@@ -307,7 +319,7 @@ export async function dispatchArchiveJsonRpc(
           hashLookupUnavailable('Hash lookup adapter is not attached; fact-check did not complete.', hash),
         )
       }
-      return jsonRpcSuccess(request.id, lookup.locate(hash, parseHashHint(secondParam(request.params))))
+      return jsonRpcSuccess(request.id, await lookup.locatePlane(hash, parseHashHint(secondParam(request.params))))
     }
     case 'dle_getByHash': {
       const hash = normalizeHash32(firstParam(request.params))

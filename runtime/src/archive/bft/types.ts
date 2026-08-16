@@ -7,21 +7,52 @@ export const VOTE_STEP_PREVOTE = 1
 export const VOTE_STEP_PRECOMMIT = 2
 export const CERT_KIND_PREVOTE_QC = 1
 export const CERT_KIND_ARCHIVE = 2
+export const ASSET_CLASS_ID = 1
+export const STORAGE_CLASS_ID = 2
 export const TRADE_CLASS_ID = 3
+export const EVENT_ASSET_OPENED = 0x1101
+export const EVENT_STORAGE_OPENED = 0x1201
 export const EVENT_TRADE_OPENED = 0x1301
 export const TRADE_STATE_NONE = 0
 export const TRADE_STATE_OPEN = 1
+export const ASSET_STATE_NONE = 0
+export const ASSET_STATE_OPEN = 1
+export const STORAGE_STATE_NONE = 0
+export const STORAGE_STATE_OPEN = 1
 
 export const ERR_FSM_NO_TRANSITION = 0x0101
 export const ERR_FSM_BAD_NONCE = 0x0102
 export const ERR_FSM_DOMAIN = 0x0103
 export const ERR_FSM_CLAIMED_MISMATCH = 0x0104
+export const ERR_ASSET_L1_NOT_FOUND = 0x1105
+export const ERR_ASSET_BURN_NOT_ACTIVATED = 0x1106
+export const ERR_ASSET_VIEW_MISMATCH = 0x1107
+export const ERR_STORAGE_L1_NOT_FOUND = 0x1205
+export const ERR_STORAGE_INDEX_MISSING = 0x1206
+export const ERR_STORAGE_VIEW_MISMATCH = 0x1207
 export const ERR_TRADE_L1_NOT_FOUND = 0x1305
 export const ERR_TRADE_SELLER_ORDER_MISMATCH = 0x1307
 export const ERR_TRADE_ESCROW_CUSTODY = 0x1308
 export const ERR_WAL_DOUBLE_SIGN = 'ERR_WAL_DOUBLE_SIGN'
 export const ERR_SIGNER_NOT_ACTIVE = 'ERR_SIGNER_NOT_ACTIVE'
 export const ERR_INVALID_QUORUM = 'ERR_INVALID_QUORUM'
+
+export const ASSET_STATE_PATHS = [
+  '/state',
+  '/nonce',
+  '/owner',
+  '/assetToken',
+  '/burnId',
+  '/notionalUsdc6',
+] as const
+
+export const STORAGE_STATE_PATHS = [
+  '/state',
+  '/nonce',
+  '/owner',
+  '/contentIndexHash',
+  '/accessPriceGb',
+] as const
 
 export const TRADE_STATE_PATHS = [
   '/state',
@@ -85,6 +116,63 @@ export interface DepositBundle {
   selectionLogRef?: Hex
   committee?: Hex[]
   standbys?: Hex[]
+}
+
+export interface AssetOpenedFields {
+  owner: Hex
+  assetToken: Hex
+  burnId: Hex
+  notionalUsdc6: bigint
+}
+
+export interface L1AssetBurnView extends AssetOpenedFields {
+  live: boolean
+  burnActivated: boolean
+}
+
+export interface AssetOpenedEvent extends AssetOpenedFields {
+  version: number
+  classId: number
+  eventType: number
+  tipId: Hex
+  nonce: bigint
+}
+
+export interface StorageOpenedFields {
+  owner: Hex
+  contentIndexHash: Hex
+  accessPriceGb: bigint
+}
+
+export interface L1StorageView extends StorageOpenedFields {
+  live: boolean
+  contentIndexPresent: boolean
+}
+
+export interface StorageOpenedEvent extends StorageOpenedFields {
+  version: number
+  classId: number
+  eventType: number
+  tipId: Hex
+  nonce: bigint
+}
+
+export interface AssetGenesisBundle {
+  schema: 'DleLabAssetGenesisBundleV1'
+  event: AssetOpenedEvent
+  parent: TradeParent
+  l1AssetView: L1AssetBurnView
+  claimedTipStateRoot?: Hex
+  claimedValueHash?: Hex
+}
+
+export interface StorageGenesisBundle {
+  schema: 'DleLabStorageGenesisBundleV1'
+  event: StorageOpenedEvent
+  parent: TradeParent
+  l1StorageView: L1StorageView
+  claimedTipStateRoot?: Hex
+  claimedValueHash?: Hex
 }
 
 export type ModeAResult =

@@ -13,8 +13,8 @@ import {
   type HashLocatorV1,
 } from '../shared/hashLookup.js'
 import {
-  hopTargets,
-  isOwnGroup,
+  hopTargetsForLocator,
+  locatorIsOwnGroup,
   routeGroupId,
   type LabHistoryWallet,
   type LabRouteTable,
@@ -135,8 +135,12 @@ export async function hop1GetByLocator(
   locator: HashLocatorV1,
   fetchObject: Hop1Fetch = fetchLabObject,
 ): Promise<{ object?: unknown; hop: DleHop1ReceiptV1; ok: boolean }> {
-  const groupId = routeGroupId(table, locator.chainNftId)
-  const targets = hopTargets(table, locator.chainNftId)
+  const routed = routeGroupId(table, locator.chainNftId)
+  const groupId =
+    locator.groupId !== undefined && locator.groupId !== ''
+      ? canonicalGroupId(locator.groupId)
+      : routed
+  const targets = hopTargetsForLocator(table, locator)
   let attempted = 0
   let lastTarget: LabHistoryWallet | null = null
   if (groupId === null) {
@@ -176,7 +180,7 @@ export async function hop1GetByLocator(
       /* serial failover inside this nft's providers only */
     }
   }
-  if (isOwnGroup(table, locator.chainNftId)) {
+  if (locatorIsOwnGroup(table, locator)) {
     const local = store.getBody(locator.chainNftId, locator.height)
     if (local !== null && local !== undefined) {
       return {

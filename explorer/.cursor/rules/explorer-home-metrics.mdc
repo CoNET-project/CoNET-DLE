@@ -9,7 +9,7 @@ alwaysApply: false
 Canonical: `../RULES.md`.
 
 - Slot 1 = **Chain ID** = CoNET-DLE Testnet `0x44c45`. Hint = `CoNET-DLE Testnet`. No decimal / “Not CoNET L1 224422”. Capsule label **Group ID** = L1 bootstrap `registerTxHash`; click opens Blockscout `/tx/…`
-- Slot 2 = **Clusters** = `liveGroupCount` (genesis / no fission = **1**)
+- Slot 2 = **Clusters** = `liveGroupCount` (genesis / no fission = **1**; lab M6 fission = **2**). Extra Group IDs under Clusters are lab hashes — **no** Blockscout `/tx/` link. Chain ID capsule stays first-group bootstrap tx only.
 - Do **not** restore a Tip height MetricCard
 - Keep the Tip hash row (DLE lookup; not the Chain ID L1 tx)
 - Trusted `/health` or `/api/v2/dle` only; failure keeps last value or 1, never 0

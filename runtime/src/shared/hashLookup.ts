@@ -1,5 +1,7 @@
 /** Hash-only locate types. Copied by explorer — do not import archive-a/b. */
 
+import { keccak256Utf8 } from './bytes.js'
+
 export const DLE_LAB_CHAIN_NFT_ID = '42'
 
 /**
@@ -11,6 +13,25 @@ export const DLE_BOOTSTRAP_GROUP_REGISTER_TX_HASH =
 
 export const DLE_LAB_GROUP_ID = DLE_BOOTSTRAP_GROUP_REGISTER_TX_HASH
 export const DLE_LAB_GROUP_ID_LEGACY = 'dle.lab.group.v1'
+
+/**
+ * Lab M6 fission Group ID = keccak256(utf8("dle.lab.group.m6.g2.v1")).
+ * Not an L1 register tx hash. L1 `registerLiveGroup` is still pending.
+ * Do not open this as Blockscout `/tx/…`.
+ */
+export const DLE_LAB_M6_GROUP_ID =
+  '0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07'
+
+/** Lab-only fission marker chain. Not NFT 42 and not a newchain class id. */
+export const DLE_LAB_M6_MARKER_NFT_ID = '6000000006'
+
+/** keccak256(utf8("dle.lab.fission.marker.v1|" + DLE_LAB_M6_GROUP_ID)). Not an L1 tx. */
+export const DLE_LAB_M6_MARKER_HASH =
+  '0x7ca21e5aa612caa12bbd137aa374d30a113d42c1f60ea411fdb6998a63e2345c'
+
+export function labFissionMarkerHash(groupId: string): string {
+  return keccak256Utf8(`dle.lab.fission.marker.v1|${canonicalGroupId(groupId)}`)
+}
 
 export const HASH32_RE = /^0x[0-9a-fA-F]{64}$/
 
@@ -75,16 +96,18 @@ export interface HashLookupUnavailable {
 export interface HashLookupNotFound {
   schema: 'DleHashLookupV1'
   status: 'notFound'
-  planeWideNull: false
-  scope: 'thisGroup'
+  planeWideNull: boolean
+  scope: 'thisGroup' | 'allLiveGroups'
   reason: string
   hash: string
+  groupsChecked?: string[]
 }
 
 export type HashLookupResult = HashLookupHit | HashLookupUnavailable | HashLookupNotFound
 
 export interface HashLookupHint {
   chainNftId?: string
+  thisGroupOnly?: boolean
 }
 
 /** Map legacy lab strings / L1 uint 1 onto the bootstrap register-tx Group ID. */
@@ -171,6 +194,18 @@ export function hashLookupNotFound(hash: string, reason?: string): HashLookupNot
     scope: 'thisGroup',
     reason: reason ?? 'Hash is not present in this DLE group’s committed corpus.',
     hash,
+  }
+}
+
+export function hashLookupPlaneNotFound(hash: string, groupsChecked: string[]): HashLookupNotFound {
+  return {
+    schema: 'DleHashLookupV1',
+    status: 'notFound',
+    planeWideNull: true,
+    scope: 'allLiveGroups',
+    reason: 'Every live DLE group returned a trusted this-group notFound.',
+    hash,
+    groupsChecked,
   }
 }
 
