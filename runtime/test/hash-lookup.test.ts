@@ -14,6 +14,7 @@ import {
   hashLookupUnavailable,
   sameGroupId,
 } from '../src/shared/hashLookup.js'
+import { liveGroupCount, liveGroupIds, routeView } from '../src/shared/labRoute.js'
 import {
   CONET_L1_CHAIN_ID,
   DLE_COMMAND,
@@ -160,4 +161,51 @@ test('bootstrap Group ID is the L1 register tx hash; legacy strings alias it', (
   assert.equal(canonicalGroupId('0x1'), DLE_LAB_GROUP_ID)
   assert.equal(sameGroupId(DLE_LAB_GROUP_ID_LEGACY, DLE_LAB_GROUP_ID), true)
   assert.equal(sameGroupId('dle.lab.group.v2', DLE_LAB_GROUP_ID), false)
+})
+
+test('hashStore migrates a legacy groupId locator to the register hash without conflict', () => {
+  const migrated = `0x${'ef'.repeat(32)}`
+  const first = store.putLocator({
+    schema: 'HashLocatorV1',
+    hash: migrated,
+    chainNftId: DLE_LAB_CHAIN_NFT_ID,
+    kind: 'ac',
+    height: '0x9',
+    groupId: DLE_LAB_GROUP_ID_LEGACY,
+  })
+  assert.equal(first.ok, true)
+  const second = store.putLocator({
+    schema: 'HashLocatorV1',
+    hash: migrated,
+    chainNftId: DLE_LAB_CHAIN_NFT_ID,
+    kind: 'ac',
+    height: '0x9',
+    groupId: DLE_LAB_GROUP_ID,
+  })
+  assert.equal(second.ok, true)
+  assert.equal(store.getLocator(migrated)?.groupId, DLE_LAB_GROUP_ID)
+})
+
+test('routeView and liveGroupIds emit the hash even if the table still stores v1', () => {
+  const table = {
+    schema: 'DleLabRouteTableV1' as const,
+    labOnly: true as const,
+    notProductionDepin: true as const,
+    l1RouteUnproven: true as const,
+    ownGroupId: DLE_LAB_GROUP_ID_LEGACY,
+    selfDomainId: 'a1',
+    groups: {
+      [DLE_LAB_CHAIN_NFT_ID]: {
+        groupId: DLE_LAB_GROUP_ID_LEGACY,
+        wallets: [],
+      },
+      '99': {
+        groupId: DLE_LAB_GROUP_ID,
+        wallets: [],
+      },
+    },
+  }
+  assert.equal(routeView(table, DLE_LAB_CHAIN_NFT_ID).groupId, DLE_LAB_GROUP_ID)
+  assert.deepEqual(liveGroupIds(table), [DLE_LAB_GROUP_ID])
+  assert.equal(liveGroupCount(table), 1)
 })

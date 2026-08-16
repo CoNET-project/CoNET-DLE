@@ -104,6 +104,7 @@ test('archive exposes a read-only /api/v2/dle explorer surface', async () => {
   assert.equal(body.hasTipVm, false)
   assert.equal(body.l1Isolated, true)
   assert.equal(body.chainId, DLE_LAB_CHAIN_ID)
+  assert.equal(body.chainName, DLE_TESTNET_CHAIN_NAME)
   assert.equal(body.liveGroupCount, 1)
   assert.deepEqual(body.liveGroupIds, [DLE_LAB_GROUP_ID])
   const health = await fetch(`${archiveUrl}/health`)

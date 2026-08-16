@@ -108,7 +108,9 @@ export function labRouteTableFromPeers(
 export function routeGroupId(table: LabRouteTable, chainNftId: string): string | null {
   const nft = normalizeChainNftId(chainNftId)
   if (nft === null) return null
-  return table.groups[nft]?.groupId ?? null
+  const raw = table.groups[nft]?.groupId
+  if (raw === undefined) return null
+  return raw === '' ? '' : canonicalGroupId(raw)
 }
 
 export function isOwnGroup(table: LabRouteTable, chainNftId: string): boolean {
@@ -133,7 +135,7 @@ export function registerLabChainNft(table: LabRouteTable, chainNftId: string): b
   const template = table.groups[DLE_LAB_CHAIN_NFT_ID]
   if (template === undefined) return false
   table.groups[nft] = {
-    groupId: table.ownGroupId,
+    groupId: canonicalGroupId(table.ownGroupId),
     wallets: template.wallets.map((wallet) => ({ ...wallet })),
   }
   return true
@@ -203,7 +205,7 @@ export function routeView(table: LabRouteTable, chainNftId: string): DleLabRoute
     notProductionDepin: true,
     l1RouteUnproven: true,
     chainNftId: nft,
-    groupId,
+    groupId: canonicalGroupId(groupId),
     ownGroup: sameGroupId(groupId, table.ownGroupId),
   }
 }

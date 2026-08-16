@@ -1,10 +1,12 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
+  canonicalGroupId,
   isHashLocatorV1,
   normalizeChainNftId,
   normalizeHash32,
   normalizeHeightHex,
+  sameGroupId,
   type HashLocatorV1,
   type HashObjectKind,
 } from '../shared/hashLookup.js'
@@ -98,7 +100,10 @@ function locatorsEqual(left: HashLocatorV1, right: HashLocatorV1): boolean {
     left.chainNftId === right.chainNftId &&
     left.kind === right.kind &&
     left.height === right.height &&
-    (left.groupId ?? '') === (right.groupId ?? '') &&
+    ((left.groupId === undefined && right.groupId === undefined) ||
+      (left.groupId !== undefined &&
+        right.groupId !== undefined &&
+        sameGroupId(left.groupId, right.groupId))) &&
     (left.acRef ?? '') === (right.acRef ?? '')
   )
 }
@@ -130,7 +135,7 @@ function loadIndex(path: string): Record<string, HashLocatorV1> {
       chainNftId,
       kind: value.kind,
       height,
-      ...(value.groupId !== undefined ? { groupId: value.groupId } : {}),
+      ...(value.groupId !== undefined ? { groupId: canonicalGroupId(value.groupId) } : {}),
       ...(value.acRef !== undefined ? { acRef: value.acRef } : {}),
     }
   }
@@ -173,7 +178,7 @@ export function openHashStore(dataDir: string): HashStore {
         chainNftId,
         kind: locator.kind,
         height,
-        ...(locator.groupId !== undefined ? { groupId: locator.groupId } : {}),
+        ...(locator.groupId !== undefined ? { groupId: canonicalGroupId(locator.groupId) } : {}),
         ...(locator.acRef !== undefined ? { acRef: locator.acRef } : {}),
       }
       const locators = loadIndex(indexPath)
@@ -181,6 +186,10 @@ export function openHashStore(dataDir: string): HashStore {
       if (existing !== undefined) {
         if (existing.chainNftId !== next.chainNftId) return { ok: false, error: 'ERR_HASH_NFT_CONFLICT' }
         if (!locatorsEqual(existing, next)) return { ok: false, error: 'ERR_HASH_LOCATOR_CONFLICT' }
+        if ((existing.groupId ?? '') !== (next.groupId ?? '')) {
+          locators[hash] = next
+          writeIndex(indexPath, locators)
+        }
         return { ok: true }
       }
       locators[hash] = next

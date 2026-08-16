@@ -55,7 +55,7 @@ P1 联网 BFT（独立包 `runtime/src/archive/bft`）：5 个 active 对冻结 
 只读 explorer 面（P4 脚手架，无新域名）：
 
 - `GET /health` — 进程健康 + **`liveGroupCount` / `liveGroupIds`**（\(G_e\)；无裂变 = **1**）。须写在 `extraHealth` **之后**，避免被覆盖
-- `GET /api/v2/dle` — chain id、tip、`producesBlocks=false`、**`liveGroupCount` / `liveGroupIds`**（顶层与 `archive`）；有实验室 AC 时 tip `finalized=true`；可带 `waitingPool` / `selection`。Explorer Home 用 Clusters 展示 \(G_e\)，**不再**用 Tip height 面板（NFT 42 AC height 恒为 `0x1`）
+- `GET /api/v2/dle` — chain id、**`chainName: CoNET-DLE Testnet`**、tip、`producesBlocks=false`、**`liveGroupCount` / `liveGroupIds`**（顶层与 `archive`；发出面一律 `canonicalGroupId`）；有实验室 AC 时 tip `finalized=true`；可带 `waitingPool` / `selection`。Explorer Home 用 Clusters 展示 \(G_e\)，**不再**用 Tip height 面板（NFT 42 AC height 恒为 `0x1`）
 - `GET /api/v2/dle/events` — 内存 WAL 环（listen / rpc / lab-start / heartbeat / bft-vote / archive-certificate / ondemand-*）
 - `GET /api/v2/dle/certificate` — 实验室联网 AC（无 BFT 时仍诚实空）
 - `POST /bft/message` / `GET /bft/status` — 实验室 prevote/precommit 交换（复用 27101）

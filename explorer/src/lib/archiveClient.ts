@@ -6,6 +6,7 @@ import {
   DLE_LAB_GROUP_ID,
   DLE_TESTNET_CHAIN_NAME,
   DLE_REJECTED_METHODS,
+  canonicalGroupId,
 } from '../protocol'
 import type {
   DleArchiveInfo,
@@ -165,9 +166,10 @@ export function parseArchiveInfo(value: unknown): DleArchiveInfo | null {
     ...(value.batchSupported === true ? { batchSupported: true as const } : {}),
     chainId: value.chainId,
     chainIdHex: value.chainIdHex,
-    ...(typeof value.chainName === 'string' && value.chainName !== ''
-      ? { chainName: value.chainName }
-      : {}),
+    chainName:
+      typeof value.chainName === 'string' && value.chainName !== ''
+        ? value.chainName
+        : DLE_TESTNET_CHAIN_NAME,
     port: typeof value.port === 'number' ? value.port : 27101,
     domainId: typeof value.domainId === 'string' ? value.domainId : undefined,
     role: typeof value.role === 'string' ? value.role : undefined,
@@ -181,18 +183,28 @@ export function parseClusterCount(value: unknown): number | null {
     return value
   }
   if (!isRecord(value)) return null
+  if (Array.isArray(value.liveGroupIds)) {
+    const unique = new Set(
+      value.liveGroupIds
+        .filter((id): id is string => typeof id === 'string' && id !== '')
+        .map((id) => canonicalGroupId(id)),
+    )
+    if (unique.size >= 1) return unique.size
+  }
   if (typeof value.liveGroupCount === 'number') return parseClusterCount(value.liveGroupCount)
   if (typeof value.clusterCount === 'number') return parseClusterCount(value.clusterCount)
-  if (Array.isArray(value.liveGroupIds)) {
-    const unique = new Set(value.liveGroupIds.filter((id): id is string => typeof id === 'string' && id !== ''))
-    return unique.size >= 1 ? unique.size : null
-  }
   return null
 }
 
 export function parseLiveGroupIds(value: unknown): string[] | null {
   if (!isRecord(value) || !Array.isArray(value.liveGroupIds)) return null
-  const ids = [...new Set(value.liveGroupIds.filter((id): id is string => typeof id === 'string' && id !== ''))].sort()
+  const ids = [
+    ...new Set(
+      value.liveGroupIds
+        .filter((id): id is string => typeof id === 'string' && id !== '')
+        .map((id) => canonicalGroupId(id)),
+    ),
+  ].sort()
   return ids.length > 0 ? ids : null
 }
 
@@ -230,7 +242,7 @@ export function parseWaitingPool(
   if (value.poolRoot !== null && poolRoot === null) return null
   return {
     schema: 'DleWaitingPoolV1',
-    groupId: value.groupId,
+    groupId: canonicalGroupId(value.groupId),
     epoch: value.epoch,
     shardId: value.shardId,
     frozen: value.frozen,
@@ -272,7 +284,7 @@ export function parseSelectionLog(
     endorsed: value.endorsed,
     epoch: value.epoch,
     shardId: value.shardId,
-    groupId: value.groupId,
+    groupId: canonicalGroupId(value.groupId),
     poolRoot: value.poolRoot,
     beacon: value.beacon,
     roulette: value.roulette,

@@ -56,6 +56,27 @@ export const DLE_REJECTED_METHODS = [
 
 export const HASH32_RE = /^0x[0-9a-fA-F]{64}$/
 
+/** Copied from runtime hashLookup — never import runtime. */
+export function normalizeHash32(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const trimmed = raw.trim()
+  if (!HASH32_RE.test(trimmed)) return null
+  return trimmed.toLowerCase()
+}
+
+export function canonicalGroupId(raw: string): string {
+  const trimmed = raw.trim()
+  const lower = trimmed.toLowerCase()
+  if (lower === DLE_LAB_GROUP_ID_LEGACY || lower === '1' || lower === '0x1') {
+    return DLE_LAB_GROUP_ID
+  }
+  return normalizeHash32(trimmed) ?? trimmed
+}
+
+export function sameGroupId(a: string, b: string): boolean {
+  return canonicalGroupId(a) === canonicalGroupId(b)
+}
+
 export const DEFAULT_ARCHIVE_URL = 'http://127.0.0.1:27101'
 export const DEFAULT_ARCHIVE_PORT = 27101
 

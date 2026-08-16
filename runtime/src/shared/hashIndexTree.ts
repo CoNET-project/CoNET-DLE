@@ -1,5 +1,11 @@
 import { concatBytes, fromHex, keccak256, keccak256Bytes, toHex, uintBE, utf8 } from './bytes.js'
-import { DLE_LAB_GROUP_ID, normalizeHash32, type HashLocatorV1, type HashObjectKind } from './hashLookup.js'
+import {
+  DLE_LAB_GROUP_ID,
+  canonicalGroupId,
+  normalizeHash32,
+  type HashLocatorV1,
+  type HashObjectKind,
+} from './hashLookup.js'
 
 export const HASH_INDEX_LEAF_DOMAIN = 'dle.hashIndex.leaf.v1'
 export const HASH_INDEX_NODE_DOMAIN = 'dle.hashIndex.node.v1'
@@ -183,7 +189,7 @@ export function hashIndexRootView(
     notProductionDepin: true,
     notHotGet: true,
     committedInAc: false,
-    groupId,
+    groupId: canonicalGroupId(groupId),
     hashIndexRoot: hashIndexRootOf(locators),
     leafCount: locators.length,
   }
@@ -219,7 +225,7 @@ export function proveHashIndex(
     notHotGet: true as const,
     planeWideNull: false as const,
     committedInAc: false as const,
-    groupId,
+    groupId: canonicalGroupId(groupId),
     hashIndexRoot: root,
     leafCount: leaves.length,
     hash: normalized,

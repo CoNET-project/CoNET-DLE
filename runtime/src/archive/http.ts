@@ -144,6 +144,7 @@ export async function listenArchiveHttp(options: ArchiveHttpOptions): Promise<Ar
         schema: 'DleExplorerApiV1',
         chainId: info.chainId,
         chainIdHex: info.chainIdHex,
+        chainName: info.chainName,
         producesBlocks: false,
         hasTipVm: false,
         l1Isolated: true,

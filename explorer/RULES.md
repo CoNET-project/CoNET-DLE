@@ -43,6 +43,8 @@ GET /api/v2/dle      → same at top level and under archive
 
 Parse only a trusted integer `>= 1`. Missing field, timeout, or non-2xx: keep last trusted value or default **1**. Never treat failure as `0` or empty.
 
+**Legacy `/health` (unupgraded archives):** `parseLiveGroupIds` / `parseClusterCount` must run `canonicalGroupId` on each id **before** unique-count. `[dle.lab.group.v1]` and `[dle.lab.group.v1, 0x3076…]` are **one** cluster. Prefer unique canonical `liveGroupIds` over a raw `liveGroupCount` that double-counted aliases. `parseWaitingPool` / `parseSelectionLog` canonicalize `groupId`. `parseArchiveInfo` defaults missing `chainName` to `CoNET-DLE Testnet`. Copy `canonicalGroupId` / `sameGroupId` in `explorer/src/protocol.ts` — do **not** `../..` import runtime.
+
 Home hint copy (English):
 
 - `clusterCount <= 1` → `Genesis cluster — no fission yet`

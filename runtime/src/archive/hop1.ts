@@ -4,6 +4,7 @@
  * Laboratory HTTP :27101 only. Not production DePIN.
  */
 import {
+  canonicalGroupId,
   hashLookupUnavailable,
   normalizeChainNftId,
   normalizeHeightHex,
@@ -54,6 +55,7 @@ function hopReceipt(partial: Omit<DleHop1ReceiptV1, 'schema' | 'labOnly' | 'notP
     notProductionDepin: true,
     transport: 'lab-http-27101',
     ...partial,
+    groupId: partial.groupId === '' ? '' : canonicalGroupId(partial.groupId),
   }
 }
 

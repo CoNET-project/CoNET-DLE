@@ -15,7 +15,7 @@ import {
   type WaitMiner,
   type WaitingPoolView,
 } from '../../shared/ondemand/index.js'
-import { sameGroupId } from '../../shared/hashLookup.js'
+import { canonicalGroupId, sameGroupId } from '../../shared/hashLookup.js'
 import type { Hex } from '../../shared/bytes.js'
 import type { ArchiveStore } from '../store.js'
 import { signLabPoolAttest, verifyLabPoolAttest, type PoolAttest } from './mac.js'
@@ -121,7 +121,7 @@ function parseSelection(value: unknown): SelectionLog | null {
     endorsed: value.endorsed === true,
     epoch: value.epoch,
     shardId: value.shardId,
-    groupId: value.groupId,
+    groupId: canonicalGroupId(value.groupId),
     poolRoot: value.poolRoot as Hex,
     beacon: value.beacon as Hex,
     roulette: value.roulette as Hex,
@@ -137,7 +137,7 @@ function parseSelection(value: unknown): SelectionLog | null {
 
 export function createOnDemandEngine(options: OnDemandOptions): OnDemandEngine {
   const role = options.role === 'active' ? 'active' : 'standby'
-  const groupId = options.groupId ?? LAB_GROUP_ID
+  const groupId = canonicalGroupId(options.groupId ?? LAB_GROUP_ID)
   const epoch = options.epoch ?? LAB_EPOCH
   const shardId = options.shardId ?? LAB_SHARD_ID
   const fetchImpl = options.fetchImpl ?? fetch
@@ -431,7 +431,7 @@ export function createOnDemandEngine(options: OnDemandOptions): OnDemandEngine {
     if (selection === null) {
       return { schema: 'DleLabSelectionLogV1', available: false, reason: 'Waiting pool is not frozen yet.' }
     }
-    return selection
+    return { ...selection, groupId: canonicalGroupId(selection.groupId) }
   }
 
   function health(): OnDemandHealth {

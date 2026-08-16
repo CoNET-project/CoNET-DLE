@@ -22,6 +22,8 @@ On-demand hooks and pool rows use **Group ID** = that archive group’s **L1 reg
 
 `sameGroupId` treats legacy `dle.lab.group.v1` / `1` / `0x1` as the bootstrap hash so old clients still hook. Fission group `dle.lab.group.v2` stays a distinct id until it has its own L1 register tx.
 
+Engine start: `groupId = canonicalGroupId(options.groupId ?? LAB_GROUP_ID)`. `parseSelection` (persist load + gossip ingest) and `selectionView()` / `pool()` emit the hash, never the disk v1 string.
+
 Do **not** put EIP-155 `0x44c45` in `groupId` fields.
 
 ## Standing invariants

@@ -30,6 +30,8 @@ HTTP (`src/archive/http.ts` `clusterView`):
 
 Genesis / no fission: **`liveGroupCount === 1`**, `liveGroupIds === ["0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0"]` (bootstrap **Group ID** = L1 register tx hash). Legacy clients may still send `dle.lab.group.v1` / `1`; `canonicalGroupId` / `sameGroupId` alias those to the hash. Do **not** advertise the L1 storage uint `1` as Group ID.
 
+**Emit / persist (mandatory):** every archive HTTP, JSON-RPC, hop receipt, hash-index, route, and on-demand view that includes `groupId` / `liveGroupIds` must emit `canonicalGroupId(...)`. Disk WAL / `hash-index.json` / on-demand selection that still stores `dle.lab.group.v1` must be treated as the bootstrap hash on load (`sameGroupId`); a later write of the same locator with the hash must **not** `ERR_HASH_LOCATOR_CONFLICT` — rewrite the stored string to the hash. `GET /api/v2/dle` top level includes `chainName: CoNET-DLE Testnet`.
+
 `registerLabChainNft` copies NFT 42’s wallets into the **same** `ownGroupId`. New lab chains **do not** add a group.
 
 Do **not** expose Archive Certificate `height` as a growing tip. After AC, NFT 42 height is `0x1`. Explorer Home no longer shows Tip height; it shows Clusters from these fields.

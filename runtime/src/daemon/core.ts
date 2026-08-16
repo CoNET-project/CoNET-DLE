@@ -1,3 +1,4 @@
+import { canonicalGroupId } from '../shared/hashLookup.js'
 import { parseJsonRpcBatchResponse, parseJsonRpcResponse } from '../shared/jsonrpc.js'
 import {
   drawCommittee,
@@ -104,10 +105,11 @@ export async function submitWaitHook(
   miner: string = LAB_DAEMON_PROBE_MINER,
   groupId: string = LAB_GROUP_ID,
 ): Promise<OnDemandWaitSession> {
+  const canonical = canonicalGroupId(groupId)
   const hook = await postJson(archiveUrl, '/ondemand/hook', {
     schema: 'DleOnDemandHookV1',
     miner,
-    groupId,
+    groupId: canonical,
   })
   const poolRaw = await getJson(archiveUrl, '/ondemand/pool')
   const selectionRaw = await getJson(archiveUrl, '/ondemand/selection')
@@ -127,7 +129,7 @@ export async function submitWaitHook(
     status,
     slot: typeof hookRow.slot === 'number' ? hookRow.slot : null,
     miner,
-    groupId,
+    groupId: canonical,
     poolRoot: selected?.poolRoot ?? pool?.poolRoot ?? null,
     committee: selected?.committee ?? [],
     standbys: selected?.standbys ?? [],
@@ -232,6 +234,7 @@ export async function submitWaitHookToArchives(
   miner: string,
   groupId: string = LAB_GROUP_ID,
 ): Promise<OnDemandWaitSession & { archives: ArchiveHookResult[] }> {
+  const canonical = canonicalGroupId(groupId)
   if (archiveUrls.length === 0) throw new Error('submitWaitHookToArchives requires at least one archive URL')
   const archives: ArchiveHookResult[] = []
   for (const archiveUrl of archiveUrls) {
@@ -246,7 +249,7 @@ export async function submitWaitHookToArchives(
       archives.push({ archiveUrl, status: 'queued', minerInPool: true })
       continue
     }
-    const session = await submitWaitHook(archiveUrl, miner, groupId)
+    const session = await submitWaitHook(archiveUrl, miner, canonical)
     archives.push({
       archiveUrl,
       status: session.status,
@@ -271,7 +274,7 @@ export async function submitWaitHookToArchives(
       return index >= 0 ? index : null
     })(),
     miner,
-    groupId,
+    groupId: canonical,
     poolRoot: selected?.poolRoot ?? pool?.poolRoot ?? null,
     committee: selected?.committee ?? [],
     standbys: selected?.standbys ?? [],

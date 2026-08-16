@@ -19,6 +19,7 @@ If the client surfaces a cluster / fission number:
 - Runtime: Node **or** browser (`detectDaemonRuntime`)
 - `eth_chainId` = **CoNET-DLE Testnet** EIP-155 `0x44c45` — never CoNET L1 `224422`. This distinguishes the DLE plane; it is not Group ID.
 - Group ID (if shown) = L1 bootstrap register tx hash, not uint `1` and not `dle.lab.group.v1`
+- `submitWaitHook` / `submitWaitHookToArchives` send `canonicalGroupId(groupId)` so a legacy caller still posts the hash
 - No tip VM: `eth_call` rejection is expected
 - On-demand wait session ≠ Clusters (see `../shared/ondemand/RULES.md`)
 - No `node:` imports in `core.ts` / `browser.ts`
