@@ -1,0 +1,19 @@
+---
+description: GitHub Actions 表达式上下文可用性；禁止在 job-level env 使用 runner
+globs: "**/.github/workflows/*.{yml,yaml}"
+alwaysApply: false
+---
+
+# GitHub Actions：`runner` 上下文不可用于 job `env`
+
+与仓库 `.cursor/rules/github-actions-context-availability.mdc` 同一规则。
+
+`jobs.<job_id>.env` 在分配 runner **之前**解析，**没有** `runner` 上下文。`${{ runner.temp }}` 会令 push 失败：`Unrecognized named-value: 'runner'`。
+
+| 位置 | `${{ runner.* }}` |
+|---|---|
+| `jobs.<id>.env` / 顶层 `env` | ❌ |
+| step `env` / `with` / `run` / `if` | ✅ |
+| `run:` 中 `$RUNNER_TEMP`（无 `${{ }}`） | ✅ |
+
+Job 级共用路径：第一步 `echo "CI_EVIDENCE_ROOT=${RUNNER_TEMP}/…" >> "$GITHUB_ENV"`。参考 `.github/workflows/dle-typescript-mvp-ci.yml`。

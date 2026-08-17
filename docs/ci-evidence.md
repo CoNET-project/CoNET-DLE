@@ -5,6 +5,12 @@ does not deploy software, access SSH, use credentials, or contact a network
 service. The workflow is defined in
 `.github/workflows/dle-typescript-mvp-ci.yml`.
 
+Evidence directories live under the runner temp dir. **Do not** set
+`CI_EVIDENCE_ROOT` / `CI_EVIDENCE_LOGS` with `${{ runner.temp }}` on
+`jobs.conformance.env` — GitHub rejects that file (`Unrecognized named-value:
+'runner'`). The first step writes those variables via `$RUNNER_TEMP` and
+`$GITHUB_ENV`. See `.cursor/rules/github-actions-context-availability.mdc`.
+
 ## Required checks
 
 The workflow executes these checks in order:

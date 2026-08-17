@@ -30,10 +30,13 @@ permissions:
 jobs:
   conformance:
     runs-on: ubuntu-latest
-    env:
-      CI_EVIDENCE_ROOT: ${{ runner.temp }}/dle-typescript-mvp-evidence
-      CI_EVIDENCE_LOGS: ${{ runner.temp }}/dle-typescript-mvp-evidence/logs
     steps:
+      # jobs.<id>.env cannot use ${{ runner.* }} (workflow is invalid before a runner is assigned).
+      # RUNNER_TEMP is a runner-provided shell env; GITHUB_ENV makes it job-wide for later steps.
+      - name: Set CI evidence paths
+        run: |
+          echo "CI_EVIDENCE_ROOT=${RUNNER_TEMP}/dle-typescript-mvp-evidence" >> "$GITHUB_ENV"
+          echo "CI_EVIDENCE_LOGS=${RUNNER_TEMP}/dle-typescript-mvp-evidence/logs" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -100,5 +103,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dle-typescript-mvp-evidence-${{ github.sha }}
-          path: ${{ runner.temp }}/dle-typescript-mvp-evidence
+          path: ${{ env.CI_EVIDENCE_ROOT }}
           if-no-files-found: warn
