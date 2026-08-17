@@ -26,6 +26,12 @@ import {
   canonicalGroupId,
   sameGroupId,
 } from '../protocol'
+import {
+  hashIndexCommittedInAcPill,
+  officialStandbysReadyPill,
+  parseHashIndexCommittedInAc,
+  parseOfficialStandbysReady,
+} from '../lib/labOverlays'
 import { useExplorer } from '../providers/ExplorerProvider'
 
 export function HomePage() {
@@ -47,6 +53,10 @@ export function HomePage() {
   const selection = snapshot.selection
   const selectionReady = selection?.available === true
   const poolRoot = selectionReady ? selection.poolRoot : pool?.poolRoot
+  const officialReadyPill = officialStandbysReadyPill(parseOfficialStandbysReady(snapshot.health))
+  const hashIndexPill = hashIndexCommittedInAcPill(
+    parseHashIndexCommittedInAc(snapshot.health, snapshot.certificate),
+  )
 
   const onSearch = (event: FormEvent) => {
     event.preventDefault()
@@ -103,6 +113,8 @@ export function HomePage() {
           label={selectionReady && selection.endorsed ? '7+2 endorsed' : '7+2 pending'}
           tone={selectionReady && selection.endorsed ? 'ok' : 'warn'}
         />
+        {officialReadyPill ? <StatusPill label={officialReadyPill.label} tone={officialReadyPill.tone} /> : null}
+        {hashIndexPill ? <StatusPill label={hashIndexPill.label} tone={hashIndexPill.tone} /> : null}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

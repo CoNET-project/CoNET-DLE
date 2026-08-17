@@ -3,6 +3,17 @@ import { JsonBlock } from '../components/JsonBlock'
 import { OnDemandSelectionPanel } from '../components/OnDemandSelectionPanel'
 import { StatusPill } from '../components/StatusPill'
 import { MainPageShell } from '../components/TitleCapsule'
+import {
+  hashIndexCommittedInAcPill,
+  officialStandbysReadyPill,
+  parseExtraStandbyReadyDoesNotCount,
+  parseHashIndexCommittedInAc,
+  parseNewchainOfficialStandbysReady,
+  parseNewchainStandbyReadyEip712,
+  parseOfficialStandbyReadyCount,
+  parseOfficialStandbysReady,
+  parseStandbyReadyEip712,
+} from '../lib/labOverlays'
 import { useExplorer } from '../providers/ExplorerProvider'
 
 function healthCount(health: Record<string, unknown> | null, key: string): number | null {
@@ -24,6 +35,15 @@ export function CertificatesPage() {
   const newchainPending = healthCount(snapshot.health, 'newchainArchivePending')
   const newchainCertified = healthCount(snapshot.health, 'newchainArchiveCertified')
   const newchainQuorum = healthCount(snapshot.health, 'newchainValidatorQuorum')
+  const officialStandbysReady = parseOfficialStandbysReady(snapshot.health)
+  const officialStandbyReadyCount = parseOfficialStandbyReadyCount(snapshot.health)
+  const standbyReadyEip712 = parseStandbyReadyEip712(snapshot.health)
+  const newchainOfficialStandbysReady = parseNewchainOfficialStandbysReady(snapshot.health)
+  const newchainStandbyReadyEip712 = parseNewchainStandbyReadyEip712(snapshot.health)
+  const extraStandbyReadyDoesNotCount = parseExtraStandbyReadyDoesNotCount(snapshot.health)
+  const hashIndexCommittedInAc = parseHashIndexCommittedInAc(snapshot.health, cert)
+  const officialReadyPill = officialStandbysReadyPill(officialStandbysReady)
+  const hashIndexPill = hashIndexCommittedInAcPill(hashIndexCommittedInAc)
 
   return (
     <MainPageShell title="Certificates">
@@ -43,14 +63,16 @@ export function CertificatesPage() {
             tone={newchainCertified > 0 ? 'ok' : 'neutral'}
           />
         ) : null}
+        {officialReadyPill ? <StatusPill label={officialReadyPill.label} tone={officialReadyPill.tone} /> : null}
+        {hashIndexPill ? <StatusPill label={hashIndexPill.label} tone={hashIndexPill.tone} /> : null}
       </div>
 
       <section className="mb-6">
         <h2 className="text-sm font-semibold text-white">Archive Certificate</h2>
         <p className="mb-4 mt-2 text-sm leading-6 text-slate-400">
           {cert?.available
-            ? 'This is a lab networked Archive Certificate (PrecommitQC) on TCP 27101. Votes are lab EIP-712 ArchiveBftVote. It is not a frozen EIP-712 L1 wrapper or corpus SSZ object, and it does not claim 30-day qualification.'
-            : 'DLE tip finality is an Archive Certificate (PrecommitQC), not an L1 block. The empty state is honest until a lab networked AC is available.'}
+            ? 'This is a lab networked Archive Certificate (PrecommitQC) on TCP 27101. Votes are lab EIP-712 ArchiveBftVote. It is not a frozen EIP-712 L1 wrapper or corpus SSZ object, and it does not claim 30-day qualification. P25 hash-index and official-standby pills are read-only lab overlays — not seating and not production AC commitment.'
+            : 'DLE tip finality is an Archive Certificate (PrecommitQC), not an L1 block. The empty state is honest until a lab networked AC is available. P25 overlays stay hidden when /health and the certificate omit those fields.'}
         </p>
         {typeof cert?.hash === 'string' && cert.hash.startsWith('0x') ? (
           <div className="mb-3">
@@ -74,7 +96,8 @@ export function CertificatesPage() {
           Laboratory P6: Mode A replay plus a 5-of-7 validator EIP-712 ArchiveValidatorQuorumAttest
           (P18), then a per-chain 4-of-5 Archive Certificate. That AC uses the new chainNftId and
           never writes NFT 42. It is not an L1 birth certificate and not 30-day qualification.
-          Clusters stay live archive groups.
+          Clusters stay live archive groups. Official standby readiness (P22/P24) is a lab overlay:
+          extra fd-08 does not count, and it is not seating.
         </p>
         <div className="dle-glass rounded-2xl p-4">
           <JsonBlock
@@ -86,6 +109,14 @@ export function CertificatesPage() {
               newchainValidatorQuorum: newchainQuorum,
               newchainValidatorQuorumEip712: healthFlag(snapshot.health, 'newchainValidatorQuorumEip712'),
               newchainHmacForgeable: healthFlag(snapshot.health, 'newchainHmacForgeable'),
+              officialStandbysReady,
+              officialStandbyReadyCount,
+              standbyReadyEip712,
+              newchainOfficialStandbysReady,
+              newchainStandbyReadyEip712,
+              extraStandbyReadyDoesNotCount,
+              hashIndexCommittedInAc,
+              hashIndexRoot: cert?.hashIndexRoot ?? null,
             }}
           />
         </div>
