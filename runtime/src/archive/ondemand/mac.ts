@@ -175,7 +175,7 @@ export function parseAttest(value: unknown): PoolAttest | null {
   if (hasMac) attest.mac = value.mac as Hex
   if (hasSig) {
     attest.signature = value.signature as Hex
-    attest.signer = value.signer
+    attest.signer = value.signer as string
   }
   return attest
 }

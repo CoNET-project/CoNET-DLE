@@ -828,7 +828,7 @@ export async function deployArchiveRuntime(options?: {
     }
     const unpacked = await runSshRetry(
       host.sshHost,
-      `rm -rf '${LAB_DIR}/app' && mkdir -p '${LAB_DIR}/app' && tar -xzf /tmp/dle-archive-runtime.tgz -C '${LAB_DIR}/app' && printf '%s\\n' '{"type":"module","private":true,"name":"@conet/dle-archive-runtime"}' > '${LAB_DIR}/app/package.json'`,
+      `rm -rf '${LAB_DIR}/app' && mkdir -p '${LAB_DIR}/app' && tar -xzf /tmp/dle-archive-runtime.tgz -C '${LAB_DIR}/app'`,
     )
     if (unpacked.code !== 0) {
       results.push({
@@ -1282,7 +1282,7 @@ export async function openOnDemandHttpQueue(options?: {
     await runScp(tmpConfig, host.sshHost, `${LAB_DIR}/config.json`)
     const unpacked = await runSsh(
       host.sshHost,
-      `rm -rf '${LAB_DIR}/app' && mkdir -p '${LAB_DIR}/app' && tar -xzf /tmp/dle-archive-runtime.tgz -C '${LAB_DIR}/app' && printf '%s\\n' '{"type":"module","private":true,"name":"@conet/dle-archive-runtime"}' > '${LAB_DIR}/app/package.json'`,
+      `rm -rf '${LAB_DIR}/app' && mkdir -p '${LAB_DIR}/app' && tar -xzf /tmp/dle-archive-runtime.tgz -C '${LAB_DIR}/app'`,
     )
     if (unpacked.code !== 0) {
       results.push({
@@ -2346,6 +2346,7 @@ export async function deployP11FullOpenJoiner(options?: {
   extras?: AgentConfigExtras
   archiveDistDir?: string
   daemonProbePath?: string
+  keepData?: boolean
 }): Promise<{
   ok: boolean
   joiner: PilotLabHostV1
@@ -2385,7 +2386,7 @@ export async function deployP11FullOpenJoiner(options?: {
       await runScpRetry(daemonProbePath, joiner.sshHost, REMOTE_DAEMON_PROBE)
       const unpacked = await runSshRetry(
         joiner.sshHost,
-        `rm -rf '${LAB_DIR}/app' && mkdir -p '${LAB_DIR}/app' && tar -xzf /tmp/dle-archive-runtime.tgz -C '${LAB_DIR}/app' && printf '%s\\n' '{"type":"module","private":true,"name":"@conet/dle-archive-runtime"}' > '${LAB_DIR}/app/package.json'`,
+        `rm -rf '${LAB_DIR}/app' && mkdir -p '${LAB_DIR}/app' && tar -xzf /tmp/dle-archive-runtime.tgz -C '${LAB_DIR}/app'`,
       )
       if (unpacked.code !== 0) {
         results.push({
@@ -2404,7 +2405,10 @@ export async function deployP11FullOpenJoiner(options?: {
             detail: stopped.stderr || stopped.stdout || 'refused to stop protected process',
           })
         } else {
-          const started = await runSshRetry(joiner.sshHost, START_ARCHIVE)
+          const started = await runSshRetry(
+            joiner.sshHost,
+            options?.keepData === true ? START_ARCHIVE_KEEP_ALL : START_ARCHIVE,
+          )
           const healthOk = started.stdout.includes('LIVE_OK') || started.stdout.includes('"command":"archive"')
           results.push({
             domainId: joiner.domainId,
@@ -2442,7 +2446,8 @@ export async function deployP11FullOpenJoiner(options?: {
         labOnly: true,
         notOfficialFivePlusTwo: true,
         neverWipeOfficialSeven: true,
-        wipedOnly: [joiner.domainId],
+        keepData: options?.keepData === true,
+        wipedOnly: options?.keepData === true ? [] : [joiner.domainId],
         dataDir: `${LAB_DIR}/data`,
         neverGethBeacon: true,
         reachableFromKeeper,

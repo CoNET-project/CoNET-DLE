@@ -171,7 +171,7 @@ export function parseArchiveVote(value: unknown): ArchiveVote | null {
   if (hasMac) vote.mac = value.mac as Hex
   if (hasSig) {
     vote.signature = value.signature as Hex
-    vote.signer = value.signer
+    vote.signer = value.signer as string
   }
   return vote
 }

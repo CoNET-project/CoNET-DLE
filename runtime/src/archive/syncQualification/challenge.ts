@@ -535,7 +535,7 @@ export function bindChallengeBeacon(input: {
     notProductionBeacon: true,
     waitingForClBeacon: false,
     publicrpcNotClRandao: true,
-    revealSalt,
+    ...(revealSalt !== undefined ? { revealSalt } : {}),
     frozenAt: input.freeze.frozenAt,
     boundAt: input.boundAt ?? new Date().toISOString(),
   })
@@ -559,7 +559,7 @@ export function buildChallenge(input: {
     freeze,
     inventory: input.inventory,
     revealSalt: input.revealSalt ?? labHonestWaitReveal(freeze.freezeHex),
-    probe: input.probe,
+    ...(input.probe !== undefined ? { probe: input.probe } : {}),
   })
 }
 

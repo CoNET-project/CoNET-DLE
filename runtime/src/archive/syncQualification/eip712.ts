@@ -31,7 +31,7 @@ export const ARCHIVE_SYNC_QUALIFICATION_TYPES = {
     { name: 'hashIndexRoot', type: 'bytes32' },
     { name: 'accept', type: 'bool' },
   ],
-} as const
+}
 
 /** P15: challenge / opening envelope. Do not put 2250 samples in the typed array. */
 export const ARCHIVE_STATE_CHALLENGE_TYPES = {
@@ -50,7 +50,7 @@ export const ARCHIVE_STATE_CHALLENGE_TYPES = {
     { name: 'challengeHash', type: 'bytes32' },
     { name: 'samplesRoot', type: 'bytes32' },
   ],
-} as const
+}
 
 /** P16: BFT AC vote. Typed data does not include `domainId`. */
 export const ARCHIVE_BFT_VOTE_TYPES = {
@@ -62,7 +62,7 @@ export const ARCHIVE_BFT_VOTE_TYPES = {
     { name: 'membershipRoot', type: 'bytes32' },
     { name: 'prevoteQCRef', type: 'bytes32' },
   ],
-} as const
+}
 
 /** P17: on-demand pool attest. Typed data does not include `domainId`. */
 export const ARCHIVE_ONDEMAND_ATTEST_TYPES = {
@@ -72,7 +72,7 @@ export const ARCHIVE_ONDEMAND_ATTEST_TYPES = {
     { name: 'shardId', type: 'string' },
     { name: 'roulette', type: 'bytes32' },
   ],
-} as const
+}
 
 /**
  * P18: new-chain Q_V attest. Typed data does not include `validatorId`.
@@ -86,7 +86,7 @@ export const ARCHIVE_VALIDATOR_QUORUM_ATTEST_TYPES = {
     { name: 'tipStateRoot', type: 'bytes32' },
     { name: 'bodyCommitment', type: 'bytes32' },
   ],
-} as const
+}
 
 export type ArchiveBftVoteTyped = {
   valueHash: Hex

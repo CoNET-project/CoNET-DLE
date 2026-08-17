@@ -211,8 +211,9 @@ Sequence (BFT/ondemand stay held 30 minutes after the keep restart):
 1. `npm run lab:probe-p11-joiner` — greenfield SSH; no geth/beacon/validator
 2. `npm run lab:keep-p11-peers` — official seven `keepData:true`; merge `extraPeers` + G1+G2 `planeDirectory`
 3. Confirm four keepers `QUALIFIED`
-4. `npm run lab:deploy-p11-joiner` — empty `~/dle-30d-lab/data` **only** on `167.104.98.104`
-5. `npm run lab:accept-p11-join` — joiner `QUALIFIED` + keepers + `fd-05` stay seated; joiner `/sync/opening` `policy=all-hosted` and `opened===hosted` (>8)
+4. `npm run lab:deploy-p11-joiner` — empty `~/dle-30d-lab/data` **only** on `167.104.98.104` (`START_ARCHIVE` wipe). **Do not** use this to refresh binaries after P11 is seated.
+5. Binary refresh after P11: `npm run lab:keep-p11-joiner` — same extras / planeDirectory, `keepData:true` / `START_ARCHIVE_KEEP_ALL`. **Never** wipe `fd-08` to ship P12–P20.
+6. `npm run lab:accept-p11-join` — joiner `QUALIFIED` + keepers + `fd-05` stay seated; joiner `/sync/opening` `policy=all-hosted` and `opened===hosted` (>8)
 
 Combined: `npm run lab:p11-full-open-join`. Evidence: `pilot/evidence/conet-dle-sync-join-2026-08/p11-probe.json` / `p11-keep.json` / `p11-deploy.json` / `p11-accept.json` / `p11-opening.json`. Do **not** reuse P8d `wipe.json` / `accept.json`.
 
@@ -227,6 +228,8 @@ Combined: `npm run lab:p11-full-open-join`. Evidence: `pilot/evidence/conet-dle-
 Lab seating key is deterministic secp256k1: `keccak256(utf8("dle.archive.lab.seating.operator.v1|" + domainId))`. Honest flags: `eip712: true`, `hmacForgeable: false`, `labDeterministicSeatingKey: true`, `notProductionOperatorKey: true`, `notL1Settled: true`. Knowing the algorithm can still derive the key — P12 delivers **real EIP-712 + recoverAddress bound to the active set**, not OperatorDomain / L1 member keys.
 
 Keep-only: disk HMAC certificates still restore `QUALIFIED` (`restoreIfCertificateHolds` does **not** re-verify old votes). Unsigned disk challenges are treated as no pending (P15 rebuilds). BFT AC votes later cut over in **P16**; on-demand attests later cut over in **P17**. `status()` / `health().syncQualification` may expose `seatingEip712: true` / `challengeEip712: true` — Explorer green pills stay `seatingQualified === true` only; **do not** paint those flags as production.
+
+**Archive tarball (P12+):** `npm run runtime:build` must `npm install --omit=dev --prefix runtime/dist/archive` so `ethers` ships inside `dle-archive-runtime.tgz`. Remote unpack must **not** overwrite `app/package.json` with a stub that drops `node_modules`. Missing `ethers` crashes `bft/mac.js` after listen and takes the official seven down. Binary refresh: `lab:keep-p11-peers` then `lab:keep-p11-joiner` (`keepData:true`). **Never** `lab:deploy-p11-joiner` to ship this cutover.
 
 Tests: `runtime/test/sync-qualification.test.ts` (HMAC cutover, recoverAddress bind, 4/5 vs 3/5). Completing P12 **MUST NOT** start `pilotStartedAt`. Do **not** change whitepaper production terms.
 

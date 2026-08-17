@@ -180,10 +180,10 @@ export function signCandidateAcceptance(input: {
     challengeHash: input.challengeHash,
     accept: true,
     membershipRoot: input.membershipRoot,
-    groupId: input.groupId,
-    hostedChainSetRoot: input.hostedChainSetRoot,
-    lastACRef: input.lastACRef,
-    hashIndexRoot: input.hashIndexRoot,
+    ...(input.groupId !== undefined ? { groupId: input.groupId } : {}),
+    ...(input.hostedChainSetRoot !== undefined ? { hostedChainSetRoot: input.hostedChainSetRoot } : {}),
+    ...(input.lastACRef !== undefined ? { lastACRef: input.lastACRef } : {}),
+    ...(input.hashIndexRoot !== undefined ? { hashIndexRoot: input.hashIndexRoot } : {}),
   }).signature
 }
 

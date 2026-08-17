@@ -33,13 +33,13 @@
     },
     {
       "domainId": "fd-06-ionos-174",
-      "ok": true
+      "ok": false
     },
     {
       "domainId": "fd-07-ionos-207",
       "ok": true
     }
   ],
-  "ok": true,
-  "at": "2026-08-17T07:46:15.246Z"
+  "ok": false,
+  "at": "2026-08-17T19:08:29.832Z"
 }

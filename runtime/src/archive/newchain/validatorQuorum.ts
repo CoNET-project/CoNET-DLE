@@ -320,7 +320,7 @@ export function parseLabValidatorQuorum(value: unknown): DleLabValidatorQuorumV1
     if (hasMac) attestation.mac = (row.mac as string).toLowerCase() as Hex
     if (hasSig) {
       attestation.signature = row.signature as Hex
-      attestation.signer = row.signer
+      attestation.signer = row.signer as string
     }
     if (typeof row.eip712 === 'boolean') attestation.eip712 = row.eip712
     if (typeof row.hmacForgeable === 'boolean') attestation.hmacForgeable = row.hmacForgeable

@@ -48,7 +48,7 @@ P3 on-demand（`runtime/src/shared/ondemand` + `runtime/src/archive/ondemand`；
 
 P1 联网 BFT（独立包 `runtime/src/archive/bft`）：5 个 active 对冻结 TradeOpened 候选做 Mode A 重放，交换 prevote/precommit，签发 **4-of-5 实验室 AC**；2 个 standby 不投票。**P16** 新票为 EIP-712 `ArchiveBftVote`（`hmacForgeable: false`）；磁盘旧 HMAC 证书 keep-only 可恢复。证据：`pilot/evidence/conet-dle-30d-lab-2026-08/bft-p1-accept.json`。**不是** 30 天资格，**不是**冻结 L1 wrapper / corpus SSZ。
 
-产物必须带 `package.json` `"type":"module"`（系统 Node 18 否则会把 ESM `.js` 当 CJS）。部署只 SIGTERM `agent.mjs` / `lab-cli.js`，不得碰 geth / beacon / validator。
+产物必须带 `package.json` `"type":"module"`（系统 Node 18 否则会把 ESM `.js` 当 CJS）。P12+ 归档 tarball 还必须带 `ethers`（`runtime:build` 对 `runtime/dist/archive` 做 `npm install --omit=dev`）；远程解包不得用无依赖 stub 覆盖 `app/package.json`。部署只 SIGTERM `agent.mjs` / `lab-cli.js`，不得碰 geth / beacon / validator。
 
 编程守则（改归档 / on-demand / daemon 后必须同任务更新）：[`RULES.md`](./RULES.md)、[`src/shared/ondemand/RULES.md`](./src/shared/ondemand/RULES.md)、[`src/daemon/RULES.md`](./src/daemon/RULES.md)。
 

@@ -3,9 +3,8 @@
   "labOnly": true,
   "notOfficialFivePlusTwo": true,
   "neverWipeOfficialSeven": true,
-  "wipedOnly": [
-    "fd-08-hosthatch-hk1"
-  ],
+  "keepData": true,
+  "wipedOnly": [],
   "dataDir": "/home/peter/dle-30d-lab/data",
   "neverGethBeacon": true,
   "reachableFromKeeper": true,
@@ -24,5 +23,5 @@
     }
   ],
   "ok": true,
-  "at": "2026-08-17T07:46:44.762Z"
+  "at": "2026-08-17T19:13:01.204Z"
 }

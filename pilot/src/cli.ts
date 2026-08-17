@@ -218,6 +218,12 @@ async function main(): Promise<void> {
       if (!result.ok) process.exitCode = 2
       return
     }
+    case 'lab-keep-p11-joiner': {
+      const result = await deployP11FullOpenJoiner({ keepData: true, extras: await p11JoinerKeepExtras() })
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
     case 'lab-deploy-p11-joiner': {
       const result = await deployP11FullOpenJoiner({ extras: await p11JoinerKeepExtras() })
       process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
@@ -238,7 +244,7 @@ async function main(): Promise<void> {
     }
     default:
       throw new Error(
-        'usage: cli preflight --inventory FILE | dry-run [--output DIR] | bundle --source DIR --output DIR --pilot-id ID --gate FILE [--simulation-only true] [--redaction-salt SALT] | verify --bundle DIR | lab-preflight [--inventory FILE] | lab-deploy | lab-deploy-archive | lab-deploy-archive-keep | lab-accept-archive | lab-accept-ondemand | lab-deploy-ondemand-http-clients | lab-deploy-newchain-user | lab-deploy-m6 | lab-deploy-g1-keep | lab-accept-m6 | lab-wipe-sync-join | lab-accept-sync-join | lab-smoke-cg-open | lab-smoke-rejected-safety | lab-probe-p11-joiner | lab-keep-p11-peers | lab-deploy-p11-joiner | lab-accept-p11-join | lab-p11-full-open-join | lab-status | lab-warmup [--evidence DIR] | lab-inject-crash --domain ID',
+        'usage: cli preflight --inventory FILE | dry-run [--output DIR] | bundle --source DIR --output DIR --pilot-id ID --gate FILE [--simulation-only true] [--redaction-salt SALT] | verify --bundle DIR | lab-preflight [--inventory FILE] | lab-deploy | lab-deploy-archive | lab-deploy-archive-keep | lab-accept-archive | lab-accept-ondemand | lab-deploy-ondemand-http-clients | lab-deploy-newchain-user | lab-deploy-m6 | lab-deploy-g1-keep | lab-accept-m6 | lab-wipe-sync-join | lab-accept-sync-join | lab-smoke-cg-open | lab-smoke-rejected-safety | lab-probe-p11-joiner | lab-keep-p11-peers | lab-keep-p11-joiner | lab-deploy-p11-joiner | lab-accept-p11-join | lab-p11-full-open-join | lab-status | lab-warmup [--evidence DIR] | lab-inject-crash --domain ID',
       )
   }
 }
