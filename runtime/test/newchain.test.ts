@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { createNewChainEngine } from '../src/archive/newchain/engine.js'
 import { createHashLookupAdapter } from '../src/archive/hashPipe.js'
 import { ERR_INVENTORY_FROZEN, setInventoryCatalogFrozen } from '../src/archive/inventoryFreeze.js'
+import { ERR_NEWCHAIN_STANDBY_NOT_READY } from '../src/archive/syncQualification/types.js'
 import { openArchiveStore } from '../src/archive/store.js'
 import { DLE_LAB_CHAIN_NFT_ID, DLE_LAB_GROUP_ID } from '../src/shared/hashLookup.js'
 import { labRouteTableFromPeers, liveGroupCount, liveGroupIds, routeView } from '../src/shared/labRoute.js'
@@ -26,12 +27,12 @@ after(async () => {
   await Promise.all(dirs.map((dir) => rm(dir, { recursive: true, force: true })))
 })
 
-async function tempEngine(domainId = 'fd-newchain') {
+async function tempEngine(domainId = 'fd-newchain', officialStandbysReady?: () => boolean) {
   const dataDir = await mkdtemp(join(tmpdir(), 'dle-newchain-'))
   dirs.push(dataDir)
   const store = openArchiveStore(dataDir)
   const routeTable = labRouteTableFromPeers({ domainId, role: 'active' }, [])
-  const engine = createNewChainEngine({ domainId, store, routeTable })
+  const engine = createNewChainEngine({ domainId, store, routeTable, officialStandbysReady })
   return { store, routeTable, engine, dataDir, domainId }
 }
 
@@ -157,6 +158,30 @@ test('asset, storage, and trade genesis each persist and reload', async () => {
     assert.equal(routeView(reloadedTable, row.chainNftId).groupId, DLE_LAB_GROUP_ID)
   }
   assert.equal(liveGroupCount(reloadedTable), 1)
+})
+
+test('new-chain accept waits for official standbys when the callback is present', async () => {
+  let ready = false
+  const { engine } = await tempEngine('fd-standby-gate', () => ready)
+  const request = makeNewChainRequest({
+    classId: LAB_CLASS_ASSET,
+    nonce: 9,
+    salt: keccak256Utf8('dle.test.newchain.standby.gate'),
+  })
+  const blocked = engine.accept(request)
+  assert.equal(blocked.status, 409)
+  assert.equal(blocked.body.error, ERR_NEWCHAIN_STANDBY_NOT_READY)
+  const health = engine.health()
+  assert.equal(health.newchainOfficialStandbysReady, false)
+  assert.equal(health.newchainStandbyReadyEip712, true)
+  ready = true
+  const accepted = engine.accept(request)
+  assert.equal(accepted.status, 200)
+  assert.equal(accepted.body.ok, true)
+  ready = false
+  const duplicate = engine.accept(request)
+  assert.equal(duplicate.status, 200)
+  assert.equal(duplicate.body.duplicate, true)
 })
 
 test('live group count stays 1 until a distinct fission groupId appears', () => {

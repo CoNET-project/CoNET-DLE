@@ -35,16 +35,29 @@ import {
   verifySyncVote,
 } from './mac.js'
 import {
+  isHmacStandbyReady,
+  makeArchiveStandbyReadiness,
+  parseArchiveStandbyReadiness,
+  parseStandbyReadyMap,
+  verifyEip712StandbyReady,
+} from './standbyReady.js'
+import {
   ERR_SYNC_CHALLENGE_HMAC_CUTOVER,
   ERR_SYNC_CHALLENGE_SAMPLES,
+  ERR_SYNC_STANDBY_HMAC_CUTOVER,
+  ERR_SYNC_STANDBY_ROLE,
+  ERR_SYNC_STANDBY_ROOT,
   LAB_SYNC_MAX_HOSTED_CHAINS,
   LAB_SYNC_OPEN_ALL_HOSTED_CHAINS,
+  OFFICIAL_STANDBY_COUNT,
   SYNC_CATCHUP_BATCH,
   SYNC_QUALIFIED_CATCHUP_MIN_MS,
   SYNC_CHALLENGE_TIMEOUT_MS,
   SYNC_QUORUM,
   SYNC_STATUS_TIMEOUT_MS,
   SYNC_TICK_MS,
+  isOfficialStandbyRole,
+  type ArchiveStandbyReadinessEnvelope,
   type ArchiveStateChallengeV1,
   type ArchiveSyncFreezeV1,
   type ArchiveSyncQualificationCertificateV1,
@@ -89,6 +102,9 @@ export interface SyncQualificationEngine {
   handleChallenge(body: unknown): { ok: boolean; error?: string; answer?: unknown }
   handleVote(body: unknown): { ok: boolean; error?: string; seatingQualified?: boolean }
   handleReject(body: unknown): { ok: boolean; error?: string }
+  handleStandbyReady(body: unknown): { ok: boolean; error?: string }
+  officialStandbyReadyCount(): number
+  officialStandbysReady(): boolean
   claimSync(): boolean
 }
 
@@ -101,6 +117,7 @@ interface PersistedSync {
   pendingChallenge?: ArchiveStateChallengeV1 | null
   pendingFreeze?: ArchiveSyncFreezeV1 | null
   holdClaimed?: boolean
+  standbyReady?: Record<string, ArchiveStandbyReadinessEnvelope>
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -159,6 +176,7 @@ export function createSyncQualificationEngine(options: SyncEngineOptions): SyncQ
   let inventoryCache: { locatorCount: number; value: SyncInventoryV1 } | null = null
   let voteCursor = 0
   let lastQualifiedCatchUpAt = 0
+  let standbyReady: Record<string, ArchiveStandbyReadinessEnvelope> = {}
 
   const persisted = options.store.loadSyncQualificationState() as PersistedSync | null
   if (persisted?.schema === 'DleLabSyncQualificationStateV1') {
@@ -171,6 +189,7 @@ export function createSyncQualificationEngine(options: SyncEngineOptions): SyncQ
     }
     pendingFreeze = persisted.pendingFreeze ?? null
     holdClaimed = persisted.holdClaimed === true
+    standbyReady = parseStandbyReadyMap(persisted.standbyReady)
     if (persisted.phase === 'REJECTED') {
       phase = 'SYNCING'
       rejectReason = null
@@ -215,6 +234,7 @@ export function createSyncQualificationEngine(options: SyncEngineOptions): SyncQ
       pendingChallenge,
       pendingFreeze,
       holdClaimed,
+      standbyReady,
     })
   }
 
@@ -289,6 +309,7 @@ export function createSyncQualificationEngine(options: SyncEngineOptions): SyncQ
       notThirtyDayQualification: true,
     })
     notifyQualified()
+    void gossipOwnStandbyReady()
   }
 
   function returnToSyncing(): void {
@@ -433,6 +454,88 @@ export function createSyncQualificationEngine(options: SyncEngineOptions): SyncQ
   function peerRole(domainId: string): string {
     if (domainId === options.domainId) return options.role
     return options.peers.find((peer) => peer.domainId === domainId)?.role ?? ''
+  }
+
+  function standbyRootsMatch(
+    envelope: ArchiveStandbyReadinessEnvelope,
+    inventory: SyncInventoryV1,
+  ): boolean {
+    return (
+      envelope.groupId === inventory.groupId &&
+      envelope.hostedChainSetRoot === inventory.hostedChainSetRoot &&
+      envelope.lastACRef === inventory.lastACRef &&
+      envelope.membershipRoot === inventory.membershipRoot &&
+      envelope.hashIndexRoot === inventory.hashIndexRoot
+    )
+  }
+
+  function officialStandbyReadyCount(): number {
+    const inventory = inventoryNow()
+    let count = 0
+    for (const [domainId, envelope] of Object.entries(standbyReady)) {
+      if (!isOfficialStandbyRole(domainId, peerRole(domainId))) continue
+      if (isHmacStandbyReady(envelope)) continue
+      if (!verifyEip712StandbyReady(envelope).ok) continue
+      if (envelope.ready !== true) continue
+      if (!standbyRootsMatch(envelope, inventory)) continue
+      count += 1
+    }
+    return count
+  }
+
+  function officialStandbysReady(): boolean {
+    return officialStandbyReadyCount() >= OFFICIAL_STANDBY_COUNT
+  }
+
+  function handleStandbyReady(body: unknown): { ok: boolean; error?: string } {
+    const parsed = parseArchiveStandbyReadiness(body)
+    if (!parsed.ok) return { ok: false, error: parsed.error }
+    if (isHmacStandbyReady(parsed.envelope)) {
+      return { ok: false, error: ERR_SYNC_STANDBY_HMAC_CUTOVER }
+    }
+    const verified = verifyEip712StandbyReady(parsed.envelope)
+    if (!verified.ok) return { ok: false, error: verified.error }
+    if (peerRole(parsed.envelope.domainId) !== 'standby') {
+      return { ok: false, error: ERR_SYNC_STANDBY_ROLE }
+    }
+    if (!standbyRootsMatch(parsed.envelope, inventoryNow())) {
+      return { ok: false, error: ERR_SYNC_STANDBY_ROOT }
+    }
+    standbyReady[parsed.envelope.domainId] = parsed.envelope
+    persist()
+    return { ok: true }
+  }
+
+  async function gossipOwnStandbyReady(): Promise<void> {
+    if (phase !== 'QUALIFIED') return
+    if (!isOfficialStandbyRole(options.domainId, options.role)) return
+    const inventory = inventoryNow()
+    const existing = standbyReady[options.domainId]
+    if (
+      existing !== undefined &&
+      !isHmacStandbyReady(existing) &&
+      verifyEip712StandbyReady(existing).ok &&
+      existing.ready === true &&
+      standbyRootsMatch(existing, inventory)
+    ) {
+      return
+    }
+    const envelope = makeArchiveStandbyReadiness({
+      domainId: options.domainId,
+      groupId: inventory.groupId,
+      hostedChainSetRoot: inventory.hostedChainSetRoot,
+      lastACRef: inventory.lastACRef,
+      membershipRoot: inventory.membershipRoot,
+      hashIndexRoot: inventory.hashIndexRoot,
+      ready: true,
+    })
+    standbyReady[options.domainId] = envelope
+    persist()
+    await Promise.all(
+      options.peers.map((peer) =>
+        postJson(`${peer.url.replace(/\/$/, '')}/sync/standby-ready`, envelope),
+      ),
+    )
   }
 
   function alignedQualifiedCount(): number {
@@ -703,6 +806,7 @@ export function createSyncQualificationEngine(options: SyncEngineOptions): SyncQ
     }
     if (phase === 'QUALIFIED') {
       notifyQualified()
+      await gossipOwnStandbyReady()
       await refreshRoster()
       if (canVote()) {
         const candidate = nextVoteCandidate(['CLAIMED_SYNC'])
@@ -760,6 +864,10 @@ export function createSyncQualificationEngine(options: SyncEngineOptions): SyncQ
         hmacForgeable: false,
         seatingEip712: true,
         challengeEip712: true,
+        standbyReadyEip712: true,
+        officialStandbyReadyCount: officialStandbyReadyCount(),
+        officialStandbysReady: officialStandbysReady(),
+        extraStandbyReadyDoesNotCount: true,
         notL1Settled: true,
         notClRandao: true,
         freezeBeforeBeacon: true,
@@ -840,6 +948,10 @@ export function createSyncQualificationEngine(options: SyncEngineOptions): SyncQ
           hmacForgeable: false,
           seatingEip712: true,
           challengeEip712: true,
+          standbyReadyEip712: true,
+          officialStandbyReadyCount: officialStandbyReadyCount(),
+          officialStandbysReady: officialStandbysReady(),
+          extraStandbyReadyDoesNotCount: true,
           notL1Settled: true,
           notClRandao: true,
           freezeBeforeBeacon: true,
@@ -941,6 +1053,9 @@ export function createSyncQualificationEngine(options: SyncEngineOptions): SyncQ
       adoptCertificate(built as ArchiveSyncQualificationCertificateV1)
       return { ok: true, seatingQualified: true }
     },
+    handleStandbyReady,
+    officialStandbyReadyCount,
+    officialStandbysReady,
     handleReject(body) {
       if (!isRecord(body) || body.schema !== 'ArchiveSyncVoteV1') return { ok: false, error: 'ERR_SYNC_REJECT' }
       if (isHmacSeatingVote(body)) return { ok: false, error: 'ERR_SYNC_HMAC_CUTOVER' }

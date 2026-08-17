@@ -38,6 +38,7 @@ export const ERR_SIGNER_NOT_ACTIVE = 'ERR_SIGNER_NOT_ACTIVE'
 export const ERR_INVALID_QUORUM = 'ERR_INVALID_QUORUM'
 export const ERR_BFT_HMAC_CUTOVER = 'ERR_BFT_HMAC_CUTOVER'
 export const ERR_BFT_VOTE_SIG = 'ERR_BFT_VOTE_SIG'
+export const ERR_BFT_HASH_INDEX_ROOT = 'ERR_BFT_HASH_INDEX_ROOT'
 
 export const ASSET_STATE_PATHS = [
   '/state',
@@ -197,6 +198,7 @@ export interface ArchiveVote {
   step: number
   valueHash: Hex
   membershipRoot: Hex
+  hashIndexRoot: Hex
   prevoteQCRef: Hex
   eip712?: boolean
   hmacForgeable?: boolean
@@ -216,6 +218,7 @@ export interface ArchivePrevoteQc {
   round: number
   valueHash: Hex
   membershipRoot: Hex
+  hashIndexRoot: Hex
   qcRef: Hex
   quorum: number
   signers: string[]
@@ -233,6 +236,7 @@ export interface ArchiveCertificate {
   tipStateRoot: Hex
   prevoteQCRef: Hex
   membershipRoot: Hex
+  hashIndexRoot: Hex
   quorum: number
   signers: string[]
   networked: true

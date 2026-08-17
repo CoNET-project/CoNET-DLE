@@ -22,6 +22,7 @@ import {
   parseArchiveVote,
   type NewChainGenesisBft,
 } from './genesisBft.js'
+import { ERR_NEWCHAIN_STANDBY_NOT_READY } from '../syncQualification/types.js'
 import {
   LAB_VALIDATOR_QUORUM,
   buildLabValidatorQuorum,
@@ -38,6 +39,7 @@ export interface NewChainEngineOptions {
   peers?: BftPeer[]
   enableBft?: boolean
   fetchImpl?: typeof fetch
+  officialStandbysReady?: () => boolean
 }
 
 export interface NewChainEngine {
@@ -236,6 +238,12 @@ export function createNewChainEngine(options: NewChainEngineOptions): NewChainEn
       newchainHmacForgeable: false,
       newchainArchivePending: pending,
       newchainArchiveCertified: certified,
+      ...(options.officialStandbysReady !== undefined
+        ? {
+            newchainOfficialStandbysReady: options.officialStandbysReady(),
+            newchainStandbyReadyEip712: true,
+          }
+        : {}),
     }
   }
 
@@ -265,6 +273,9 @@ export function createNewChainEngine(options: NewChainEngineOptions): NewChainEn
     const existing = records.get(requestId.toLowerCase())
     if (existing !== undefined) {
       return { status: 200, body: acceptBody(existing, true) }
+    }
+    if (options.officialStandbysReady !== undefined && options.officialStandbysReady() === false) {
+      return { status: 409, body: { ok: false, error: ERR_NEWCHAIN_STANDBY_NOT_READY } }
     }
     if (inventoryCatalogFrozen()) {
       return { status: 409, body: { ok: false, error: ERR_INVENTORY_FROZEN, inventoryFrozen: true } }

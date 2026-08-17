@@ -4,6 +4,7 @@ import {
   ARCHIVE_QUORUM,
   CERT_KIND_ARCHIVE,
   CERT_KIND_PREVOTE_QC,
+  ERR_BFT_HASH_INDEX_ROOT,
   ERR_BFT_HMAC_CUTOVER,
   ERR_BFT_VOTE_SIG,
   ERR_INVALID_QUORUM,
@@ -27,6 +28,7 @@ export function topicQcRef(input: {
   kind: number
   valueHash: Hex
   membershipRoot: Hex
+  hashIndexRoot?: Hex
   height: number
   round: number
   prevoteQCRef?: Hex
@@ -37,11 +39,19 @@ export function topicQcRef(input: {
       uintBE(input.kind, 1),
       fromHex(input.valueHash, 32),
       fromHex(input.membershipRoot, 32),
+      fromHex(input.hashIndexRoot ?? ZERO32, 32),
       uintBE(input.height, 8),
       uintBE(input.round, 4),
       fromHex(input.prevoteQCRef ?? ZERO32, 32),
     ),
   )
+}
+
+export function boundHashIndexRootOf(
+  votes: readonly Pick<ArchiveVote, 'hashIndexRoot'>[],
+  liveRoot: Hex,
+): Hex {
+  return (votes[0]?.hashIndexRoot ?? liveRoot) as Hex
 }
 
 export function voteSlotKey(vote: Pick<ArchiveVote, 'domainId' | 'height' | 'round' | 'step'>): string {
@@ -53,6 +63,7 @@ export function acceptVote(input: {
   existing: ArchiveVote | undefined
   activeDomainIds: readonly string[]
   membershipRoot: Hex
+  expectedHashIndexRoot?: Hex
 }): { ok: true; vote: ArchiveVote } | { ok: false; error: string } {
   if (!input.activeDomainIds.includes(input.vote.domainId)) {
     return { ok: false, error: ERR_SIGNER_NOT_ACTIVE }
@@ -66,6 +77,12 @@ export function acceptVote(input: {
   }
   if (isHmacBftVote(input.vote)) return { ok: false, error: ERR_BFT_HMAC_CUTOVER }
   if (!verifyEip712BftVote(input.vote)) return { ok: false, error: ERR_BFT_VOTE_SIG }
+  if (
+    input.expectedHashIndexRoot !== undefined &&
+    input.vote.hashIndexRoot !== input.expectedHashIndexRoot
+  ) {
+    return { ok: false, error: ERR_BFT_HASH_INDEX_ROOT }
+  }
   if (input.existing !== undefined && !votesEqual(input.existing, input.vote)) {
     return { ok: false, error: ERR_WAL_DOUBLE_SIGN }
   }
@@ -79,6 +96,7 @@ export function matchingVotes(input: {
   height: number
   round: number
   membershipRoot: Hex
+  hashIndexRoot?: Hex
   prevoteQCRef?: Hex
 }): ArchiveVote[] {
   return input.votes.filter((vote) => {
@@ -86,6 +104,7 @@ export function matchingVotes(input: {
     if (vote.height !== input.height || vote.round !== input.round) return false
     if (vote.valueHash !== input.valueHash) return false
     if (vote.membershipRoot !== input.membershipRoot) return false
+    if (input.hashIndexRoot !== undefined && vote.hashIndexRoot !== input.hashIndexRoot) return false
     if (input.prevoteQCRef !== undefined && vote.prevoteQCRef !== input.prevoteQCRef) return false
     return true
   })
@@ -110,6 +129,7 @@ export function hasQuorum(signers: readonly string[]): boolean {
 export function buildPrevoteQc(input: {
   valueHash: Hex
   membershipRoot: Hex
+  hashIndexRoot: Hex
   height: number
   round: number
   signers: readonly string[]
@@ -119,6 +139,7 @@ export function buildPrevoteQc(input: {
     kind: CERT_KIND_PREVOTE_QC,
     valueHash: input.valueHash,
     membershipRoot: input.membershipRoot,
+    hashIndexRoot: input.hashIndexRoot,
     height: input.height,
     round: input.round,
   })
@@ -131,6 +152,7 @@ export function buildPrevoteQc(input: {
       round: input.round,
       valueHash: input.valueHash,
       membershipRoot: input.membershipRoot,
+      hashIndexRoot: input.hashIndexRoot,
       qcRef,
       quorum: ARCHIVE_QUORUM,
       signers: [...input.signers].sort(),
@@ -145,6 +167,7 @@ export function buildArchiveCertificate(input: {
   valueHash: Hex
   tipStateRoot: Hex
   membershipRoot: Hex
+  hashIndexRoot: Hex
   height: number
   round: number
   prevoteQCRef: Hex
@@ -162,6 +185,7 @@ export function buildArchiveCertificate(input: {
       tipStateRoot: input.tipStateRoot,
       prevoteQCRef: input.prevoteQCRef,
       membershipRoot: input.membershipRoot,
+      hashIndexRoot: input.hashIndexRoot,
       quorum: ARCHIVE_QUORUM,
       signers: [...input.signers].sort(),
       networked: true,

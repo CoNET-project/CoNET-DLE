@@ -322,6 +322,7 @@ export function parseCertificate(value: unknown): DleCertificateView | null {
     kind: typeof value.kind === 'number' ? value.kind : undefined,
     round: typeof value.round === 'number' ? value.round : undefined,
     prevoteQCRef: typeof value.prevoteQCRef === 'string' ? value.prevoteQCRef : undefined,
+    hashIndexRoot: typeof value.hashIndexRoot === 'string' ? value.hashIndexRoot : undefined,
     labOnly: value.labOnly === true ? true : undefined,
   }
 }

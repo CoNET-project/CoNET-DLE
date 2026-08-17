@@ -64,3 +64,19 @@ export function keccak256(data: Uint8Array): Hex {
 export function keccak256Utf8(value: string): Hex {
   return keccak256(utf8(value))
 }
+
+export function isZero32(value: string | null | undefined): boolean {
+  if (typeof value !== 'string') return true
+  return value.toLowerCase() === ZERO32
+}
+
+/** Missing / null → ZERO32. Invalid present field → null. */
+export function parseOptionalHash32(value: unknown): Hex | null {
+  if (value === undefined || value === null) return ZERO32
+  if (typeof value !== 'string') return null
+  try {
+    return toHex(fromHex(value, 32))
+  } catch {
+    return null
+  }
+}

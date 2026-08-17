@@ -1,9 +1,10 @@
-import { ZERO32, type Hex } from './bytes.js'
+import { parseOptionalHash32, ZERO32, type Hex } from './bytes.js'
 import { labGenesisDepositBundle } from './labCandidate.js'
 import { makeLabBftVote, parseArchiveVote } from './mac.js'
 import { replayDepositBundle } from './modeA.js'
 import {
   acceptVote,
+  boundHashIndexRootOf,
   buildArchiveCertificate,
   buildPrevoteQc,
   hasQuorum,
@@ -31,6 +32,7 @@ import {
 import { indexLabCertificateRoots, indexLabHashObject, labAcLocator, labPrevoteLocator } from '../hashPipe.js'
 import { syntheticTipBlock } from '../jsonrpcFacade.js'
 import type { ArchiveStore } from '../store.js'
+import { hashIndexRootOf } from '../../shared/hashIndexTree.js'
 import { DLE_LAB_CHAIN_NFT_ID, DLE_LAB_GROUP_ID, normalizeHash32 } from '../../shared/hashLookup.js'
 import type { DleCertificateView, DleTipView } from '../../shared/protocol.js'
 
@@ -86,6 +88,8 @@ function parseCertificate(value: unknown): ArchiveCertificate | null {
     return null
   }
   if (!Array.isArray(value.signers) || !value.signers.every((item) => typeof item === 'string')) return null
+  const hashIndexRoot = parseOptionalHash32(value.hashIndexRoot)
+  if (hashIndexRoot === null) return null
   return {
     schema: 'DleLabArchiveCertificateV1',
     kind: CERT_KIND_ARCHIVE,
@@ -95,6 +99,7 @@ function parseCertificate(value: unknown): ArchiveCertificate | null {
     tipStateRoot: value.tipStateRoot as Hex,
     prevoteQCRef: value.prevoteQCRef as Hex,
     membershipRoot: value.membershipRoot as Hex,
+    hashIndexRoot,
     quorum: ARCHIVE_QUORUM,
     signers: value.signers as string[],
     networked: true,
@@ -119,6 +124,8 @@ function parsePrevoteQc(value: unknown): ArchivePrevoteQc | null {
     return null
   }
   if (!Array.isArray(value.signers) || !value.signers.every((item) => typeof item === 'string')) return null
+  const hashIndexRoot = parseOptionalHash32(value.hashIndexRoot)
+  if (hashIndexRoot === null) return null
   return {
     schema: 'DleLabPrevoteQcV1',
     kind: CERT_KIND_PREVOTE_QC,
@@ -126,6 +133,7 @@ function parsePrevoteQc(value: unknown): ArchivePrevoteQc | null {
     round: value.round,
     valueHash: value.valueHash as Hex,
     membershipRoot: value.membershipRoot as Hex,
+    hashIndexRoot,
     qcRef: value.qcRef as Hex,
     quorum: ARCHIVE_QUORUM,
     signers: value.signers as string[],
@@ -194,11 +202,20 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
     return replay.ok ? replay.tipStateRoot : ZERO32
   }
 
+  function liveHashIndexRoot(): Hex {
+    return hashIndexRootOf(options.store.hash.listLocators()) as Hex
+  }
+
+  function boundHashIndexRoot(): Hex {
+    return boundHashIndexRootOf([...votes.values()], liveHashIndexRoot())
+  }
+
   function prevoteTopicRef(): Hex {
     return topicQcRef({
       kind: CERT_KIND_PREVOTE_QC,
       valueHash: valueHash(),
       membershipRoot,
+      hashIndexRoot: boundHashIndexRoot(),
       height: 1,
       round: 0,
     })
@@ -209,6 +226,7 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
       kind: CERT_KIND_ARCHIVE,
       valueHash: valueHash(),
       membershipRoot,
+      hashIndexRoot: boundHashIndexRoot(),
       height: 1,
       round: 0,
       prevoteQCRef,
@@ -224,6 +242,7 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
         height: 1,
         round: 0,
         membershipRoot,
+        hashIndexRoot: boundHashIndexRoot(),
         ...(prevoteQCRef !== undefined ? { prevoteQCRef } : {}),
       }),
       activeDomainIds,
@@ -291,16 +310,20 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
 
   function tryInstallPrevoteQc(): void {
     if (!replay.ok) return
+    if (certificate !== null) return
     const prevoteSigners = signersFor(VOTE_STEP_PREVOTE)
     if (!hasQuorum(prevoteSigners)) return
     const built = buildPrevoteQc({
       valueHash: valueHash(),
       membershipRoot,
+      hashIndexRoot: boundHashIndexRoot(),
       height: 1,
       round: 0,
       signers: prevoteSigners,
     })
-    if (built.ok) installPrevoteQc(built.prevoteQc)
+    if (!built.ok) return
+    if (prevoteQc !== null && prevoteQc.qcRef !== built.prevoteQc.qcRef) return
+    installPrevoteQc(built.prevoteQc)
   }
 
   function installCertificate(next: ArchiveCertificate): void {
@@ -331,6 +354,7 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
 
   function tryAdvance(): void {
     if (!replay.ok) return
+    if (certificate !== null) return
     const prevoteSigners = signersFor(VOTE_STEP_PREVOTE)
     if (hasQuorum(prevoteSigners)) tryInstallPrevoteQc()
     if (hasQuorum(prevoteSigners) && roundState.step === 'PREVOTE') {
@@ -355,6 +379,7 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
         valueHash: valueHash(),
         tipStateRoot: tipStateRoot(),
         membershipRoot,
+        hashIndexRoot: boundHashIndexRoot(),
         height: 1,
         round: 0,
         prevoteQCRef: qcRef,
@@ -376,6 +401,7 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
 
   function addOwnVote(step: number, prevoteQCRef: Hex): void {
     if (role !== 'active' || !replay.ok) return
+    const hashIndexRoot = boundHashIndexRoot()
     const unsigned = {
       domainId: options.domainId,
       height: 1,
@@ -383,11 +409,18 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
       step,
       valueHash: valueHash(),
       membershipRoot,
+      hashIndexRoot,
       prevoteQCRef,
     }
     const vote = makeLabBftVote(unsigned)
     const existing = votes.get(voteSlotKey(vote))
-    const accepted = acceptVote({ vote, existing, activeDomainIds, membershipRoot })
+    const accepted = acceptVote({
+      vote,
+      existing,
+      activeDomainIds,
+      membershipRoot,
+      expectedHashIndexRoot: hashIndexRoot,
+    })
     if (!accepted.ok) return
     votes.set(voteSlotKey(accepted.vote), accepted.vote)
     options.store.appendWal({ type: 'bft-vote', domainId: vote.domainId, step: vote.step })
@@ -398,6 +431,7 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
     if (!replay.ok) return false
     if (candidate.valueHash !== valueHash()) return false
     if (candidate.membershipRoot !== membershipRoot) return false
+    if (candidate.hashIndexRoot !== boundHashIndexRoot()) return false
     if (candidate.signers.some((id) => !activeDomainIds.includes(id))) return false
     if (candidate.signers.length < ARCHIVE_QUORUM) return false
     const precommitSigners = signersFor(VOTE_STEP_PRECOMMIT, candidate.prevoteQCRef)
@@ -414,6 +448,7 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
       existing: votes.get(voteSlotKey(vote)),
       activeDomainIds,
       membershipRoot,
+      expectedHashIndexRoot: boundHashIndexRoot(),
     })
     if (!accepted.ok) return accepted.error
     votes.set(voteSlotKey(accepted.vote), accepted.vote)
@@ -520,6 +555,7 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
         kind: certificate.kind,
         round: certificate.round,
         prevoteQCRef: certificate.prevoteQCRef,
+        hashIndexRoot: certificate.hashIndexRoot,
         labOnly: true,
       },
     }
@@ -575,7 +611,12 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
       }
       if (body.prevoteQc !== undefined && body.prevoteQc !== null) {
         const incoming = parsePrevoteQc(body.prevoteQc)
-        if (incoming !== null && incoming.valueHash === valueHash() && incoming.membershipRoot === membershipRoot) {
+        if (
+          incoming !== null &&
+          incoming.valueHash === valueHash() &&
+          incoming.membershipRoot === membershipRoot &&
+          incoming.hashIndexRoot === boundHashIndexRoot()
+        ) {
           installPrevoteQc(incoming)
         }
       }

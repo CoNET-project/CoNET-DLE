@@ -6,10 +6,13 @@ import assert from 'node:assert/strict'
 import { createHashLookupAdapter, indexLabHashObject, labAcLocator } from '../src/archive/hashPipe.js'
 import { openHashStore } from '../src/archive/hashStore.js'
 import { dispatchArchiveJsonRpc } from '../src/archive/jsonrpcFacade.js'
+import { ZERO32 } from '../src/shared/bytes.js'
 import {
   emptyHashIndexRoot,
+  hashIndexCommittedInAc,
   hashIndexLeafHash,
   hashIndexRootOf,
+  hashIndexRootView,
   proveHashIndex,
   verifyHashIndexProof,
 } from '../src/shared/hashIndexTree.js'
@@ -155,5 +158,15 @@ test('hot locate stays on KV and does not open the tree', async () => {
     assert.equal(body.kind, 'non-inclusion')
     assert.equal(body.planeWideNull, false)
     assert.equal(body.notHotGet, true)
+    assert.equal((rpc.result as { committedInAc?: boolean }).committedInAc, false)
   }
+})
+
+test('tree committedInAc stays false; overlay follows a non-zero AC root', () => {
+  assert.equal(hashIndexRootView([]).committedInAc, false)
+  assert.equal(hashIndexCommittedInAc(null), false)
+  assert.equal(hashIndexCommittedInAc({}), false)
+  assert.equal(hashIndexCommittedInAc({ hashIndexRoot: ZERO32 }), false)
+  assert.equal(hashIndexCommittedInAc({ hashIndexRoot: emptyHashIndexRoot() }), true)
+  assert.equal(hashIndexCommittedInAc({ hashIndexRoot: first }), true)
 })

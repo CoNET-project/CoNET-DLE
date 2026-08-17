@@ -11,20 +11,25 @@ import {
   isHmacBftVote,
   makeHmacLabVote,
   makeLabBftVote,
+  parseArchiveVote,
   recoverLabBftVoteSigner,
   verifyEip712BftVote,
 } from '../src/archive/bft/mac.js'
+import { emptyHashIndexRoot, hashIndexCommittedInAc } from '../src/shared/hashIndexTree.js'
 import {
   acceptVote,
-  hasQuorum,
   matchingVotes,
   membershipRootOf,
+  topicQcRef,
   uniqueActiveSigners,
+  hasQuorum,
 } from '../src/archive/bft/quorum.js'
 import { applyArchiveRoundInput, createEmptyRoundState } from '../src/archive/bft/tendermint.js'
 import {
   ARCHIVE_QUORUM,
   CERT_KIND_ARCHIVE,
+  CERT_KIND_PREVOTE_QC,
+  ERR_BFT_HASH_INDEX_ROOT,
   ERR_BFT_HMAC_CUTOVER,
   ERR_BFT_VOTE_SIG,
   ERR_WAL_DOUBLE_SIGN,
@@ -47,6 +52,7 @@ function voteOf(domainId: string, step: number, valueHash = VALUE_A): ArchiveVot
     step,
     valueHash,
     membershipRoot: membershipRootOf(ACTIVE),
+    hashIndexRoot: ZERO32,
     prevoteQCRef: step === VOTE_STEP_PRECOMMIT ? QC_REF : ZERO32,
   }
   return makeLabBftVote(unsigned)
@@ -171,6 +177,7 @@ test('P16 cutover rejects HMAC and unsigned BFT votes', () => {
     step: VOTE_STEP_PREVOTE,
     valueHash: VALUE_A,
     membershipRoot: membershipRootOf(ACTIVE),
+    hashIndexRoot: ZERO32,
     prevoteQCRef: ZERO32,
   }
   const hmac = makeHmacLabVote(unsigned)
@@ -248,6 +255,7 @@ test('P16 keep-only restores a disk HMAC certificate and labels status EIP-712',
           step: VOTE_STEP_PREVOTE,
           valueHash: VALUE_A,
           membershipRoot: membershipRootOf(ACTIVE),
+          hashIndexRoot: ZERO32,
           prevoteQCRef: ZERO32,
         }),
       ),
@@ -282,6 +290,163 @@ test('P16 keep-only restores a disk HMAC certificate and labels status EIP-712',
     assert.equal(status.hmacForgeable, false)
     assert.equal(status.bftEip712, true)
     assert.equal(status.prevoteCount, 0)
+    assert.equal(engine.certificate()?.hashIndexRoot, ZERO32)
+    assert.equal(hashIndexCommittedInAc(engine.certificate()), false)
+    assert.equal(engine.facadeViews().certificate.hashIndexRoot, ZERO32)
+    engine.stop()
+  } finally {
+    await rm(dataDir, { recursive: true, force: true })
+  }
+})
+
+test('P21 HMAC cutover still wins over a wrong expected hashIndexRoot', () => {
+  const unsigned = {
+    domainId: 'fd-01',
+    height: 1,
+    round: 0,
+    step: VOTE_STEP_PREVOTE,
+    valueHash: VALUE_A,
+    membershipRoot: membershipRootOf(ACTIVE),
+    hashIndexRoot: ZERO32,
+    prevoteQCRef: ZERO32,
+  }
+  const hmac = makeHmacLabVote(unsigned)
+  const accepted = acceptVote({
+    vote: hmac,
+    existing: undefined,
+    activeDomainIds: ACTIVE,
+    membershipRoot: unsigned.membershipRoot,
+    expectedHashIndexRoot: VALUE_A,
+  })
+  assert.equal(accepted.ok, false)
+  if (!accepted.ok) assert.equal(accepted.error, ERR_BFT_HMAC_CUTOVER)
+})
+
+test('P21 bad signature is reported before hashIndexRoot mismatch', () => {
+  const vote = voteOf('fd-01', VOTE_STEP_PREVOTE)
+  const tampered = {
+    ...vote,
+    hashIndexRoot: VALUE_A,
+    signature: `0x${'11'.repeat(65)}` as typeof vote.signature,
+  }
+  const accepted = acceptVote({
+    vote: tampered,
+    existing: undefined,
+    activeDomainIds: ACTIVE,
+    membershipRoot: membershipRootOf(ACTIVE),
+    expectedHashIndexRoot: ZERO32,
+  })
+  assert.equal(accepted.ok, false)
+  if (!accepted.ok) assert.equal(accepted.error, ERR_BFT_VOTE_SIG)
+})
+
+test('P21 wrong expected hashIndexRoot is ERR_BFT_HASH_INDEX_ROOT', () => {
+  const vote = voteOf('fd-01', VOTE_STEP_PREVOTE)
+  const accepted = acceptVote({
+    vote,
+    existing: undefined,
+    activeDomainIds: ACTIVE,
+    membershipRoot: membershipRootOf(ACTIVE),
+    expectedHashIndexRoot: VALUE_A,
+  })
+  assert.equal(accepted.ok, false)
+  if (!accepted.ok) assert.equal(accepted.error, ERR_BFT_HASH_INDEX_ROOT)
+})
+
+test('P21 different hashIndexRoot values produce different topicQcRef', () => {
+  const base = {
+    kind: CERT_KIND_PREVOTE_QC,
+    valueHash: VALUE_A,
+    membershipRoot: membershipRootOf(ACTIVE),
+    height: 1,
+    round: 0,
+  }
+  assert.notEqual(topicQcRef({ ...base, hashIndexRoot: ZERO32 }), topicQcRef({ ...base, hashIndexRoot: VALUE_A }))
+})
+
+test('P21 missing vote hashIndexRoot parses as ZERO32; invalid present field fails', () => {
+  const vote = voteOf('fd-03', VOTE_STEP_PREVOTE)
+  const { hashIndexRoot: _omitted, ...withoutRoot } = vote
+  const parsed = parseArchiveVote(withoutRoot)
+  assert.equal(parsed?.hashIndexRoot, ZERO32)
+  assert.equal(parseArchiveVote({ ...vote, hashIndexRoot: '0xzz' }), null)
+})
+
+test('P21 matchingVotes filters on hashIndexRoot when provided', () => {
+  const zero = voteOf('fd-01', VOTE_STEP_PREVOTE)
+  const other = makeLabBftVote({
+    domainId: 'fd-02',
+    height: 1,
+    round: 0,
+    step: VOTE_STEP_PREVOTE,
+    valueHash: VALUE_A,
+    membershipRoot: membershipRootOf(ACTIVE),
+    hashIndexRoot: VALUE_A,
+    prevoteQCRef: ZERO32,
+  })
+  const root = membershipRootOf(ACTIVE)
+  assert.equal(
+    matchingVotes({
+      votes: [zero, other],
+      step: VOTE_STEP_PREVOTE,
+      valueHash: VALUE_A,
+      height: 1,
+      round: 0,
+      membershipRoot: root,
+      hashIndexRoot: ZERO32,
+    }).length,
+    1,
+  )
+  assert.equal(
+    matchingVotes({
+      votes: [zero, other],
+      step: VOTE_STEP_PREVOTE,
+      valueHash: VALUE_A,
+      height: 1,
+      round: 0,
+      membershipRoot: root,
+    }).length,
+    2,
+  )
+})
+
+test('P21 persist AC with emptyHashIndexRoot exposes overlay true', async () => {
+  const dataDir = await mkdtemp(join(tmpdir(), 'dle-p21-bft-'))
+  const emptyRoot = emptyHashIndexRoot()
+  try {
+    const store = openArchiveStore(dataDir)
+    store.persistBftState({
+      schema: 'DleLabBftStateV1',
+      votes: [],
+      certificate: {
+        schema: 'DleLabArchiveCertificateV1',
+        kind: CERT_KIND_ARCHIVE,
+        height: 1,
+        round: 0,
+        valueHash: VALUE_A,
+        tipStateRoot: VALUE_B,
+        prevoteQCRef: QC_REF,
+        membershipRoot: membershipRootOf(ACTIVE),
+        hashIndexRoot: emptyRoot,
+        quorum: ARCHIVE_QUORUM,
+        signers: ACTIVE.slice(0, 4),
+        networked: true,
+        modeA: true,
+        labOnly: true,
+        note: 'p21 empty hash index ac',
+      },
+      prevoteQc: null,
+    })
+    const engine = createArchiveBftEngine({
+      domainId: 'fd-01',
+      role: 'active',
+      peers: [],
+      store,
+    })
+    assert.equal(engine.certificate()?.hashIndexRoot, emptyRoot)
+    assert.notEqual(emptyRoot, ZERO32)
+    assert.equal(hashIndexCommittedInAc(engine.certificate()), true)
+    assert.equal(engine.facadeViews().certificate.hashIndexRoot, emptyRoot)
     engine.stop()
   } finally {
     await rm(dataDir, { recursive: true, force: true })

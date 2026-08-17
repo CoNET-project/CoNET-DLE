@@ -1,11 +1,14 @@
 /** Per-new-chain Q_A=4/5. Isolated from NFT 42 `/bft/message` and `bft-state.json`. */
 
 import { ZERO32, type Hex } from '../../shared/bytes.js'
+import { hashIndexRootOf } from '../../shared/hashIndexTree.js'
 import { canonicalGroupId, normalizeHash32 } from '../../shared/hashLookup.js'
 import type { LabRouteTable } from '../../shared/labRoute.js'
+import { parseOptionalHash32 } from '../bft/bytes.js'
 import { makeLabBftVote, parseArchiveVote, votesEqual } from '../bft/mac.js'
 import {
   acceptVote,
+  boundHashIndexRootOf,
   buildArchiveCertificate,
   buildPrevoteQc,
   hasQuorum,
@@ -124,6 +127,8 @@ export function parseArchiveCertificate(value: unknown): ArchiveCertificate | nu
     return null
   }
   if (!Array.isArray(value.signers) || !value.signers.every((item) => typeof item === 'string')) return null
+  const hashIndexRoot = parseOptionalHash32(value.hashIndexRoot)
+  if (hashIndexRoot === null) return null
   return {
     schema: 'DleLabArchiveCertificateV1',
     kind: CERT_KIND_ARCHIVE,
@@ -133,6 +138,7 @@ export function parseArchiveCertificate(value: unknown): ArchiveCertificate | nu
     tipStateRoot: value.tipStateRoot as Hex,
     prevoteQCRef: value.prevoteQCRef as Hex,
     membershipRoot: value.membershipRoot as Hex,
+    hashIndexRoot,
     quorum: ARCHIVE_QUORUM,
     signers: value.signers as string[],
     networked: true,
@@ -155,6 +161,8 @@ export function parseArchivePrevoteQc(value: unknown): ArchivePrevoteQc | null {
     return null
   }
   if (!Array.isArray(value.signers) || !value.signers.every((item) => typeof item === 'string')) return null
+  const hashIndexRoot = parseOptionalHash32(value.hashIndexRoot)
+  if (hashIndexRoot === null) return null
   return {
     schema: 'DleLabPrevoteQcV1',
     kind: CERT_KIND_PREVOTE_QC,
@@ -162,6 +170,7 @@ export function parseArchivePrevoteQc(value: unknown): ArchivePrevoteQc | null {
     round: value.round,
     valueHash: value.valueHash as Hex,
     membershipRoot: value.membershipRoot as Hex,
+    hashIndexRoot,
     qcRef: value.qcRef as Hex,
     quorum: ARCHIVE_QUORUM,
     signers: value.signers as string[],
@@ -201,11 +210,20 @@ export function createNewChainGenesisBft(options: NewChainGenesisBftOptions): Ne
     options.onPersist?.(snapshotOf(topic))
   }
 
+  function liveHashIndexRoot(): Hex {
+    return hashIndexRootOf(options.store.hash.listLocators()) as Hex
+  }
+
+  function boundHashIndexRoot(topic: TopicState): Hex {
+    return boundHashIndexRootOf([...topic.votes.values()], liveHashIndexRoot())
+  }
+
   function prevoteTopicRef(topic: TopicState): Hex {
     return topicQcRef({
       kind: CERT_KIND_PREVOTE_QC,
       valueHash: topic.valueHash,
       membershipRoot,
+      hashIndexRoot: boundHashIndexRoot(topic),
       height: 1,
       round: 0,
     })
@@ -220,6 +238,7 @@ export function createNewChainGenesisBft(options: NewChainGenesisBftOptions): Ne
         height: 1,
         round: 0,
         membershipRoot,
+        hashIndexRoot: boundHashIndexRoot(topic),
         ...(prevoteQCRef !== undefined ? { prevoteQCRef } : {}),
       }),
       activeDomainIds,
@@ -312,6 +331,7 @@ export function createNewChainGenesisBft(options: NewChainGenesisBftOptions): Ne
 
   function addOwnVote(topic: TopicState, step: number, prevoteQCRef: Hex): void {
     if (role !== 'active') return
+    const hashIndexRoot = boundHashIndexRoot(topic)
     const unsigned = {
       domainId: options.domainId,
       height: 1,
@@ -319,6 +339,7 @@ export function createNewChainGenesisBft(options: NewChainGenesisBftOptions): Ne
       step,
       valueHash: topic.valueHash,
       membershipRoot,
+      hashIndexRoot,
       prevoteQCRef,
     }
     const vote = makeLabBftVote(unsigned)
@@ -327,6 +348,7 @@ export function createNewChainGenesisBft(options: NewChainGenesisBftOptions): Ne
       existing: topic.votes.get(voteSlotKey(vote)),
       activeDomainIds,
       membershipRoot,
+      expectedHashIndexRoot: hashIndexRoot,
     })
     if (!accepted.ok) return
     topic.votes.set(voteSlotKey(accepted.vote), accepted.vote)
@@ -334,16 +356,22 @@ export function createNewChainGenesisBft(options: NewChainGenesisBftOptions): Ne
   }
 
   function tryAdvance(topic: TopicState): void {
+    if (topic.certificate !== null) return
     const prevoteSigners = signersFor(topic, VOTE_STEP_PREVOTE)
     if (hasQuorum(prevoteSigners)) {
       const built = buildPrevoteQc({
         valueHash: topic.valueHash,
         membershipRoot,
+        hashIndexRoot: boundHashIndexRoot(topic),
         height: 1,
         round: 0,
         signers: prevoteSigners,
       })
-      if (built.ok) installPrevoteQc(topic, built.prevoteQc)
+      if (built.ok) {
+        if (topic.prevoteQc === null || topic.prevoteQc.qcRef === built.prevoteQc.qcRef) {
+          installPrevoteQc(topic, built.prevoteQc)
+        }
+      }
       if (topic.roundState.step === 'PREVOTE') {
         const qcRef = prevoteTopicRef(topic)
         const transition = applyArchiveRoundInput(topic.roundState, {
@@ -367,6 +395,7 @@ export function createNewChainGenesisBft(options: NewChainGenesisBftOptions): Ne
         valueHash: topic.valueHash,
         tipStateRoot: topic.tipStateRoot,
         membershipRoot,
+        hashIndexRoot: boundHashIndexRoot(topic),
         height: 1,
         round: 0,
         prevoteQCRef: qcRef,
@@ -381,6 +410,7 @@ export function createNewChainGenesisBft(options: NewChainGenesisBftOptions): Ne
               kind: CERT_KIND_ARCHIVE,
               valueHash: topic.valueHash,
               membershipRoot,
+              hashIndexRoot: boundHashIndexRoot(topic),
               height: 1,
               round: 0,
               prevoteQCRef: qcRef,
@@ -417,6 +447,7 @@ export function createNewChainGenesisBft(options: NewChainGenesisBftOptions): Ne
     if (candidate.valueHash !== topic.valueHash) return false
     if (candidate.tipStateRoot !== topic.tipStateRoot) return false
     if (candidate.membershipRoot !== membershipRoot) return false
+    if (candidate.hashIndexRoot !== boundHashIndexRoot(topic)) return false
     if (candidate.signers.some((id) => !activeDomainIds.includes(id))) return false
     if (candidate.signers.length < ARCHIVE_QUORUM) return false
     const precommitSigners = signersFor(topic, VOTE_STEP_PRECOMMIT, candidate.prevoteQCRef)
@@ -434,6 +465,7 @@ export function createNewChainGenesisBft(options: NewChainGenesisBftOptions): Ne
       existing: topic.votes.get(voteSlotKey(vote)),
       activeDomainIds,
       membershipRoot,
+      expectedHashIndexRoot: boundHashIndexRoot(topic),
     })
     if (!accepted.ok) return accepted.error
     const key = voteSlotKey(accepted.vote)
@@ -599,7 +631,8 @@ export function createNewChainGenesisBft(options: NewChainGenesisBftOptions): Ne
           if (
             incoming !== null &&
             incoming.valueHash === topic.valueHash &&
-            incoming.membershipRoot === membershipRoot
+            incoming.membershipRoot === membershipRoot &&
+            incoming.hashIndexRoot === boundHashIndexRoot(topic)
           ) {
             installPrevoteQc(topic, incoming)
           }

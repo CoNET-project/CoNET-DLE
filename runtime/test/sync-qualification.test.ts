@@ -508,6 +508,9 @@ function fakeFetch(nodes: Map<string, { engine: SyncQualificationEngine; store: 
     if (url.pathname === '/sync/reject') {
       return Response.json(node.engine.handleReject(JSON.parse(String(init?.body ?? '{}'))))
     }
+    if (url.pathname === '/sync/standby-ready') {
+      return Response.json(node.engine.handleStandbyReady(JSON.parse(String(init?.body ?? '{}'))))
+    }
     if (url.pathname === '/rpc') {
       const rpc = JSON.parse(String(init?.body ?? '{}')) as { method?: string; params?: string[] }
       const object = getObjectLocal(node.store.hash, rpc.params?.[0] ?? '', rpc.params?.[1] ?? '')

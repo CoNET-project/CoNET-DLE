@@ -72,3 +72,19 @@ export function bytesToBigInt(bytes: Uint8Array): bigint {
   for (const byte of bytes) n = (n << 8n) | BigInt(byte)
   return n
 }
+
+export function isZero32(value: string | null | undefined): boolean {
+  if (typeof value !== 'string') return true
+  return value.toLowerCase() === ZERO32
+}
+
+/** Missing / null → ZERO32. Invalid present field → null. */
+export function parseOptionalHash32(value: unknown): Hex | null {
+  if (value === undefined || value === null) return ZERO32
+  if (typeof value !== 'string') return null
+  try {
+    return toHex(fromHex(value, 32))
+  } catch {
+    return null
+  }
+}

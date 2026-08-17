@@ -1,4 +1,4 @@
-import { concatBytes, fromHex, keccak256, keccak256Bytes, toHex, uintBE, utf8 } from './bytes.js'
+import { concatBytes, fromHex, keccak256, keccak256Bytes, toHex, uintBE, utf8, ZERO32 } from './bytes.js'
 import {
   DLE_LAB_GROUP_ID,
   canonicalGroupId,
@@ -222,6 +222,15 @@ export function hashIndexRootView(
     hashIndexRoot: hashIndexRootOf(locators),
     leafCount: locators.length,
   }
+}
+
+/** Lab overlay only. Tree views stay `committedInAc: false`. True when AC carries a non-zero bound root. */
+export function hashIndexCommittedInAc(
+  certificate: { hashIndexRoot?: string } | null | undefined,
+): boolean {
+  const root = certificate?.hashIndexRoot
+  if (typeof root !== 'string') return false
+  return root.toLowerCase() !== ZERO32
 }
 
 function openAt(

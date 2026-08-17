@@ -1,10 +1,12 @@
-export { keccak256, keccak256Utf8, ZERO20, ZERO32, type Hex } from './bytes.js'
+export { keccak256, keccak256Utf8, isZero32, parseOptionalHash32, ZERO20, ZERO32, type Hex } from './bytes.js'
 export { createArchiveBftEngine, type ArchiveBftEngine, type ArchiveBftOptions } from './engine.js'
 export { labGenesisDepositBundle } from './labCandidate.js'
 export { replayDepositBundle, replayModeA } from './modeA.js'
 export {
   acceptVote,
+  boundHashIndexRootOf,
   buildArchiveCertificate,
+  buildPrevoteQc,
   hasQuorum,
   matchingVotes,
   membershipRootOf,
@@ -33,6 +35,7 @@ export {
   ERR_TRADE_ESCROW_CUSTODY,
   ERR_TRADE_L1_NOT_FOUND,
   ERR_TRADE_SELLER_ORDER_MISMATCH,
+  ERR_BFT_HASH_INDEX_ROOT,
   ERR_BFT_HMAC_CUTOVER,
   ERR_BFT_VOTE_SIG,
   ERR_WAL_DOUBLE_SIGN,

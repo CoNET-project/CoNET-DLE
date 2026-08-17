@@ -35,6 +35,7 @@ export interface DleCertificateView {
   kind?: number
   round?: number
   prevoteQCRef?: string
+  hashIndexRoot?: string
   labOnly?: boolean
 }
 

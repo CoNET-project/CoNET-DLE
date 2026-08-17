@@ -6,7 +6,7 @@ import {
   signArchiveBftVote,
   type ArchiveBftVoteTyped,
 } from '../syncQualification/eip712.js'
-import { concatBytes, fromHex, toHex, uintBE, utf8, type Hex } from './bytes.js'
+import { concatBytes, fromHex, parseOptionalHash32, toHex, uintBE, utf8, type Hex } from './bytes.js'
 import type { ArchiveVote } from './types.js'
 
 export type ArchiveBftVoteUnsigned = {
@@ -16,6 +16,7 @@ export type ArchiveBftVoteUnsigned = {
   step: number
   valueHash: Hex
   membershipRoot: Hex
+  hashIndexRoot: Hex
   prevoteQCRef: Hex
 }
 
@@ -36,6 +37,7 @@ export function voteCanonicalBytes(vote: ArchiveBftVoteUnsigned): Uint8Array {
     uintBE(vote.step, 1),
     utf8(vote.domainId),
     fromHex(vote.membershipRoot, 32),
+    fromHex(vote.hashIndexRoot, 32),
     fromHex(vote.prevoteQCRef, 32),
   )
 }
@@ -73,6 +75,7 @@ export function archiveBftVoteTyped(vote: ArchiveBftVoteUnsigned): ArchiveBftVot
     round: vote.round,
     step: vote.step,
     membershipRoot: vote.membershipRoot,
+    hashIndexRoot: vote.hashIndexRoot,
     prevoteQCRef: vote.prevoteQCRef,
   }
 }
@@ -126,6 +129,7 @@ export function votesEqual(left: ArchiveVote, right: ArchiveVote): boolean {
     left.step === right.step &&
     left.valueHash === right.valueHash &&
     left.membershipRoot === right.membershipRoot &&
+    left.hashIndexRoot === right.hashIndexRoot &&
     left.prevoteQCRef === right.prevoteQCRef &&
     (left.signature ?? '') === (right.signature ?? '') &&
     (left.signer ?? '') === (right.signer ?? '') &&
@@ -146,6 +150,8 @@ export function parseArchiveVote(value: unknown): ArchiveVote | null {
   ) {
     return null
   }
+  const hashIndexRoot = parseOptionalHash32(value.hashIndexRoot)
+  if (hashIndexRoot === null) return null
   const hasMac = typeof value.mac === 'string'
   const hasSig = typeof value.signature === 'string' && typeof value.signer === 'string'
   if (!hasMac && !hasSig) return null
@@ -157,6 +163,7 @@ export function parseArchiveVote(value: unknown): ArchiveVote | null {
     step: value.step,
     valueHash: value.valueHash as Hex,
     membershipRoot: value.membershipRoot as Hex,
+    hashIndexRoot,
     prevoteQCRef: value.prevoteQCRef as Hex,
   }
   if (typeof value.eip712 === 'boolean') vote.eip712 = value.eip712

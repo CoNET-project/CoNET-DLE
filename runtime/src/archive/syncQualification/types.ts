@@ -19,6 +19,25 @@ export const ERR_SYNC_CHALLENGE_HMAC_CUTOVER = 'ERR_SYNC_CHALLENGE_HMAC_CUTOVER'
 export const ERR_SYNC_CHALLENGE_SIG = 'ERR_SYNC_CHALLENGE_SIG'
 export const ERR_SYNC_CHALLENGE_SAMPLES = 'ERR_SYNC_CHALLENGE_SAMPLES'
 
+/** Official G1 standbys that count toward readiness (not extra `fd-08`). */
+export const OFFICIAL_STANDBY_COUNT = 2
+export const EXTRA_STANDBY_DOMAIN_ID = 'fd-08-hosthatch-hk1'
+
+export const ERR_SYNC_STANDBY = 'ERR_SYNC_STANDBY'
+export const ERR_SYNC_STANDBY_HMAC_CUTOVER = 'ERR_SYNC_STANDBY_HMAC_CUTOVER'
+export const ERR_SYNC_STANDBY_SIG = 'ERR_SYNC_STANDBY_SIG'
+export const ERR_SYNC_STANDBY_ROOT = 'ERR_SYNC_STANDBY_ROOT'
+export const ERR_SYNC_STANDBY_ROLE = 'ERR_SYNC_STANDBY_ROLE'
+export const ERR_NEWCHAIN_STANDBY_NOT_READY = 'ERR_NEWCHAIN_STANDBY_NOT_READY'
+
+export function isExtraStandby(domainId: string): boolean {
+  return domainId === EXTRA_STANDBY_DOMAIN_ID || domainId === 'fd-08' || domainId.startsWith('fd-08-')
+}
+
+export function isOfficialStandbyRole(domainId: string, role: string): boolean {
+  return role === 'standby' && !isExtraStandby(domainId)
+}
+
 export type SyncPhase =
   | 'SYNCING'
   | 'CLAIMED_SYNC'
@@ -252,7 +271,50 @@ export interface SyncStatusV1 {
   rejectReason: string | null
   certificate: ArchiveSyncQualificationCertificateV1 | null
   pendingChallenge: ArchiveStateChallengeV1 | null
+  standbyReadyEip712: true
+  officialStandbyReadyCount: number
+  officialStandbysReady: boolean
+  extraStandbyReadyDoesNotCount: true
 }
+
+export interface ArchiveStandbyReadinessV1 {
+  schema: 'ArchiveStandbyReadinessV1'
+  labOnly: true
+  eip712: true
+  hmacForgeable: false
+  notProductionSecp256k1: true
+  notProductionOperatorKey: true
+  labDeterministicSeatingKey: true
+  notL1Settled: true
+  notThirtyDayQualification: true
+  domainId: string
+  groupId: string
+  hostedChainSetRoot: Hex
+  lastACRef: Hex
+  membershipRoot: Hex
+  hashIndexRoot: Hex
+  ready: boolean
+  signer: string
+  signature: Hex
+}
+
+/** Pre-P22 HMAC envelope. After cutover, ingest rejects this shape. */
+export interface ArchiveStandbyHmacReadinessV1 {
+  schema: 'ArchiveStandbyReadinessV1'
+  labOnly: true
+  hmacForgeable: true
+  eip712?: false
+  domainId: string
+  groupId: string
+  hostedChainSetRoot: Hex
+  lastACRef: Hex
+  membershipRoot: Hex
+  hashIndexRoot: Hex
+  ready: boolean
+  mac: Hex
+}
+
+export type ArchiveStandbyReadinessEnvelope = ArchiveStandbyReadinessV1 | ArchiveStandbyHmacReadinessV1
 
 export interface SyncRosterRowV1 {
   domainId: string

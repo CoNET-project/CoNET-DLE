@@ -34,7 +34,7 @@ Do **not** put EIP-155 `0x44c45` in `groupId` fields.
 - SelectionLog is not AC and does not change Mode A `valueHash`
 - Duplicate hooks rejected (anti-hoard)
 - Public explorer nginx must **not** expose `POST /ondemand/hook` or freeze
-- After P11: **P12–P20 landed** (engine + tests). P17 replaced **attests only**. **P18** cut over P6 \(Q_V\) to EIP-712 and did **not** replace the on-demand lab beacon or gossip wait-hook. **P19** cut over on-demand beacon to freeze-then-bind. **P20** cut over wait-hook honesty (not production DePIN gossip). Do not start `pilotStartedAt`. Do **not** paint `ondemandEip712` / `endorsed` / `ondemandLabBeaconAfterFreeze` / `ondemandHookNotGossip` as production.
+- After P11: **P12–P22 landed** (engine + tests). P17 replaced **attests only**. **P18** cut over P6 \(Q_V\) to EIP-712 and did **not** replace the on-demand lab beacon or gossip wait-hook. **P19** cut over on-demand beacon to freeze-then-bind. **P20** cut over wait-hook honesty (not production DePIN gossip). **P21** binds `hashIndexRoot` into lab BFT and did **not** change on-demand. **P22** lands official standby readiness EIP-712 and did **not** change on-demand. **Next (not landed):** P23 live keep-deploy + evidence, then P24 `node.ts` standby gate, then P25 Explorer overlays. Do not start `pilotStartedAt`. Do **not** paint `ondemandEip712` / `endorsed` / `ondemandLabBeaconAfterFreeze` / `ondemandHookNotGossip` / `hashIndexCommittedInAc` / `standbyReadyEip712` / `officialStandbysReady` as production.
 
 ## Related
 

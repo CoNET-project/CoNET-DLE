@@ -3,9 +3,10 @@ import { keccak256Utf8, type Hex } from '../../shared/bytes.js'
 
 /**
  * Deployed `ArchiveCertificateVerifierV1` proxy on CoNET L1 (224422).
- * P12 / P15 / P16 / P17 / P18 bind seating, challenge, BFT vote, on-demand
- * attest, and Q_V typed-data to this `verifyingContract` only. It does **not**
- * call L1, upgrade the verifier, or settle MembershipCheckpoint.
+ * P12 / P15 / P16 / P17 / P18 / P22 bind seating, challenge, BFT vote, on-demand
+ * attest, Q_V, and official standby readiness typed-data to this
+ * `verifyingContract` only. It does **not** call L1, upgrade the verifier, or
+ * settle MembershipCheckpoint.
  */
 export const ARCHIVE_CERTIFICATE_VERIFIER_V1 = '0xdA06E6d06eB2816795102B18171a079E3bEA948f'
 
@@ -52,7 +53,7 @@ export const ARCHIVE_STATE_CHALLENGE_TYPES = {
   ],
 }
 
-/** P16: BFT AC vote. Typed data does not include `domainId`. */
+/** P16 / P21: BFT AC vote. Typed data does not include `domainId`. */
 export const ARCHIVE_BFT_VOTE_TYPES = {
   ArchiveBftVote: [
     { name: 'valueHash', type: 'bytes32' },
@@ -60,6 +61,7 @@ export const ARCHIVE_BFT_VOTE_TYPES = {
     { name: 'round', type: 'uint32' },
     { name: 'step', type: 'uint8' },
     { name: 'membershipRoot', type: 'bytes32' },
+    { name: 'hashIndexRoot', type: 'bytes32' },
     { name: 'prevoteQCRef', type: 'bytes32' },
   ],
 }
@@ -88,12 +90,28 @@ export const ARCHIVE_VALIDATOR_QUORUM_ATTEST_TYPES = {
   ],
 }
 
+/**
+ * P22: official standby readiness. Typed data does not include `domainId`.
+ * Identity is `recoverAddress` + envelope `domainId`. `groupId` is `string`.
+ */
+export const ARCHIVE_STANDBY_READINESS_TYPES = {
+  ArchiveStandbyReadiness: [
+    { name: 'groupId', type: 'string' },
+    { name: 'hostedChainSetRoot', type: 'bytes32' },
+    { name: 'lastACRef', type: 'bytes32' },
+    { name: 'membershipRoot', type: 'bytes32' },
+    { name: 'hashIndexRoot', type: 'bytes32' },
+    { name: 'ready', type: 'bool' },
+  ],
+}
+
 export type ArchiveBftVoteTyped = {
   valueHash: Hex
   height: number
   round: number
   step: number
   membershipRoot: Hex
+  hashIndexRoot: Hex
   prevoteQCRef: Hex
 }
 
@@ -109,6 +127,15 @@ export type ArchiveValidatorQuorumAttestTyped = {
   valueHash: Hex
   tipStateRoot: Hex
   bodyCommitment: Hex
+}
+
+export type ArchiveStandbyReadinessTyped = {
+  groupId: string
+  hostedChainSetRoot: Hex
+  lastACRef: Hex
+  membershipRoot: Hex
+  hashIndexRoot: Hex
+  ready: boolean
 }
 
 export type ArchiveStateChallengeTyped = {
@@ -221,6 +248,7 @@ export function archiveBftVoteMessage(input: ArchiveBftVoteTyped): ArchiveBftVot
     round: input.round,
     step: input.step,
     membershipRoot: input.membershipRoot,
+    hashIndexRoot: input.hashIndexRoot,
     prevoteQCRef: input.prevoteQCRef,
   }
 }
@@ -305,6 +333,41 @@ export function recoverArchiveValidatorQuorumAttest(
       ARCHIVE_EIP712_DOMAIN,
       ARCHIVE_VALIDATOR_QUORUM_ATTEST_TYPES,
       archiveValidatorQuorumAttestMessage(message),
+      signature,
+    ),
+  )
+}
+
+export function archiveStandbyReadinessMessage(input: ArchiveStandbyReadinessTyped): ArchiveStandbyReadinessTyped {
+  return {
+    groupId: input.groupId,
+    hostedChainSetRoot: input.hostedChainSetRoot,
+    lastACRef: input.lastACRef,
+    membershipRoot: input.membershipRoot,
+    hashIndexRoot: input.hashIndexRoot,
+    ready: input.ready,
+  }
+}
+
+export function hashArchiveStandbyReadiness(message: ArchiveStandbyReadinessTyped): Hex {
+  return TypedDataEncoder.hash(
+    ARCHIVE_EIP712_DOMAIN,
+    ARCHIVE_STANDBY_READINESS_TYPES,
+    archiveStandbyReadinessMessage(message),
+  ) as Hex
+}
+
+export function signArchiveStandbyReadiness(domainId: string, message: ArchiveStandbyReadinessTyped): Hex {
+  const digest = hashArchiveStandbyReadiness(message)
+  return labSeatingWallet(domainId).signingKey.sign(digest).serialized as Hex
+}
+
+export function recoverArchiveStandbyReadiness(message: ArchiveStandbyReadinessTyped, signature: string): string {
+  return getAddress(
+    verifyTypedData(
+      ARCHIVE_EIP712_DOMAIN,
+      ARCHIVE_STANDBY_READINESS_TYPES,
+      archiveStandbyReadinessMessage(message),
       signature,
     ),
   )

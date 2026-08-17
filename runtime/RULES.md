@@ -138,7 +138,7 @@ IdentityEligible → SYNCING → CLAIMED_SYNC → STATE_CHALLENGE → QUALIFIED 
 
 Zero-join lab evidence (2026-08-16): wipe only G1 `fd-05` / `fd-07` `~/dle-30d-lab/data` (never geth/beacon). Keepers `fd-01..04` must be `QUALIFIED` **and** share the same four roots before wipe. `pilot/evidence/conet-dle-sync-join-2026-08/wipe.json` + `accept.json` (`ok:true`, joiners `QUALIFIED` at leaf 4956). Not 30-day qualification.
 
-HTTP: `GET /sync/status` `/sync/inventory` `/sync/opening` `/sync/roster`; `POST /sync/challenge` `/sync/vote` `/sync/reject`. NFT 42 BFT, newchain genesis BFT, **and** on-demand `ondemand.start()` wait until **this host is `QUALIFIED`**, `alignedQualifiedCount() ≥ SYNC_ACTIVE_COUNT` (5 active seats, same four roots), **no active is unseated**, **and** `LAB_HOLD_BFT_AFTER_BOOT_MS` (30 min after process start) has elapsed. Seating votes still use \(Q_A=4/5\). Starting lab BFT / on-demand at 4/5 — or immediately after certificate restore on restart — keeps moving `lastACRef` / `hashIndexRoot`, stale-kills `CLAIMED_SYNC` challenges, and starves `/liveness`. A standby `QUALIFIED` must not fill \(Q_A\) or start BFT. Certificates from a split inventory must not start BFT. `canVote` counts only aligned **active** QUALIFIED toward \(Q_A\). Do **not** gossip `/newchain/bft` while `SYNCING` (it stringifies the 6 MB state and starves `/liveness`). Process restart of `REJECTED` is a new seating attempt (`SYNCING`). AC sample grade matches `valueHash|membershipRoot|tipStateRoot`, not the signer list.
+HTTP: `GET /sync/status` `/sync/inventory` `/sync/opening` `/sync/roster`; `POST /sync/challenge` `/sync/vote` `/sync/reject` `/sync/standby-ready`. NFT 42 BFT, newchain genesis BFT, **and** on-demand `ondemand.start()` wait until **this host is `QUALIFIED`**, `alignedQualifiedCount() ≥ SYNC_ACTIVE_COUNT` (5 active seats, same four roots), **no active is unseated**, **and** `LAB_HOLD_BFT_AFTER_BOOT_MS` (30 min after process start) has elapsed. Seating votes still use \(Q_A=4/5\). Starting lab BFT / on-demand at 4/5 — or immediately after certificate restore on restart — keeps moving `lastACRef` / `hashIndexRoot`, stale-kills `CLAIMED_SYNC` challenges, and starves `/liveness`. A standby `QUALIFIED` must not fill \(Q_A\) or start BFT. Certificates from a split inventory must not start BFT. `canVote` counts only aligned **active** QUALIFIED toward \(Q_A\). Do **not** gossip `/newchain/bft` while `SYNCING` (it stringifies the 6 MB state and starves `/liveness`). Process restart of `REJECTED` is a new seating attempt (`SYNCING`). AC sample grade matches `valueHash|membershipRoot|tipStateRoot`, not the signer list.
 
 Lab ops (must not starve HTTP):
 
@@ -311,7 +311,7 @@ Keep-only: disk HMAC **certificates** still restore tip finality (`parseCertific
 
 `status()` / `health()`: `eip712: true`, `hmacForgeable: false`, `bftEip712: true`. Explorer green pills stay `seatingQualified === true` only. Do **not** paint `bftEip712` as a frozen L1 wrapper or corpus SSZ. At P16 landing this gate **did not** replace on-demand HMAC, P6 \(Q_V\) HMAC (`validatorQuorum.ts` still `hmacForgeable: true`), wipe, promote `fd-08`, or start `pilotStartedAt`. On-demand attests later cut over in **P17**.
 
-Tests: `runtime/test/bft-tendermint.test.ts` (HMAC cutover; recoverAddress bind + tampered SIG; keep-only disk HMAC certificate). Full `npm run runtime:test` **125/125** at P16 landing; later **128/128** after P17. Completing P16 **MUST NOT** start `pilotStartedAt`. Do **not** change whitepaper production terms.
+Tests: `runtime/test/bft-tendermint.test.ts` (HMAC cutover; recoverAddress bind + tampered SIG; keep-only disk HMAC certificate). Full `npm run runtime:test` **125/125** at P16 landing; later **128/128** after P17. Completing P16 **MUST NOT** start `pilotStartedAt`. Do **not** change whitepaper production terms. Later **P21** added `hashIndexRoot` after `membershipRoot` and **did** change `topicQcRef` encoding — see §P21.
 
 ### P17 on-demand attest EIP-712
 
@@ -392,9 +392,47 @@ Explorer green pills stay `seatingQualified === true` only. Do **not** paint `on
 
 Tests: `runtime/test/ondemand-hook-not-gossip.test.ts` (health + hook flags; ingest miners/hooks rejected; A hook does not gossip to B; extra-miner freeze mismatch; single-archive `fanoutComplete === false`; incomplete fan-out rejected). Full `npm run runtime:test` **140/140**. Completing P20 **MUST NOT** start `pilotStartedAt`. Do **not** change whitepaper production terms.
 
+### P21 hashIndexRoot into lab BFT
+
+**Status (2026-08-17):** **P21 landed (engine + unit tests).** Bind the live / bound `hashIndexRoot` into lab BFT vote / QC / AC typed data and `topicQcRef`. P16 typed data omitted `hashIndexRoot` and forbade changing `topicQcRef`. This gate **does** add `hashIndexRoot` after `membershipRoot` (before `prevoteQCRef`) and **does** change `topicQcRef` encoding.
+
+```text
+ArchiveBftVote: valueHash, height, round, step, membershipRoot, hashIndexRoot, prevoteQCRef
+```
+
+`boundHashIndexRootOf(votes, liveRoot)`: first vote’s `hashIndexRoot`, else live tree root (`hashIndexRootOf(store.hash.listLocators())`). Empty-store live root is `emptyHashIndexRoot()`, **not** `ZERO32`. Disk load / `ensureTopic` omit `expectedHashIndexRoot`. New `addOwnVote` / ingest `acceptVote` pass `expectedHashIndexRoot: boundHashIndexRoot()`. Incoming QC / `adoptCertificate` require `hashIndexRoot === boundHashIndexRoot()`.
+
+Tree honesty: `hashIndexRootView` / `proveHashIndex` / JSON-RPC `dle_getHashIndexRoot` / `dle_proveHash` keep `committedInAc: false`. **Do not** flip the tree field when AC binds a root. Overlay `hashIndexCommittedInAc(certificate)` is true **only** when AC has a **non-zero** `hashIndexRoot`. `emptyHashIndexRoot()` is domain-separated and ≠ `ZERO32`, so a freshly certified empty store can have overlay **true**. Disk HMAC AC missing the field parses as `ZERO32` → overlay **false**. Health / Explorer may show the overlay. **Do not** paint overlay as production AC commitment or the 30-day gate.
+
+Keep-only: skip QC / AC rebuild if a certificate already exists; keep disk QC if rebuilt `qcRef` mismatches. HMAC / bad sig still win over `ERR_BFT_HASH_INDEX_ROOT`. Pre-P21 EIP-712 votes signed without `hashIndexRoot` fail verify after this gate (intended).
+
+**Did not** change `membershipRootOf` / Mode A `valueHash` / daemon / on-demand / production AC commitment formula. Explorer green seating pills stay `seatingQualified === true` only.
+
+Tests: `runtime/test/bft-tendermint.test.ts` + `runtime/test/hash-index-tree.test.ts`. Full `npm run runtime:test` **148/148** at P21 landing; later **153/153** after P22. Completing P21 **MUST NOT** start `pilotStartedAt`. Do **not** change whitepaper production terms.
+
+### P22 official standby readiness (lab EIP-712)
+
+**Status (2026-08-17):** **P22 landed (engine + unit tests).** Official standbys (`fd-06` / `fd-07`) sign EIP-712 `ArchiveStandbyReadiness` after `QUALIFIED`. Extra `fd-08` / `fd-08-hosthatch-hk1` may ingest but **does not** count toward `OFFICIAL_STANDBY_COUNT = 2`. This is **not** production OperatorDomain / secp256k1 / the 30-day gate.
+
+```text
+ArchiveStandbyReadiness: groupId, hostedChainSetRoot, lastACRef, membershipRoot, hashIndexRoot, ready
+```
+
+Typed data does **not** include `domainId`. Identity is `recoverAddress` + envelope `domainId`. Existing `groupId` is **`string`**, not `bytes32`. Follow the per-type hash/sign/recover triplet — **no** generic `hashArchiveTypedData`. `recoverAddress` must equal `labSeatingAddress(domainId)` and envelope `signer`. HMAC / unsigned envelopes `ERR_SYNC_STANDBY_HMAC_CUTOVER`. Bad sig `ERR_SYNC_STANDBY_SIG`. Role ≠ standby `ERR_SYNC_STANDBY_ROLE`. Four inventory roots + `groupId` must match local inventory (`ERR_SYNC_STANDBY_ROOT`).
+
+HTTP: `POST /sync/standby-ready` (`lab-cli` only). Official standby auto-signs and gossips after `QUALIFIED`. Persist `standbyReady` map; `REJECTED` reset **keeps** the map. Extra `fd-08` is ingest-only (`extraStandbyReadyDoesNotCount`).
+
+New-chain accept (`lab-cli` via `syncHolder`): if `officialStandbysReady() === false` → 409 `ERR_NEWCHAIN_STANDBY_NOT_READY`. **`node.ts` is not wired** — do **not** pass this callback into `createNewChainEngine` there.
+
+Health overlays: `standbyReadyEip712`, `officialStandbyReadyCount`, `officialStandbysReady`, `extraStandbyReadyDoesNotCount`. Newchain health: `newchainOfficialStandbysReady`, `newchainStandbyReadyEip712`. **Do not** paint these as production or as seating. Explorer green pills stay `seatingQualified === true` only. Do **not** change `archiveSeating.ts`.
+
+**Did not** change seating votes / challenge / BFT / on-demand / \(Q_V\), `membershipRootOf` / Mode A `valueHash`, Home green-pill logic, or start `pilotStartedAt`.
+
+Tests: `runtime/test/sync-standby-ready.test.ts` + `newchain.test.ts` gate + `sync-qualification.test.ts` `fakeFetch`. Full `npm run runtime:test` **153/153**. Completing P22 **MUST NOT** start `pilotStartedAt`. Do **not** change whitepaper production terms.
+
 ### After P11: next lab gates
 
-P11 closed the seating **control plane**. **P12 / P13 / P14 / P15 / P16 / P17 / P18 / P19 / P20 landed** (engine + tests). Snapshot: `src/canvas/dle-mvp-p12-milestones-2026-08.md`. Completing any of these **MUST NOT** start `pilotStartedAt`. Do **not** change whitepaper production terms in this track.
+P11 closed the seating **control plane**. **P12 / P13 / P14 / P15 / P16 / P17 / P18 / P19 / P20 / P21 / P22 landed** (engine + tests). Snapshot: `src/canvas/dle-mvp-p12-milestones-2026-08.md`. Completing any of these **MUST NOT** start `pilotStartedAt`. Do **not** change whitepaper production terms in this track.
 
 | Gate | Goal | Not |
 |---|---|---|
@@ -407,8 +445,13 @@ P11 closed the seating **control plane**. **P12 / P13 / P14 / P15 / P16 / P17 / 
 | **P18** | **landed (engine + tests).** P6 \(Q_V\) = EIP-712 `ArchiveValidatorQuorumAttest` (same domain; seating key reused on request-derived `validatorId`). HMAC / unsigned attests `ERR_VALIDATOR_QUORUM_HMAC_CUTOVER`. keep-only disk HMAC \(Q_V\). | Replacing the on-demand lab beacon; gossip wait-hook; changing committee / `membershipRootOf` / Mode A `valueHash`; wipe; `pilotStartedAt` |
 | **P19** | **landed (engine + tests).** On-demand freeze-then-bind: persist `ondemandFreezeHex` first, then bind honest-wait / injected CL view / options beacon. Instant `labBeaconAfterFreeze(poolRoot)` is contrast only. `publicrpc` / `rpc1` rejected. keep-only `legacy-instant`. | Painting `ondemandLabBeaconAfterFreeze` as production CL RANDAO; gossip wait-hook (later **P20**); replacing P17 attest / P18 \(Q_V\); wipe; `pilotStartedAt` |
 | **P20** | **landed (engine + daemon + tests).** Wait hooks are not intra-group gossip. `ingest` rejects `miners` / `hooks` / `hook` (`ERR_ONDEMAND_HOOK_NOT_GOSSIP`). Daemon must fan out to every active archive; one accept ≠ group pool. Lab HTTP `:27101` is **not** production DePIN gossip. | Turning HTTP hook into production DePIN gossip; forwarding miners on `/ondemand/message`; exposing hook on explorer nginx; wipe; `pilotStartedAt` |
+| **P21** | **landed (engine + tests).** Lab BFT vote / QC / AC bind live/bound `hashIndexRoot` (after `membershipRoot`; `topicQcRef` encoding changes). Tree `committedInAc` stays false. Overlay `hashIndexCommittedInAc` when AC root ≠ `ZERO32`. keep-only skip QC/AC rebuild if certificate exists. | Flipping tree `committedInAc`; painting overlay as production AC commitment / 30-day; changing `membershipRootOf` / Mode A `valueHash`; wipe; `pilotStartedAt` |
+| **P22** | **landed (engine + tests).** Official standby readiness = lab EIP-712 `ArchiveStandbyReadiness` (`string` `groupId`; seating key reused). Extra `fd-08` ingest-only, does **not** count. `POST /sync/standby-ready`. New-chain accept waits for two official standbys (`ERR_NEWCHAIN_STANDBY_NOT_READY`). `node.ts` not wired. | Painting as production OperatorDomain / secp256k1 / 30-day; counting `fd-08`; changing Home green pills; wiring `node.ts`; wipe; `pilotStartedAt` |
+| **P23** | **next (not landed).** Keep-data deploy of the landed P12–P22 engines to the official G1 seven hosts. Scrape `/health` overlays (`seatingEip712` / `challengeEip712` / `bftEip712` / `ondemandEip712` / `officialStandbysReady`). Collect new-chain 409 → accept evidence. Extra `fd-08` stays unofficial. G2 stays BFT/ondemand off. | Claiming the repo 153/153 run is live-host evidence; wipe; `pilotStartedAt`; promoting `fd-08`; forcing G2 voting |
+| **P24** | **next (not landed; after P23).** Wire `node.ts` new-chain accept to the same `officialStandbysReady` callback as `lab-cli` `syncHolder`. | Wiring before P23 live evidence; production OperatorDomain; changing `archiveSeating.ts` |
+| **P25** | **next (not landed).** Explorer read-only overlays for `officialStandbysReady` / `hashIndexCommittedInAc`. Green pills stay `seatingQualified === true` only. | Changing `archiveSeating.ts` seating logic; painting overlays as production AC / 30-day |
 
-Parked (later tracks, not the next gate): IdentityEligible / OperatorDomain / \(U_e\); `hashIndexRoot` `committedInAc`; official standby readiness signatures; `PilotQualificationGate`.
+Parked (later tracks, not the next gate): IdentityEligible / OperatorDomain / \(U_e\); `PilotQualificationGate`; flipping tree `committedInAc`; production DePIN gossip; live CL RANDAO / production \(C_G\). Lab overlay `hashIndexCommittedInAc` is display-only (tree stays `committedInAc: false`; production AC commitment formula unchanged). Official standby readiness is **no longer parked**. 2026-08-17 review: `src/canvas/dle-mvp-milestone-assessment-2026-08-17.md`.
 
 **Must not:** start `pilotStartedAt`; wipe keepers / `fd-05`; promote `fd-08` to an official 8th voter; live-inject a missing object; restart EL/CL.
 
@@ -424,12 +467,12 @@ Parked (later tracks, not the next gate): IdentityEligible / OperatorDomain / \(
 
 ## On-demand
 
-See `src/shared/ondemand/RULES.md`. Waiting pool / SelectionLog is **not** \(G_e\). **P17 landed** on-demand attest EIP-712 `ArchiveOnDemandAttest` and did **not** replace the on-demand lab beacon. **P18 landed** P6 \(Q_V\) EIP-712 and did **not** replace the on-demand lab beacon or gossip wait-hook. **P19 landed** on-demand freeze-then-bind (honest-wait / injected view; **not** production CL RANDAO). **P20 landed** wait-hook honesty: hooks are not intra-group gossip; miner must POST every active archive; lab HTTP is **not** production DePIN gossip.
+See `src/shared/ondemand/RULES.md`. Waiting pool / SelectionLog is **not** \(G_e\). **P17 landed** on-demand attest EIP-712 `ArchiveOnDemandAttest` and did **not** replace the on-demand lab beacon. **P18 landed** P6 \(Q_V\) EIP-712 and did **not** replace the on-demand lab beacon or gossip wait-hook. **P19 landed** on-demand freeze-then-bind (honest-wait / injected view; **not** production CL RANDAO). **P20 landed** wait-hook honesty: hooks are not intra-group gossip; miner must POST every active archive; lab HTTP is **not** production DePIN gossip. **P21** binds `hashIndexRoot` into lab BFT and did **not** change on-demand. **P22** lands official standby readiness EIP-712 and did **not** change on-demand.
 
 ---
 
 ## Client
 
-See `src/daemon/RULES.md`. Daemon must not treat `dle_tip.height` as cluster count. **P18 landed** P6 \(Q_V\) EIP-712 and did **not** change daemon hook / new-chain-user HTTP. **P19 landed** on-demand freeze-then-bind and did **not** change gossip wait-hook. **P20 landed** daemon fan-out honesty (`fanoutComplete` / `singleArchiveAcceptNotGroupPool`); new-chain-user HTTP still only `schema === 'DleLabValidatorQuorumV1'`. Do not treat `challengeEip712` / `bftEip712` / `ondemandEip712` / `newchainValidatorQuorumEip712` / `ondemandLabBeaconAfterFreeze` / `ondemandHookNotGossip` / `productionCgAvailable` as production OperatorDomain / L1 wrapper / live CL RANDAO / 30-day qualification / \(C_G\) / production DePIN gossip.
+See `src/daemon/RULES.md`. Daemon must not treat `dle_tip.height` as cluster count. **P18 landed** P6 \(Q_V\) EIP-712 and did **not** change daemon hook / new-chain-user HTTP. **P19 landed** on-demand freeze-then-bind and did **not** change gossip wait-hook. **P20 landed** daemon fan-out honesty (`fanoutComplete` / `singleArchiveAcceptNotGroupPool`); new-chain-user HTTP still only `schema === 'DleLabValidatorQuorumV1'`. **P21** binds `hashIndexRoot` into lab BFT and did **not** change daemon hook / new-chain-user HTTP. **P22** lands official standby readiness EIP-712 (`lab-cli` + new-chain accept gate) and did **not** change daemon hook / new-chain-user HTTP. Do not treat `challengeEip712` / `bftEip712` / `ondemandEip712` / `newchainValidatorQuorumEip712` / `ondemandLabBeaconAfterFreeze` / `ondemandHookNotGossip` / `hashIndexCommittedInAc` / `standbyReadyEip712` / `officialStandbysReady` / `newchainOfficialStandbysReady` / `productionCgAvailable` as production OperatorDomain / L1 wrapper / live CL RANDAO / 30-day qualification / \(C_G\) / production DePIN gossip / production AC commitment / production secp256k1.
 
 Lab random-create user: `src/daemon/newchain-user-cli.ts` on `70.35.205.77:/home/peter/dle-newchain-user` (`npm run lab:deploy-newchain-user`). Genesis smoke is asset + storage + trade; then a `setTimeout` chain (15–45s) posts a random class. Do not mix this process with `dle-ondemand-clients`.

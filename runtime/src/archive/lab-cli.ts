@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import process from 'node:process'
-import { hashIndexRootView } from '../shared/hashIndexTree.js'
+import { hashIndexCommittedInAc, hashIndexRootView } from '../shared/hashIndexTree.js'
 import { DLE_LAB_CHAIN_NFT_ID } from '../shared/hashLookup.js'
 import { labRouteTableFromPeers, liveGroupCount, liveGroupIds, planeWallets } from '../shared/labRoute.js'
 import { seedLabFissionMarker } from './hashPipe.js'
@@ -170,6 +170,9 @@ const ondemand = createOnDemandEngine({
   autoSeedLabMiners: enableOndemand && config.autoSeedLabMiners !== false,
   autoFreeze: enableOndemand && config.autoFreeze !== false,
 })
+const syncHolder: { current: ReturnType<typeof createSyncQualificationEngine> | null } = {
+  current: null,
+}
 const newchain = createNewChainEngine({
   domainId: config.domainId,
   store,
@@ -177,6 +180,7 @@ const newchain = createNewChainEngine({
   role: config.role,
   peers,
   enableBft,
+  officialStandbysReady: () => syncHolder.current?.officialStandbysReady() === true,
 })
 let bftStarted = false
 let ondemandStarted = false
@@ -232,6 +236,7 @@ const sync = createSyncQualificationEngine({
     maybeStartOndemand()
   },
 })
+syncHolder.current = sync
 
 let hashIndexHealthCache: { leafCount: number; view: ReturnType<typeof hashIndexRootView> } | null = null
 function healthHashIndex(): ReturnType<typeof hashIndexRootView> {
@@ -283,6 +288,7 @@ function extraHealthNow(): Record<string, unknown> {
     liveGroupCount: liveGroupCount(routeTable),
     liveGroupIds: liveGroupIds(routeTable),
     hashIndex: healthHashIndex(),
+    hashIndexCommittedInAc: hashIndexCommittedInAc(engine.certificate()),
     ...sync.health(),
   }
 }
@@ -350,6 +356,10 @@ const server = await listenArchiveHttp({
     }
     if (pathname === '/sync/reject') {
       const result = sync.handleReject(body)
+      return { status: result.ok ? 200 : 400, body: result }
+    }
+    if (pathname === '/sync/standby-ready') {
+      const result = sync.handleStandbyReady(body)
       return { status: result.ok ? 200 : 400, body: result }
     }
     return newchain.post(pathname, body) ?? ondemand.post(pathname, body)
