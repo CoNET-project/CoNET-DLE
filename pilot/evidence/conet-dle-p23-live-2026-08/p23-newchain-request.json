@@ -1,0 +1,10 @@
+{
+  "schema": "DleLabNewChainRequestV1",
+  "labOnly": true,
+  "notProductionDepin": true,
+  "notL1Nft": true,
+  "classId": 1,
+  "user": "0xd1e0000000000000000000000000000000000001",
+  "nonce": "1787008421078",
+  "salt": "0xa23aeeadeaaaa409acceaa202608170000000000000000000000000000000000"
+}

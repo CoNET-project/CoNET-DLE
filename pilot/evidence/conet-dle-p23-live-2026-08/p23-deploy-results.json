@@ -1,0 +1,54 @@
+{
+  "schema": "DleLabP23KeepDeployResultsV1",
+  "labOnly": true,
+  "notThirtyDayQualification": true,
+  "command": "npm run lab:deploy-g1-keep",
+  "startedAt": "2026-08-17T23:13:06.669Z",
+  "endedAt": "2026-08-17T23:17:44.736Z",
+  "ok": false,
+  "note": "Six official G1 hosts LIVE_OK. Official standby fd-06 STARTED after SIGKILL of hung lab-cli; WAIT_ARCHIVE_LIVENESS missed LIVE_OK. Process 651861 stayed at ~101% CPU and hung HTTP. G2 not restarted. Extra fd-08 not deployed. EL/CL not touched.",
+  "results": [
+    {
+      "domainId": "fd-01-ionos-45",
+      "host": "45.132.74.220",
+      "ok": true,
+      "detail": "STOPPED=2190\nSTARTED=3189\nLIVE_OK"
+    },
+    {
+      "domainId": "fd-02-ionos-189",
+      "host": "216.225.197.189",
+      "ok": true,
+      "detail": "STOPPED=244619\nSTARTED=246148\nLIVE_OK"
+    },
+    {
+      "domainId": "fd-03-ionos-98",
+      "host": "45.132.74.221",
+      "ok": true,
+      "detail": "STOPPED=2050\nSTARTED=2850\nLIVE_OK"
+    },
+    {
+      "domainId": "fd-04-hosthatch-tokyo1",
+      "host": "167.254.243.38",
+      "ok": true,
+      "detail": "STOPPED=51558\nSTARTED=52392\nLIVE_OK"
+    },
+    {
+      "domainId": "fd-05-hosthatch-tokyo2",
+      "host": "170.205.39.67",
+      "ok": true,
+      "detail": "STOPPED=117515\nSTARTED=118378\nLIVE_OK"
+    },
+    {
+      "domainId": "fd-06-ionos-174",
+      "host": "216.225.193.174",
+      "ok": false,
+      "detail": "STOPPED=646605\nKILLED=646605\nSTARTED=651861"
+    },
+    {
+      "domainId": "fd-07-ionos-207",
+      "host": "212.227.242.207",
+      "ok": true,
+      "detail": "STOPPED=838127\nSTARTED=844015\nLIVE_OK"
+    }
+  ]
+}

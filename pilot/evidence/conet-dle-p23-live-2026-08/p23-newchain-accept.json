@@ -1,0 +1,126 @@
+{
+  "capturedAt": "2026-08-17T23:18:24.937Z",
+  "overlay": {
+    "domainId": "fd-01-ionos-45",
+    "role": "active",
+    "command": "archive",
+    "seatingQualified": true,
+    "inventoryFrozen": false,
+    "officialStandbysReady": true,
+    "officialStandbyReadyCount": 2,
+    "standbyReadyEip712": true,
+    "seatingEip712": true,
+    "challengeEip712": true,
+    "bftEip712": true,
+    "ondemandEip712": true,
+    "newchainOfficialStandbysReady": true,
+    "hashIndexCommittedInAc": false
+  },
+  "httpStatus": 200,
+  "body": {
+    "ok": true,
+    "duplicate": false,
+    "labOnly": true,
+    "notL1Nft": true,
+    "requestId": "0xe8229f1635d681d5b48430b5cd4a09e2c7787d4e4338a60c512ce9ab9d81b472",
+    "chainNftId": "981174787",
+    "classId": 1,
+    "className": "asset",
+    "valueHash": "0xcffc0b4de3774fadce5fb9c829fe28d288a6486d4de64d83be17573973952b15",
+    "tipStateRoot": "0x0e4319495f316bb48564a949128ad451b8e1ca26e835452c5ec2a26577c61044",
+    "certificate": {
+      "schema": "DleLabGenesisCertificateV1",
+      "labOnly": true,
+      "notProductionDepin": true,
+      "notL1Nft": true,
+      "notArchiveCertificate": true,
+      "note": "Lab Mode A genesis replay. Not an L1 birth certificate, Treasury burn, Settlement escrow, or 30-day qualification.",
+      "requestId": "0xe8229f1635d681d5b48430b5cd4a09e2c7787d4e4338a60c512ce9ab9d81b472",
+      "chainNftId": "981174787",
+      "classId": 1,
+      "className": "asset",
+      "user": "0xd1e0000000000000000000000000000000000001",
+      "valueHash": "0xcffc0b4de3774fadce5fb9c829fe28d288a6486d4de64d83be17573973952b15",
+      "tipStateRoot": "0x0e4319495f316bb48564a949128ad451b8e1ca26e835452c5ec2a26577c61044",
+      "bodyCommitment": "0xa3a54b2bac719ae24558b6a4ba01ccb5fe32690756705323b31ac5872328e371",
+      "height": "0x1",
+      "domainId": "fd-01-ionos-45",
+      "acceptedAt": "2026-08-17T23:18:22.095Z"
+    },
+    "validatorQuorum": {
+      "schema": "DleLabValidatorQuorumV1",
+      "labOnly": true,
+      "hmacForgeable": false,
+      "eip712": true,
+      "validatorQuorumEip712": true,
+      "notProductionSecp256k1": true,
+      "labDeterministicSeatingKey": true,
+      "notProductionOperatorKey": true,
+      "notL1Settled": true,
+      "quorum": 5,
+      "committeeSize": 7,
+      "committee": [
+        "0x2f34be63129cff11d4437029f015a7864c33795576e978a68e013c2f2f9c4339",
+        "0x0d05a39a487cbd717c671b66f52ad76fd96941864bc0bac7e6174dac4203e92c",
+        "0x820ed1770e8d57167c4081832c99001358f1ee7b4f0cf49b084c56165c99e93f",
+        "0xcb266a29252fc9825a311f5c4fb275b31581912844c24633b3fafacfe3127430",
+        "0xe1ffe5908ddf736c97a0238989144f74d5b6fd4306aa9fb3738fd7676b6076bb",
+        "0xebaa04acd856c407e5821a696f1d7fc1dacd30cdc8d93dc76012132357499897",
+        "0x2d7ed5c148c442a973d477472768b8aa379fcbdbf62b25deb70259d055679ebe"
+      ],
+      "attestations": [
+        {
+          "validatorId": "0x2f34be63129cff11d4437029f015a7864c33795576e978a68e013c2f2f9c4339",
+          "signature": "0x84628e1252d75fc18eb40d3ab142849d735cdc877c6900a857eaed7bd9a2feeb70f0919ef7a1f72da3d8648c3da0ef8c494f1a8cb6967555a24b65d81c5c78451c",
+          "signer": "0xa7AAE379FCe5D5568ADA2cB5D31Bc483Cb08F5EC",
+          "eip712": true,
+          "hmacForgeable": false
+        },
+        {
+          "validatorId": "0x0d05a39a487cbd717c671b66f52ad76fd96941864bc0bac7e6174dac4203e92c",
+          "signature": "0xce379498c0cf70853a7da466ed44738f00d7cc5898f596d1b210f0b6e79ff86b7d5a5795ae20bd1016344f575e462017d8e9fc24d2605c087f3e61957d0f4ac71c",
+          "signer": "0x540153712533690AE424a9DE7d743cc8DD904De6",
+          "eip712": true,
+          "hmacForgeable": false
+        },
+        {
+          "validatorId": "0x820ed1770e8d57167c4081832c99001358f1ee7b4f0cf49b084c56165c99e93f",
+          "signature": "0x865e4e9e2a2f73ce7868fa474cc1144104f1b47754d3fd2f7ed945869a354d5f7199531e3b566742f26cfd60fd97c17f19b3c395e5a82e7b0e93a1990382c1fd1b",
+          "signer": "0x31F6FCc0b3Bb95C6478c593F9FF73Fca4E134668",
+          "eip712": true,
+          "hmacForgeable": false
+        },
+        {
+          "validatorId": "0xcb266a29252fc9825a311f5c4fb275b31581912844c24633b3fafacfe3127430",
+          "signature": "0xf821c962be8526aacc1e269686f31d7694a2c362941c8e0a97a0b0fd426f2edd112939efde3749d0337a03b08f2b4846ba640a84ed1d8f13a0b9b015de24d3171b",
+          "signer": "0xc6f60c947f9CFada674f61F866C1eA78A2ee2f68",
+          "eip712": true,
+          "hmacForgeable": false
+        },
+        {
+          "validatorId": "0xe1ffe5908ddf736c97a0238989144f74d5b6fd4306aa9fb3738fd7676b6076bb",
+          "signature": "0xb101f8aa3d6d4c8b483aa1402d237083a565979e66d7fcfc14ca8232319643486f10cbea9e096db56fd6f84cba7b322d80eac9089e2f8a3b3c00d9ff581585ff1c",
+          "signer": "0xc9382eA5F65628Bc9992aFE50f18De68fBc207eC",
+          "eip712": true,
+          "hmacForgeable": false
+        },
+        {
+          "validatorId": "0xebaa04acd856c407e5821a696f1d7fc1dacd30cdc8d93dc76012132357499897",
+          "signature": "0xc349a454fadad774e8198e98fdf849522648665cec8f8a03eff23c1f37c31d62244444c2e9d8eb27a8d1f0133969d7bb1f525b6d5c7bd6fc582cd9aeaeb9075e1c",
+          "signer": "0x8b6255d215B1977d21E3c7Ee5A66A20ecb6d6F8e",
+          "eip712": true,
+          "hmacForgeable": false
+        },
+        {
+          "validatorId": "0x2d7ed5c148c442a973d477472768b8aa379fcbdbf62b25deb70259d055679ebe",
+          "signature": "0x62a658de6ef699cab30de56f1ccfec4f3f94924c88f6bddb4661f597524a5650681d78c95c2866d83ff82f2da514ed41db456e262d7c4a2f32bbee978e76910b1c",
+          "signer": "0x0F60B6bB07a2dC1020a5E7bC34b51829fFE3DeA1",
+          "eip712": true,
+          "hmacForgeable": false
+        }
+      ]
+    },
+    "archiveCertificatePending": true,
+    "archiveCertificate": null
+  }
+}

@@ -1,0 +1,190 @@
+{
+  "schema": "DleLabP23PostDeployOverlayV1",
+  "labOnly": true,
+  "notThirtyDayQualification": true,
+  "capturedAt": "2026-08-17T23:19:04Z",
+  "greenPillStillSeatingQualifiedOnly": true,
+  "rows": [
+    {
+      "domainId": "fd-01-ionos-45",
+      "sshHost": "45.132.74.220",
+      "expectedRole": "active",
+      "liveness": {
+        "ok": true,
+        "command": "archive",
+        "domainId": "fd-01-ionos-45",
+        "role": "active"
+      },
+      "overlay": {
+        "role": "active",
+        "command": "archive",
+        "seatingQualified": true,
+        "inventoryFrozen": false,
+        "seatingEip712": true,
+        "challengeEip712": true,
+        "standbyReadyEip712": true,
+        "officialStandbysReady": false,
+        "officialStandbyReadyCount": 0,
+        "extraStandbyReadyDoesNotCount": true,
+        "bftEip712": true,
+        "ondemandEip712": true,
+        "newchainOfficialStandbysReady": false,
+        "newchainStandbyReadyEip712": true,
+        "hashIndexCommittedInAc": false,
+        "phase": "QUALIFIED"
+      }
+    },
+    {
+      "domainId": "fd-02-ionos-189",
+      "sshHost": "216.225.197.189",
+      "expectedRole": "active",
+      "liveness": {
+        "ok": true,
+        "command": "archive",
+        "domainId": "fd-02-ionos-189",
+        "role": "active"
+      },
+      "overlay": {
+        "role": "active",
+        "command": "archive",
+        "seatingQualified": true,
+        "inventoryFrozen": true,
+        "seatingEip712": true,
+        "challengeEip712": true,
+        "standbyReadyEip712": true,
+        "officialStandbysReady": false,
+        "officialStandbyReadyCount": 0,
+        "extraStandbyReadyDoesNotCount": true,
+        "bftEip712": true,
+        "ondemandEip712": true,
+        "newchainOfficialStandbysReady": false,
+        "newchainStandbyReadyEip712": true,
+        "hashIndexCommittedInAc": false,
+        "phase": "QUALIFIED"
+      }
+    },
+    {
+      "domainId": "fd-03-ionos-98",
+      "sshHost": "45.132.74.221",
+      "expectedRole": "active",
+      "liveness": {
+        "ok": true,
+        "command": "archive",
+        "domainId": "fd-03-ionos-98",
+        "role": "active"
+      },
+      "overlay": {
+        "role": "active",
+        "command": "archive",
+        "seatingQualified": true,
+        "inventoryFrozen": false,
+        "seatingEip712": true,
+        "challengeEip712": true,
+        "standbyReadyEip712": true,
+        "officialStandbysReady": true,
+        "officialStandbyReadyCount": 2,
+        "extraStandbyReadyDoesNotCount": true,
+        "bftEip712": true,
+        "ondemandEip712": true,
+        "newchainOfficialStandbysReady": true,
+        "newchainStandbyReadyEip712": true,
+        "hashIndexCommittedInAc": false,
+        "phase": "QUALIFIED"
+      }
+    },
+    {
+      "domainId": "fd-04-hosthatch-tokyo1",
+      "sshHost": "167.254.243.38",
+      "expectedRole": "active",
+      "liveness": {
+        "ok": true,
+        "command": "archive",
+        "domainId": "fd-04-hosthatch-tokyo1",
+        "role": "active"
+      },
+      "overlay": {
+        "role": "active",
+        "command": "archive",
+        "seatingQualified": true,
+        "inventoryFrozen": false,
+        "seatingEip712": true,
+        "challengeEip712": true,
+        "standbyReadyEip712": true,
+        "officialStandbysReady": false,
+        "officialStandbyReadyCount": 0,
+        "extraStandbyReadyDoesNotCount": true,
+        "bftEip712": true,
+        "ondemandEip712": true,
+        "newchainOfficialStandbysReady": false,
+        "newchainStandbyReadyEip712": true,
+        "hashIndexCommittedInAc": false,
+        "phase": "QUALIFIED"
+      }
+    },
+    {
+      "domainId": "fd-05-hosthatch-tokyo2",
+      "sshHost": "170.205.39.67",
+      "expectedRole": "active",
+      "liveness": {
+        "ok": true,
+        "command": "archive",
+        "domainId": "fd-05-hosthatch-tokyo2",
+        "role": "active"
+      },
+      "overlay": {
+        "role": "active",
+        "command": "archive",
+        "seatingQualified": true,
+        "inventoryFrozen": false,
+        "seatingEip712": true,
+        "challengeEip712": true,
+        "standbyReadyEip712": true,
+        "officialStandbysReady": false,
+        "officialStandbyReadyCount": 0,
+        "extraStandbyReadyDoesNotCount": true,
+        "bftEip712": true,
+        "ondemandEip712": true,
+        "newchainOfficialStandbysReady": false,
+        "newchainStandbyReadyEip712": true,
+        "hashIndexCommittedInAc": false,
+        "phase": "QUALIFIED"
+      }
+    },
+    {
+      "domainId": "fd-06-ionos-174",
+      "sshHost": "216.225.193.174",
+      "expectedRole": "standby",
+      "livenessError": "timed out",
+      "healthError": "timed out"
+    },
+    {
+      "domainId": "fd-07-ionos-207",
+      "sshHost": "212.227.242.207",
+      "expectedRole": "standby",
+      "liveness": {
+        "ok": true,
+        "command": "archive",
+        "domainId": "fd-07-ionos-207",
+        "role": "standby"
+      },
+      "overlay": {
+        "role": "standby",
+        "command": "archive",
+        "seatingQualified": true,
+        "inventoryFrozen": false,
+        "seatingEip712": true,
+        "challengeEip712": true,
+        "standbyReadyEip712": true,
+        "officialStandbysReady": false,
+        "officialStandbyReadyCount": 1,
+        "extraStandbyReadyDoesNotCount": true,
+        "bftEip712": true,
+        "ondemandEip712": true,
+        "newchainOfficialStandbysReady": false,
+        "newchainStandbyReadyEip712": true,
+        "hashIndexCommittedInAc": false,
+        "phase": "QUALIFIED"
+      }
+    }
+  ]
+}

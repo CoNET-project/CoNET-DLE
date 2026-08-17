@@ -1,0 +1,19 @@
+{
+  "schema": "DleLabP23Fd06KeepRetryV1",
+  "labOnly": true,
+  "notThirtyDayQualification": true,
+  "onlyDomainIds": ["fd-06-ionos-174"],
+  "keepData": true,
+  "wipe": false,
+  "elClUntouched": true,
+  "startedAt": "2026-08-17T23:20:10.719Z",
+  "endedAt": "2026-08-17T23:22:07.937Z",
+  "ok": false,
+  "result": {
+    "domainId": "fd-06-ionos-174",
+    "host": "216.225.193.174",
+    "ok": false,
+    "detail": "STOPPED=651861\nSTARTED=652654"
+  },
+  "note": "Second keep-data retry still missed WAIT_ARCHIVE_LIVENESS. Process started; HTTP /liveness hung. Honest P23 landing is 6/7 LIVE_OK, not 7/7."
+}

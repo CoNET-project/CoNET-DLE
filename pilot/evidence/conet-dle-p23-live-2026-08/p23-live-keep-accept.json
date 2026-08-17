@@ -1,0 +1,70 @@
+{
+  "schema": "DleLabP23LiveKeepAcceptV1",
+  "labOnly": true,
+  "notThirtyDayQualification": true,
+  "notProductionDepin": true,
+  "notSevenOfSevenHealthy": true,
+  "notStableOfficialStandbysReady": true,
+  "nodeTsNotWired": true,
+  "g2BftOndemandOff": true,
+  "fd08Unofficial": true,
+  "greenPillStillSeatingQualifiedOnly": true,
+  "command": "npm run lab:deploy-g1-keep",
+  "keepData": true,
+  "startedAt": "2026-08-17T23:13:06.669Z",
+  "endedAt": "2026-08-17T23:17:44.736Z",
+  "fd06RetryAt": "2026-08-17T23:20:10.719Z",
+  "fd06RetryEndedAt": "2026-08-17T23:22:07.937Z",
+  "liveOkCount": 6,
+  "officialRoster": 7,
+  "hosts": {
+    "fd-01-ionos-45": { "sshHost": "45.132.74.220", "role": "active", "deploy": "LIVE_OK" },
+    "fd-02-ionos-189": { "sshHost": "216.225.197.189", "role": "active", "deploy": "LIVE_OK" },
+    "fd-03-ionos-98": { "sshHost": "45.132.74.221", "role": "active", "deploy": "LIVE_OK" },
+    "fd-04-hosthatch-tokyo1": { "sshHost": "167.254.243.38", "role": "active", "deploy": "LIVE_OK" },
+    "fd-05-hosthatch-tokyo2": { "sshHost": "170.205.39.67", "role": "active", "deploy": "LIVE_OK", "wipe": false },
+    "fd-06-ionos-174": {
+      "sshHost": "216.225.193.174",
+      "role": "official-standby",
+      "deploy": "STARTED_NO_LIVE_OK",
+      "retry": "STARTED_NO_LIVE_OK",
+      "note": "lab-cli process alive after keep-data restart; GET /liveness and /health timeout; event loop starved (~101% CPU). Second keep-data retry STARTED=652654 still missed LIVE_OK. Do not count as a stable official standby host. Do not restart EL/CL."
+    },
+    "fd-07-ionos-207": { "sshHost": "212.227.242.207", "role": "official-standby", "deploy": "LIVE_OK" }
+  },
+  "newchain409Accept": {
+    "target": "fd-01-ionos-45",
+    "requestId": "0xe8229f1635d681d5b48430b5cd4a09e2c7787d4e4338a60c512ce9ab9d81b472",
+    "denyAt": "2026-08-17T23:13:41.428Z",
+    "denyStatus": 409,
+    "denyError": "ERR_NEWCHAIN_STANDBY_NOT_READY",
+    "denyOfficialStandbyReadyCount": 0,
+    "acceptAt": "2026-08-17T23:18:22.095Z",
+    "acceptStatus": 200,
+    "acceptOfficialStandbyReadyCount": 2,
+    "archiveCertificatePending": true,
+    "evidence": [
+      "p23-newchain-409.json",
+      "p23-newchain-accept.json",
+      "p23-newchain-409-accept.json",
+      "p23-newchain-request.json"
+    ]
+  },
+  "overlayNote": "EIP-712 overlay fields appear under health.syncQualification on the six LIVE_OK hosts (seatingEip712 / challengeEip712 / bftEip712 / ondemandEip712 / standbyReadyEip712). officialStandbysReady is not a durable seven-host true: fd-01 later dropped to count 0 after the accept window; fd-03 was true/count=2 at 23:19Z scrape; fd-06 HTTP hung. Roots drift drops the official count.",
+  "evidenceFiles": [
+    "p23-baseline-health.json",
+    "p23-deploy-results.json",
+    "p23-newchain-409-accept.json",
+    "p23-post-deploy-overlay.json"
+  ],
+  "mustNot": [
+    "claim 7/7 LIVE_OK",
+    "claim durable officialStandbysReady on all seven hosts",
+    "count fd-08",
+    "start pilotStartedAt",
+    "wipe fd-05 or keepers",
+    "restart EL/CL/validator",
+    "wire node.ts in this gate",
+    "paint as production OperatorDomain / secp256k1 / 30-day"
+  ]
+}

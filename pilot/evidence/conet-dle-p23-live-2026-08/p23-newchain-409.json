@@ -1,0 +1,24 @@
+{
+  "capturedAt": "2026-08-17T23:13:41.428Z",
+  "overlay": {
+    "domainId": "fd-01-ionos-45",
+    "role": "active",
+    "command": "archive",
+    "seatingQualified": true,
+    "inventoryFrozen": true,
+    "officialStandbysReady": false,
+    "officialStandbyReadyCount": 0,
+    "standbyReadyEip712": true,
+    "seatingEip712": true,
+    "challengeEip712": true,
+    "bftEip712": true,
+    "ondemandEip712": true,
+    "newchainOfficialStandbysReady": false,
+    "hashIndexCommittedInAc": false
+  },
+  "httpStatus": 409,
+  "body": {
+    "ok": false,
+    "error": "ERR_NEWCHAIN_STANDBY_NOT_READY"
+  }
+}
