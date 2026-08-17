@@ -152,7 +152,7 @@ Lab ops (must not starve HTTP):
 - Lab catalogues **tip first**. A `kind=ac` locator without a freezer AC must answer/grade against `tipStateRoot` at that height. If the challenger already holds an AC commitment, the candidate **must** open the AC object (P8b); tip-only answers fail even when `tipStateRoot` matches. Catch-up must not `putLocator` for a kind the donor slot does not hold, and must retry a peer that does.
 - `SYNC_CATCHUP_BATCH = 128` with `beginBatch` + yield every 16 objects. Start probes wait on **`GET /liveness`**, never `/health`.
 - Lab \(C_G\) has thousands of hosted `chainNftId`s. **P9 landed (2026-08-17):** seven G1 `/sync/opening` all `opened===hosted` unique **2103**, `policy=all-hosted`, `sampleCount=2104` (tip-heavy + one `hashIndex`). Evidence `p9-opening.json` `ok:true` at `2026-08-17T06:35:54.834Z`. `/health` `hostedChainCount` is raw `chainNftIds.length` (**2104** after this keep). `POST /sync/challenge` uses `SYNC_CHALLENGE_TIMEOUT_MS = 180s`. Roster / status reads use `SYNC_STATUS_TIMEOUT_MS = 30s`. Each voter challenges **one** candidate per tick. Re-smoke: `npm run lab:smoke-cg-open`. Do **not** scrape `/sync/status` on all seven just to prove opening.
-- Redeploy G1 keep-data only: `npm run lab:deploy-g1-keep` (merges G1+G2 `planeDirectory`). Do **not** use `lab:deploy-m6` just to refresh G1 (it restarts G2). `lab:deploy-archive-keep` still drops `planeDirectory`.
+- Redeploy G1 keep-data only: `npm run lab:deploy-g1-keep` (merges G1+G2 `planeDirectory`). Do **not** use `lab:deploy-m6` just to refresh G1 (it restarts G2). `lab:deploy-archive-keep` still drops `planeDirectory`. Remapped NYC keepers only: `npm run lab:keep-remap-l2` (keep-data `fd-01`/`fd-03`, then peer-refresh `fd-02`/`fd-04`/`fd-05`; **never** starts standby).
 - Bootstrap deadlock: candidate cannot vote. All **5 G1 actives** must be up before wipe. Keepers fd-01..04 must already be `QUALIFIED`.
 - Zero-join accept: `npm run lab:wipe-sync-join` then `npm run lab:accept-sync-join`. Wipe set is wipe-safe joiners only (`fd-05` / `fd-06` / `fd-07`); **never keepers**. Default P8d pick is random **2** hosts and **must** include the only wipe-safe active `fd-05` (else cataloguing does not freeze). Override with `LAB_SYNC_JOIN_WIPE_DOMAIN_IDS`. Never geth/beacon. Evidence: `pilot/evidence/conet-dle-sync-join-2026-08/`.
 
@@ -198,9 +198,29 @@ After P9: consider malicious missing-object / permanent `REJECTED`. Then EIP-712
 | Process restart of `REJECTED` | new seating (`SYNCING`) |
 | Permanent `REJECTED` active at \(Q_A=4\) | `hasUnseatedActive=true` → inventory stays frozen (unit-tested; **do not** wipe a live keeper to reproduce) |
 
-Adversarial cases are **unit tests only** (`runtime/test/sync-qualification.test.ts`). Live: `npm run lab:smoke-rejected-safety` scrapes seven G1 `/health` — fail if any **active** is `REJECTED` or keepers `fd-01..04` are not `QUALIFIED`. Evidence `pilot/evidence/conet-dle-sync-join-2026-08/p10-rejected-safety.json`. **Never** inject a missing object or `claimSync` against a live active. **Never** wipe keepers to “fix” `REJECTED`. Completing P10 **MUST NOT** start `pilotStartedAt`. Still HMAC, **not** production \(C_G\) / EIP-712 / CL RANDAO.
+Adversarial cases are **unit tests only** (`runtime/test/sync-qualification.test.ts`). Live: `npm run lab:smoke-rejected-safety` scrapes live G1 `/health` for all official seats, including remapped `fd-01` / `fd-03`. Fail if any live **active** is `REJECTED` or live keepers `fd-01..04` are not `QUALIFIED`. Remapped HostHatch NYC keepers `45.132.74.220` / `45.132.74.221` now run keep-data L2 (`lab:keep-remap-l2`, 2026-08-17). Evidence `pilot/evidence/conet-dle-sync-join-2026-08/p10-rejected-safety.json`. **Never** inject a missing object or `claimSync` against a live active. **Never** wipe keepers to “fix” `REJECTED`. Completing P10 **MUST NOT** start `pilotStartedAt`. Still HMAC, **not** production \(C_G\) / EIP-712 / CL RANDAO.
 
 After P10: EIP-712 / CL RANDAO / 30-day gate. A **full-open from-zero join** needs a newly authorized empty datadir. Do **not** reuse the P8d wipe path (it still forces `fd-05`).
+
+### Official G1 live SSH hosts (2026-08-17)
+
+Seat identity is `domainId` + `participantWallet`, **not** the IP. Official roster stays **7**. **`fd-01-ionos-45` stays live**; only old IONOS `74.208.224.45` is excluded. Live `sshHost` is `45.132.74.220`. **`fd-03-ionos-98` stays live**; only old IONOS `198.251.77.98` is excluded. Live `sshHost` is `45.132.74.221`. Keep-data L2 is running on both remapped hosts after authorized `lab:keep-remap-l2` (2026-08-17). Do **not** use official-seven keep (`lab:keep-p11-peers` / `lab:deploy-archive-keep` / `lab:deploy-g1-keep`) just to refresh these two seats — that would also start standby `fd-06` / `fd-07`. Peer refresh after remap is only `fd-02` / `fd-04` / `fd-05`.
+
+**MVP exclude:** `74.208.224.45` and `198.251.77.98`. Do **not** SSH, keep-deploy, `extraPeers`, on-demand hook, newchain-user, or nginx-upstream those IPs. `loadLabHosts` / `runSsh` / `runScp` must refuse them. `agentConfigFor(fd-01)` and `agentConfigFor(fd-03)` must succeed; peers must use `45.132.74.220` and `45.132.74.221`. Historical `pilot/evidence/**` may still name the old IPs — do **not** rewrite evidence. This exclude is **not** an L1 health-check delist.
+
+| domainId | live sshHost | role |
+|---|---|---|
+| `fd-01-ionos-45` | `45.132.74.220` | active keeper (L2 keep-data running) |
+| `fd-02-ionos-189` | `216.225.197.189` | active keeper |
+| `fd-03-ionos-98` | `45.132.74.221` | active keeper (L2 keep-data running) |
+| `fd-04-hosthatch-tokyo1` | `167.254.243.38` | active keeper |
+| `fd-05-hosthatch-tokyo2` | `170.205.39.67` | active wipe-safe |
+| `fd-06-ionos-174` | `216.225.193.174` | standby |
+| `fd-07-ionos-207` | `212.227.242.207` | standby |
+
+Live keepers are **fd-01 / fd-02 / fd-03 / fd-04**. Do **not** auto-promote a standby. Do **not** wipe `fd-01` or `fd-03`. Completing this remap **MUST NOT** start `pilotStartedAt`.
+
+**Explorer nginx** (`dle.conet.network`, 2026-08-17 authorized): `45.132.74.220:27101`, `45.132.74.221:27101`, `167.254.243.38:27101`, `170.205.39.67:27101`. Do **not** proxy shared-beacon `216.225.197.189` or standby leftover `216.225.193.174` / `212.227.242.207`.
 
 ### P11 extra-joiner full-open from-zero (HMAC)
 

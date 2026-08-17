@@ -43,6 +43,7 @@
     "lab:smoke-rejected-safety": "npm --prefix pilot run lab:smoke-rejected-safety",
     "lab:probe-p11-joiner": "npm --prefix pilot run lab:probe-p11-joiner",
     "lab:keep-p11-peers": "npm run runtime:build && npm --prefix pilot run lab:keep-p11-peers",
+    "lab:keep-remap-l2": "npm run runtime:build && npm --prefix pilot run lab:keep-remap-l2",
     "lab:keep-p11-joiner": "npm run runtime:build && npm --prefix pilot run lab:keep-p11-joiner",
     "lab:deploy-p11-joiner": "npm run runtime:build && npm --prefix pilot run lab:deploy-p11-joiner",
     "lab:accept-p11-join": "npm --prefix pilot run lab:accept-p11-join",

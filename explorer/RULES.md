@@ -96,6 +96,7 @@ Official Home **Archives** stays the 7-domain roster. Extra joiner `fd-08` is no
 
 ## Other Explorer invariants
 
+- Official G1 nginx upstream (parent-repo `scripts/nginx-dle.conet.network.conf`): `45.132.74.220:27101`, `45.132.74.221:27101`, `167.254.243.38:27101`, `170.205.39.67:27101`. **Never** proxy excluded IONOS `74.208.224.45` or `198.251.77.98`. Do not proxy shared-beacon `216.225.197.189` or standby leftover `216.225.193.174` / `212.227.242.207`.
 - No top navigation bar. Main pages: title capsule. Detail: circular back button. Tabs in the footer.
 - Refresh: `setTimeout` chain only. No `setInterval`.
 - Failed fetches keep the last trusted snapshot (`beamio-trusted-vs-untrusted-fetch.mdc`).

@@ -85,6 +85,8 @@ export interface PilotLabHostV1 {
   leftoverElCl: boolean
   doNotStartValidator: true
   notes: string
+  /** Official roster may keep the seat; live SSH / keep / nginx must skip it. */
+  retired?: boolean
 }
 
 export interface PilotLabHostsV1 {
@@ -115,6 +117,117 @@ export const G1_SYNC_JOIN_KEEPER_DOMAIN_IDS = [
   'fd-03-ionos-98',
   'fd-04-hosthatch-tokyo1',
 ] as const
+/** Old IONOS IPs retired from DLE TypeScript MVP. Seats stay live on remapped hosts. */
+export const MVP_EXCLUDED_SSH_HOSTS = ['74.208.224.45', '198.251.77.98'] as const
+export const MVP_EXCLUDED_INVENTORY_MARKS = [
+  '74.208.224.45',
+  '74-208-224-45',
+  '198.251.77.98',
+  '198-251-77-98',
+] as const
+/** No official seat is retired; only the two old IONOS IPs are excluded. */
+export const MVP_RETIRED_DOMAIN_IDS = [] as const
+/** Seat stays live; only old IONOS 74.208.224.45 is excluded. */
+export const FD01_DOMAIN_ID = 'fd-01-ionos-45'
+export const FD01_SSH_HOST = '45.132.74.220'
+/** Seat stays live; only old IONOS 198.251.77.98 is excluded. */
+export const FD03_DOMAIN_ID = 'fd-03-ionos-98'
+export const FD03_SSH_HOST = '45.132.74.221'
+
+export function isRetiredLabDomain(domainId: string): boolean {
+  return (MVP_RETIRED_DOMAIN_IDS as readonly string[]).includes(domainId)
+}
+
+export function isRetiredLabHost(host: Pick<PilotLabHostV1, 'domainId' | 'retired'>): boolean {
+  return host.retired === true || isRetiredLabDomain(host.domainId)
+}
+
+export function liveLabHosts(hosts: PilotLabHostsV1): PilotLabHostV1[] {
+  return hosts.hosts.filter((row) => !isRetiredLabHost(row))
+}
+
+/** Keep / start L2 only on these remapped live keepers. Do not use official-seven keep (it would also start standby). */
+export const REMAP_KEEP_L2_DOMAIN_IDS = [FD01_DOMAIN_ID, FD03_DOMAIN_ID] as const
+
+/** Already-running live L2 peers that must refresh extraPeers after a remap. Never standby. */
+export const REMAP_PEER_REFRESH_DOMAIN_IDS = [
+  'fd-02-ionos-189',
+  'fd-04-hosthatch-tokyo1',
+  'fd-05-hosthatch-tokyo2',
+] as const
+
+export function selectLabKeepHosts(
+  hosts: PilotLabHostsV1,
+  onlyDomainIds?: readonly string[],
+): PilotLabHostV1[] {
+  if (onlyDomainIds === undefined || onlyDomainIds.length === 0) {
+    return liveLabHosts(hosts)
+  }
+  const selected: PilotLabHostV1[] = []
+  for (const domainId of onlyDomainIds) {
+    const row = hosts.hosts.find((item) => item.domainId === domainId)
+    if (!row) throw new Error(`keep target ${domainId} is not in official hosts`)
+    if (isRetiredLabHost(row)) throw new Error(`refusing keep on retired ${domainId}`)
+    assertMvpSshHostAllowed(row.sshHost)
+    selected.push(row)
+  }
+  return selected
+}
+
+export function assertMvpSshHostAllowed(host: string): void {
+  if ((MVP_EXCLUDED_SSH_HOSTS as readonly string[]).includes(host)) {
+    throw new Error(`MVP excludes retired SSH host ${host}`)
+  }
+}
+
+function assertRemappedLiveSeat(
+  hosts: PilotLabHostsV1,
+  domainId: string,
+  sshHost: string,
+): PilotLabHostV1 {
+  const row = hosts.hosts.find((item) => item.domainId === domainId)
+  if (!row) throw new Error(`MVP requires ${domainId}`)
+  if (row.retired === true || isRetiredLabDomain(row.domainId)) {
+    throw new Error(`${domainId} must stay live; do not retire the seat`)
+  }
+  if (row.sshHost !== sshHost) {
+    throw new Error(`${domainId} must point at ${sshHost}`)
+  }
+  return row
+}
+
+export function assertOfficialLabMvpHosts(hosts: PilotLabHostsV1, inventory?: PilotInventoryV1): void {
+  assertRemappedLiveSeat(hosts, FD01_DOMAIN_ID, FD01_SSH_HOST)
+  assertRemappedLiveSeat(hosts, FD03_DOMAIN_ID, FD03_SSH_HOST)
+  for (const row of hosts.hosts) {
+    if (isRetiredLabHost(row)) continue
+    assertMvpSshHostAllowed(row.sshHost)
+  }
+  if (!inventory) return
+  const blob = JSON.stringify(inventory.domains)
+  for (const mark of MVP_EXCLUDED_INVENTORY_MARKS) {
+    if (blob.includes(mark)) {
+      throw new Error(`MVP inventory still references excluded host ${mark}`)
+    }
+  }
+  const fd01Row = inventory.domains.find((domain) => domain.domainId === FD01_DOMAIN_ID)
+  if (!fd01Row) throw new Error(`MVP inventory missing ${FD01_DOMAIN_ID}`)
+  if (/RETIRED/i.test(fd01Row.operatorLegalName)) {
+    throw new Error(`${FD01_DOMAIN_ID} inventory must stay live`)
+  }
+  if (!fd01Row.hostId.includes('45-132-74-220')) {
+    throw new Error(`${FD01_DOMAIN_ID} inventory must use HostHatch 45.132.74.220`)
+  }
+  const fd03Row = inventory.domains.find((domain) => domain.domainId === FD03_DOMAIN_ID)
+  if (!fd03Row) throw new Error(`MVP inventory missing ${FD03_DOMAIN_ID}`)
+  if (/RETIRED/i.test(fd03Row.operatorLegalName)) {
+    throw new Error(`${FD03_DOMAIN_ID} inventory must stay live`)
+  }
+  if (!fd03Row.hostId.includes('45-132-74-221')) {
+    throw new Error(`${FD03_DOMAIN_ID} inventory must use HostHatch 45.132.74.221`)
+  }
+}
+
 /** Only wipe-safe G1 joiners. Keepers are never in this set. */
 export const G1_SYNC_JOIN_WIPE_SAFE_DOMAIN_IDS = [
   'fd-05-hosthatch-tokyo2',
@@ -195,6 +308,20 @@ export async function loadOfficialLabInventory(path = DEFAULT_INVENTORY_PATH): P
   if (inventory.pilotId !== PILOT_LAB_ID) {
     throw new Error(`unexpected pilotId ${inventory.pilotId}`)
   }
+  const blob = JSON.stringify(inventory.domains)
+  for (const mark of MVP_EXCLUDED_INVENTORY_MARKS) {
+    if (blob.includes(mark)) {
+      throw new Error(`MVP inventory still references excluded host ${mark}`)
+    }
+  }
+  const fd01 = inventory.domains.find((domain) => domain.domainId === FD01_DOMAIN_ID)
+  if (!fd01 || /RETIRED/i.test(fd01.operatorLegalName) || !fd01.hostId.includes('45-132-74-220')) {
+    throw new Error(`${FD01_DOMAIN_ID} inventory must stay live on HostHatch 45.132.74.220`)
+  }
+  const fd03 = inventory.domains.find((domain) => domain.domainId === FD03_DOMAIN_ID)
+  if (!fd03 || /RETIRED/i.test(fd03.operatorLegalName) || !fd03.hostId.includes('45-132-74-221')) {
+    throw new Error(`${FD03_DOMAIN_ID} inventory must stay live on HostHatch 45.132.74.221`)
+  }
   return inventory
 }
 
@@ -210,6 +337,7 @@ export async function loadLabHosts(path = DEFAULT_HOSTS_PATH): Promise<PilotLabH
       throw new Error(`hosts file missing protected process ${name}`)
     }
   }
+  assertOfficialLabMvpHosts(hosts)
   return hosts
 }
 
@@ -226,12 +354,12 @@ export function labCorrelationReport(inventory: PilotInventoryV1): LabCapacityNo
     {
       check: 'provider-diversity-honest',
       ok: providers.size >= 2,
-      detail: `providers=${[...providers].join(',')}; five IONOS + two HostHatch is host-isolated, not fully provider-isolated`,
+      detail: `providers=${[...providers].join(',')}; fd-01 remapped to HostHatch NYC 45.132.74.220; fd-03 remapped to HostHatch NYC 45.132.74.221`,
     },
     {
       check: 'asn-diversity-honest',
       ok: asns.size >= 2,
-      detail: `asns=${[...asns].join(',')}; AS8560 still covers five IONOS leases`,
+      detail: `asns=${[...asns].join(',')}; AS8560 still covers three leftover IONOS leases`,
     },
     {
       check: 'region-diversity-honest',
@@ -255,6 +383,7 @@ function sshArgs(host: string, remoteCommand: string): string[] {
 }
 
 export async function runSsh(host: string, remoteCommand: string): Promise<{ code: number; stdout: string; stderr: string }> {
+  assertMvpSshHostAllowed(host)
   return new Promise((resolvePromise) => {
     const child = spawn('ssh', sshArgs(host, remoteCommand), { stdio: ['ignore', 'pipe', 'pipe'] })
     let stdout = ''
@@ -290,6 +419,7 @@ export async function runLocal(
 }
 
 export async function runScp(localPath: string, host: string, remotePath: string): Promise<void> {
+  assertMvpSshHostAllowed(host)
   await new Promise<void>((resolvePromise, reject) => {
     const child = spawn(
       'scp',
@@ -501,7 +631,7 @@ export function planeDirectoryFromHosts(
   return [
     {
       groupId,
-      wallets: hosts.hosts.map((item) => {
+      wallets: liveLabHosts(hosts).map((item) => {
         const peerDomain = inventory.domains.find((row) => row.domainId === item.domainId)
         return {
           domainId: item.domainId,
@@ -523,7 +653,8 @@ export function agentConfigFor(
   const domain = inventory.domains.find((item) => item.domainId === domainId)
   const self = hosts.hosts.find((item) => item.domainId === domainId)
   if (!domain || !self) throw new Error(`unknown domain ${domainId}`)
-  const officialPeers = hosts.hosts
+  if (isRetiredLabHost(self)) throw new Error(`refusing agent config for retired ${domainId}`)
+  const officialPeers = liveLabHosts(hosts)
     .filter((item) => item.domainId !== domainId)
     .map((item) => {
       const peerDomain = inventory.domains.find((row) => row.domainId === item.domainId)
@@ -556,7 +687,7 @@ export function agentConfigForJoiner(
   extras?: AgentConfigExtras,
 ): Record<string, unknown> {
   assertP11JoinerOutsideOfficial(inventory, hosts, joiner)
-  const officialPeers = hosts.hosts.map((item) => {
+  const officialPeers = liveLabHosts(hosts).map((item) => {
     const peerDomain = inventory.domains.find((row) => row.domainId === item.domainId)
     return {
       domainId: item.domainId,
@@ -625,6 +756,15 @@ export async function deployIsolatedLab(options?: {
   const agentPath = options?.agentPath ?? DEFAULT_AGENT_PATH
   const results: Array<{ domainId: string; host: string; ok: boolean; detail: string }> = []
   for (const host of hosts.hosts) {
+    if (isRetiredLabHost(host)) {
+      results.push({
+        domainId: host.domainId,
+        host: host.sshHost,
+        ok: true,
+        detail: 'retired-skip-no-start',
+      })
+      continue
+    }
     const ensure = await runSsh(host.sshHost, ENSURE_NODE)
     if (ensure.code !== 0) {
       results.push({
@@ -785,6 +925,7 @@ export async function deployArchiveRuntime(options?: {
   daemonProbePath?: string
   keepData?: boolean
   extras?: AgentConfigExtras
+  onlyDomainIds?: readonly string[]
 }): Promise<{ ok: boolean; results: Array<{ domainId: string; host: string; ok: boolean; detail: string }> }> {
   const inventory = await loadOfficialLabInventory(options?.inventoryPath)
   const hosts = await loadLabHosts(options?.hostsPath)
@@ -795,7 +936,16 @@ export async function deployArchiveRuntime(options?: {
     env: { ...process.env, COPYFILE_DISABLE: '1' },
   })
   const results: Array<{ domainId: string; host: string; ok: boolean; detail: string }> = []
-  for (const host of hosts.hosts) {
+  for (const host of selectLabKeepHosts(hosts, options?.onlyDomainIds)) {
+    if (isRetiredLabHost(host)) {
+      results.push({
+        domainId: host.domainId,
+        host: host.sshHost,
+        ok: true,
+        detail: 'retired-skip-no-start',
+      })
+      continue
+    }
     const ensure = await runSshRetry(host.sshHost, ENSURE_NODE)
     if (ensure.code !== 0) {
       results.push({
@@ -889,8 +1039,9 @@ export async function acceptArchiveRuntime(): Promise<{
   const inventory = await loadOfficialLabInventory()
   const activeIds = inventory.domains.filter((domain) => domain.role === 'active').map((domain) => domain.domainId)
   const standbyIds = inventory.domains.filter((domain) => domain.role === 'standby').map((domain) => domain.domainId)
-  const expectedPeers = hosts.hosts.length
-  const peerCurl = hosts.hosts
+  const live = liveLabHosts(hosts)
+  const expectedPeers = live.length
+  const peerCurl = live
     .map(
       (peer) =>
         `curl -fsS --max-time 4 http://${peer.sshHost}:${LAB_PORT}/health >/tmp/dle-peer-${peer.domainId}.json && echo PEER_${peer.domainId}=ok || echo PEER_${peer.domainId}=fail`,
@@ -929,7 +1080,7 @@ export async function acceptArchiveRuntime(): Promise<{
     validator?: string
     detail: string
   }> = []
-  for (const host of hosts.hosts) {
+  for (const host of live) {
     const result = await runSsh(host.sshHost, acceptScript)
     const stdout = result.stdout
     const health = extractArchiveHealthJson(stdout)
@@ -1073,7 +1224,7 @@ export async function acceptOnDemandRuntime(): Promise<{
     validator?: string
     detail: string
   }> = []
-  for (const host of hosts.hosts) {
+  for (const host of liveLabHosts(hosts)) {
     const result = await runSsh(host.sshHost, acceptScript)
     const stdout = result.stdout
     const health = extractArchiveHealthJson(stdout)
@@ -1189,7 +1340,7 @@ export async function statusIsolatedLab(): Promise<
 > {
   const hosts = await loadLabHosts()
   const rows: Array<{ domainId: string; host: string; stdout: string; code: number }> = []
-  for (const host of hosts.hosts) {
+  for (const host of liveLabHosts(hosts)) {
     const result = await runSsh(host.sshHost, STATUS_AGENT)
     rows.push({
       domainId: host.domainId,
@@ -1202,7 +1353,7 @@ export async function statusIsolatedLab(): Promise<
 }
 
 export function httpArchiveUrls(hosts: PilotLabHostsV1): string[] {
-  return hosts.hosts.map((host) => `http://${host.sshHost}:${hosts.labPort}`)
+  return liveLabHosts(hosts).map((host) => `http://${host.sshHost}:${hosts.labPort}`)
 }
 
 function delay(ms: number): Promise<void> {
@@ -1251,6 +1402,15 @@ export async function openOnDemandHttpQueue(options?: {
     detail: string
   }> = []
   for (const host of hosts.hosts) {
+    if (isRetiredLabHost(host)) {
+      results.push({
+        domainId: host.domainId,
+        host: host.sshHost,
+        ok: true,
+        detail: 'retired-skip-no-start',
+      })
+      continue
+    }
     const ensure = await runSsh(host.sshHost, ENSURE_NODE)
     if (ensure.code !== 0) {
       results.push({
@@ -1791,6 +1951,7 @@ export async function injectIsolatedProcessCrash(domainId: string): Promise<{ ok
   const hosts = await loadLabHosts()
   const host = hosts.hosts.find((item) => item.domainId === domainId)
   if (!host) throw new Error(`unknown domain ${domainId}`)
+  if (isRetiredLabHost(host)) throw new Error(`refusing crash inject on retired ${domainId}`)
   const script = [
     'set -euo pipefail',
     "PIDS=$(pgrep -f '[n]ode .*dle-30d-lab/' || true)",
@@ -1840,6 +2001,20 @@ function keepersFourRootsAligned(rows: SyncJoinRow[]): boolean {
 }
 
 async function readSyncStatus(host: PilotLabHostV1): Promise<SyncJoinRow> {
+  if (isRetiredLabHost(host)) {
+    return {
+      domainId: host.domainId,
+      phase: 'RETIRED',
+      seatingQualified: false,
+      leafCount: null,
+      rejectReason: 'retired-skip-no-start',
+      inventoryFrozen: null,
+      hostedChainSetRoot: null,
+      lastACRef: null,
+      membershipRoot: null,
+      hashIndexRoot: null,
+    }
+  }
   const result = await runSshRetry(host.sshHost, HEALTH_SEATING_ONLY)
   const health = extractArchiveHealthJson(result.stdout)
   const status =
@@ -2022,6 +2197,20 @@ export async function smokeLabCgOpening(): Promise<{
     detail: string
   }> = []
   for (const host of g1) {
+    if (isRetiredLabHost(host)) {
+      rows.push({
+        domainId: host.domainId,
+        host: host.sshHost,
+        ok: true,
+        hostedChainCount: null,
+        openedChainCount: null,
+        openedAllHostedChains: null,
+        policy: null,
+        sampleCount: null,
+        detail: 'retired-skip-no-start',
+      })
+      continue
+    }
     const url = `http://${host.sshHost}:${LAB_PORT}/sync/opening`
     try {
       const opening = await fetchArchiveJsonTimed(url, 30_000)
@@ -2126,6 +2315,18 @@ export async function smokeLabRejectedSafety(): Promise<{
     detail: string
   }> = []
   for (const host of g1) {
+    if (isRetiredLabHost(host)) {
+      rows.push({
+        domainId: host.domainId,
+        host: host.sshHost,
+        role: null,
+        phase: 'RETIRED',
+        seatingQualified: false,
+        ok: true,
+        detail: 'retired-skip-no-start',
+      })
+      continue
+    }
     const url = `http://${host.sshHost}:${LAB_PORT}/health`
     try {
       const health = await fetchArchiveJsonTimed(url, 30_000)
@@ -2168,7 +2369,7 @@ export async function smokeLabRejectedSafety(): Promise<{
   const ok =
     rows.length === G1_SMOKE_DOMAIN_IDS.length &&
     rows.every((row) => row.ok) &&
-    G1_SYNC_JOIN_KEEPER_DOMAIN_IDS.every((id) =>
+    G1_SYNC_JOIN_KEEPER_DOMAIN_IDS.filter((id) => !isRetiredLabDomain(id)).every((id) =>
       rows.some((row) => row.domainId === id && row.phase === 'QUALIFIED' && row.seatingQualified === true),
     )
   await mkdir(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, { recursive: true })
@@ -2427,7 +2628,9 @@ export async function deployP11FullOpenJoiner(options?: {
       })
     }
   }
-  const keeper = hosts.hosts.find((host) => host.domainId === 'fd-01-ionos-45')
+  const keeper = liveLabHosts(hosts).find((host) =>
+    (G1_SYNC_JOIN_KEEPER_DOMAIN_IDS as readonly string[]).includes(host.domainId),
+  )
   let reachableFromKeeper = false
   if (keeper && results.every((row) => row.ok)) {
     const reach = await runSshRetry(

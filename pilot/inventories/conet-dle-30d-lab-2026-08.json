@@ -1,18 +1,18 @@
 {
   "schema": "PilotInventoryV1",
   "pilotId": "conet-dle-30d-lab-2026-08",
-  "generatedAt": "2026-08-14T17:50:00.000Z",
+  "generatedAt": "2026-08-17T20:40:00.000Z",
   "domains": [
     {
       "domainId": "fd-01-ionos-45",
-      "operatorDomainId": "op-ionos-lease-74-208-224-45",
-      "operatorLegalName": "CoNET Labs IONOS VPS Linux M lease 74.208.224.45",
-      "hostId": "host-ionos-74-208-224-45",
-      "provider": "IONOS Inc.",
+      "operatorDomainId": "op-hosthatch-lease-45-132-74-220",
+      "operatorLegalName": "CoNET Labs HostHatch NYC lease 45.132.74.220",
+      "hostId": "host-hosthatch-45-132-74-220",
+      "provider": "HostHatch, LLC",
       "region": "us-east-ny",
-      "networkAsn": "AS8560",
+      "networkAsn": "AS63473",
       "role": "active",
-      "billingRef": "usd-4-unmetered-host-ionos-74-208-224-45",
+      "billingRef": "usd-4-unmetered-host-hosthatch-45-132-74-220",
       "participantWallet": "0xB7D3541290b6Ca21C94427D738b1C250c1Cb9d14"
     },
     {
@@ -29,14 +29,14 @@
     },
     {
       "domainId": "fd-03-ionos-98",
-      "operatorDomainId": "op-ionos-lease-198-251-77-98",
-      "operatorLegalName": "CoNET Labs IONOS VPS Linux M lease 198.251.77.98",
-      "hostId": "host-ionos-198-251-77-98",
-      "provider": "IONOS Inc.",
-      "region": "us-central-mo",
-      "networkAsn": "AS8560",
+      "operatorDomainId": "op-hosthatch-lease-45-132-74-221",
+      "operatorLegalName": "CoNET Labs HostHatch NYC lease 45.132.74.221",
+      "hostId": "host-hosthatch-45-132-74-221",
+      "provider": "HostHatch, LLC",
+      "region": "us-east-ny",
+      "networkAsn": "AS63473",
       "role": "active",
-      "billingRef": "usd-4-unmetered-host-ionos-198-251-77-98",
+      "billingRef": "usd-4-unmetered-host-hosthatch-45-132-74-221",
       "participantWallet": "0xf264D0EA6A78D3a35EDb1F6A6358088d02D0a626"
     },
     {

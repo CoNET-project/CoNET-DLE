@@ -16,6 +16,7 @@ import {
   DEFAULT_SYNC_JOIN_EVIDENCE_DIR,
   deployArchiveRuntime,
   deployP11FullOpenJoiner,
+  liveLabHosts,
   loadLabHosts,
   loadOfficialLabInventory,
   p11JoinerPeer,
@@ -441,7 +442,7 @@ export async function acceptM6Plane(): Promise<{
 }> {
   const g1Hosts = await loadLabHosts()
   const g2Hosts = await loadM6Hosts()
-  const g1Host = g1Hosts.hosts[0]
+  const g1Host = liveLabHosts(g1Hosts)[0]
   const g2Host = g2Hosts.hosts[0]
   if (g1Host === undefined || g2Host === undefined) {
     throw new Error('M6 accept requires at least one first-group host and one second-group host')

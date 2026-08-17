@@ -15,11 +15,11 @@
   "hosts": [
     {
       "domainId": "fd-01-ionos-45",
-      "sshHost": "74.208.224.45",
-      "class": "deprecated-l1-clean",
+      "sshHost": "45.132.74.220",
+      "class": "greenfield-lab",
       "leftoverElCl": false,
       "doNotStartValidator": true,
-      "notes": "DEPRECATED 136v migrated to 216.225.202.23:7201. Leftover datadir may exist. EL/CL not running. Never start-with-va."
+      "notes": "Switched 2026-08-17 from 74.208.224.45. Keep-data L2 on 45.132.74.220 (LIVE_OK). In dle.conet.network upstream. Do not SSH / keep / nginx 74.208.224.45. Seat stays live (domainId + wallet). Never wipe. Do not auto-promote standby."
     },
     {
       "domainId": "fd-02-ionos-189",
@@ -31,11 +31,11 @@
     },
     {
       "domainId": "fd-03-ionos-98",
-      "sshHost": "198.251.77.98",
-      "class": "shared-readonly-beacon",
-      "leftoverElCl": true,
+      "sshHost": "45.132.74.221",
+      "class": "greenfield-lab",
+      "leftoverElCl": false,
       "doNotStartValidator": true,
-      "notes": "Live shared read-only geth+beacon plus SI. Tight RAM. Isolated DLE only."
+      "notes": "Switched 2026-08-17 from 198.251.77.98. Keep-data L2 on 45.132.74.221 (LIVE_OK). In dle.conet.network upstream. Do not SSH / keep / nginx 198.251.77.98. Seat stays live (domainId + wallet). Never wipe. Do not auto-promote standby."
     },
     {
       "domainId": "fd-04-hosthatch-tokyo1",

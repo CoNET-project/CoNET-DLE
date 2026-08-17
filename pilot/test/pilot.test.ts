@@ -11,7 +11,12 @@ import type { OperatorDomainV1, PilotInventoryV1 } from '../src/model.js'
 import { defaultDryRunScenarios, SimulationOnlyScenarioRunner } from '../src/scenarios.js'
 import { SerialPilotScheduler } from '../src/scheduler.js'
 import {
+  FD01_DOMAIN_ID,
+  FD01_SSH_HOST,
+  FD03_DOMAIN_ID,
+  FD03_SSH_HOST,
   G1_SYNC_JOIN_KEEPER_DOMAIN_IDS,
+  assertMvpSshHostAllowed,
   G1_SYNC_JOIN_REQUIRED_ACTIVE_WIPE,
   P11_JOINER_DOMAIN_ID,
   P11_JOINER_SSH_HOST,
@@ -22,6 +27,9 @@ import {
   loadOfficialLabInventory,
   p11JoinerHost,
   p11JoinerPeer,
+  REMAP_KEEP_L2_DOMAIN_IDS,
+  REMAP_PEER_REFRESH_DOMAIN_IDS,
+  selectLabKeepHosts,
   pickRandomWipeJoiners,
   resolveWipeJoinDomainIds,
 } from '../src/lab.js'
@@ -185,6 +193,83 @@ test('public evidence requires the allowlisted schema, redacts, verifies, and de
   await assert.rejects(verifyPublicEvidenceBundle(result.bundleDir), /integrity mismatch/u)
 })
 
+test('MVP official seven remap fd-01 and fd-03 and exclude old IONOS IPs', async () => {
+  const inventory = await loadOfficialLabInventory()
+  const hosts = await loadLabHosts()
+  const fd01 = hosts.hosts.find((host) => host.domainId === FD01_DOMAIN_ID)
+  const fd03 = hosts.hosts.find((host) => host.domainId === FD03_DOMAIN_ID)
+  assert.notEqual(fd01?.retired, true)
+  assert.equal(fd01?.sshHost, FD01_SSH_HOST)
+  assert.notEqual(fd03?.retired, true)
+  assert.equal(fd03?.sshHost, FD03_SSH_HOST)
+  assert.equal(
+    hosts.hosts.some((host) => host.sshHost === '74.208.224.45' || host.sshHost === '198.251.77.98'),
+    false,
+  )
+  assert.equal(
+    inventory.domains.some((domain) =>
+      /74\.208\.224\.45|74-208-224-45|198\.251\.77\.98|198-251-77-98/u.test(JSON.stringify(domain)),
+    ),
+    false,
+  )
+  assert.equal(/RETIRED/i.test(inventory.domains.find((domain) => domain.domainId === FD01_DOMAIN_ID)?.operatorLegalName ?? ''), false)
+  assert.equal(/RETIRED/i.test(inventory.domains.find((domain) => domain.domainId === FD03_DOMAIN_ID)?.operatorLegalName ?? ''), false)
+  assert.throws(() => assertMvpSshHostAllowed('74.208.224.45'), /excludes retired SSH host/u)
+  assert.doesNotThrow(() => assertMvpSshHostAllowed(FD01_SSH_HOST))
+  assert.throws(() => assertMvpSshHostAllowed('198.251.77.98'), /excludes retired SSH host/u)
+  assert.doesNotThrow(() => assertMvpSshHostAllowed(FD03_SSH_HOST))
+  const fd01Config = agentConfigFor(inventory, hosts, FD01_DOMAIN_ID)
+  const fd01Peers = fd01Config.peers as Array<{ host: string }>
+  assert.equal(fd01Peers.some((peer) => peer.host === '74.208.224.45'), false)
+  const fd03Config = agentConfigFor(inventory, hosts, FD03_DOMAIN_ID)
+  const fd03Peers = fd03Config.peers as Array<{ host: string }>
+  assert.equal(fd03Peers.some((peer) => peer.host === '198.251.77.98'), false)
+  const fd02Config = agentConfigFor(inventory, hosts, 'fd-02-ionos-189')
+  const fd02Peers = fd02Config.peers as Array<{ domainId: string; host: string }>
+  assert.equal(
+    fd02Peers.some((peer) => peer.domainId === FD01_DOMAIN_ID && peer.host === FD01_SSH_HOST),
+    true,
+  )
+  assert.equal(
+    fd02Peers.some((peer) => peer.domainId === FD03_DOMAIN_ID && peer.host === FD03_SSH_HOST),
+    true,
+  )
+  const remapOnly = selectLabKeepHosts(hosts, REMAP_KEEP_L2_DOMAIN_IDS)
+  assert.deepEqual(
+    remapOnly.map((host) => host.sshHost),
+    [FD01_SSH_HOST, FD03_SSH_HOST],
+  )
+  const peerRefresh = selectLabKeepHosts(hosts, REMAP_PEER_REFRESH_DOMAIN_IDS)
+  assert.equal(
+    peerRefresh.some((host) => host.sshHost === '216.225.193.174' || host.sshHost === '212.227.242.207'),
+    false,
+  )
+  assert.throws(() => selectLabKeepHosts(hosts, ['no-such-seat']), /not in official hosts/u)
+  const root = await mkdtemp(join(tmpdir(), 'pilot-mvp-hosts-'))
+  const badFd01Path = join(root, 'hosts-fd01.json')
+  await writeFile(
+    badFd01Path,
+    JSON.stringify({
+      ...hosts,
+      hosts: hosts.hosts.map((host) =>
+        host.domainId === FD01_DOMAIN_ID ? { ...host, sshHost: '74.208.224.45' } : host,
+      ),
+    }),
+  )
+  await assert.rejects(loadLabHosts(badFd01Path), /must point|excludes retired/u)
+  const badFd03Path = join(root, 'hosts-fd03.json')
+  await writeFile(
+    badFd03Path,
+    JSON.stringify({
+      ...hosts,
+      hosts: hosts.hosts.map((host) =>
+        host.domainId === FD03_DOMAIN_ID ? { ...host, sshHost: '198.251.77.98' } : host,
+      ),
+    }),
+  )
+  await assert.rejects(loadLabHosts(badFd03Path), /must point|excludes retired/u)
+})
+
 test('P11 extra joiner stays outside official 5+2 and extraPeers merge', async () => {
   const inventory = await loadOfficialLabInventory()
   const hosts = await loadLabHosts()
@@ -199,7 +284,7 @@ test('P11 extra joiner stays outside official 5+2 and extraPeers merge', async (
     false,
   )
   const extra = p11JoinerPeer()
-  const keeperConfig = agentConfigFor(inventory, hosts, 'fd-01-ionos-45', { extraPeers: [extra] })
+  const keeperConfig = agentConfigFor(inventory, hosts, 'fd-02-ionos-189', { extraPeers: [extra] })
   const keeperPeers = keeperConfig.peers as Array<{ domainId: string }>
   assert.equal(
     keeperPeers.some((peer) => peer.domainId === P11_JOINER_DOMAIN_ID),
@@ -207,7 +292,7 @@ test('P11 extra joiner stays outside official 5+2 and extraPeers merge', async (
   )
   assert.equal(
     keeperPeers.some((peer) => peer.domainId === 'fd-01-ionos-45'),
-    false,
+    true,
   )
   const joinerConfig = agentConfigForJoiner(inventory, hosts, p11JoinerHost())
   assert.equal(joinerConfig.domainId, P11_JOINER_DOMAIN_ID)

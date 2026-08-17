@@ -9,12 +9,12 @@ function walletFor(domainId: string): string {
 export const LAB_ARCHIVE_FIXTURES: LabArchiveRow[] = [
   {
     domainId: 'fd-01-ionos-45',
-    operatorDomainId: 'op-ionos-lease-74-208-224-45',
-    hostId: 'host-ionos-74-208-224-45',
-    provider: 'IONOS Inc.',
+    operatorDomainId: 'op-hosthatch-lease-45-132-74-220',
+    hostId: 'host-hosthatch-45-132-74-220',
+    provider: 'HostHatch, LLC',
     region: 'us-east-ny',
     role: 'active',
-    health: 'unknown',
+    health: 'unknown', // remapped 2026-08-17 to 45.132.74.220; keep-data L2 running; live overlay comes from /health
     lastQuorumOk: null,
     lastPeerOk: null,
     heartbeats: null,
@@ -41,10 +41,10 @@ export const LAB_ARCHIVE_FIXTURES: LabArchiveRow[] = [
   },
   {
     domainId: 'fd-03-ionos-98',
-    operatorDomainId: 'op-ionos-lease-198-251-77-98',
-    hostId: 'host-ionos-198-251-77-98',
-    provider: 'IONOS Inc.',
-    region: 'us-central-mo',
+    operatorDomainId: 'op-hosthatch-lease-45-132-74-221',
+    hostId: 'host-hosthatch-45-132-74-221',
+    provider: 'HostHatch, LLC',
+    region: 'us-east-ny',
     role: 'active',
     health: 'unknown',
     lastQuorumOk: null,

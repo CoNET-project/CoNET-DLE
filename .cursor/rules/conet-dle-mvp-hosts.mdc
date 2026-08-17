@@ -1,0 +1,33 @@
+---
+description: DLE TypeScript MVP 官方 7 席；fd-01 换到 45.132.74.220；fd-03 换到 45.132.74.221
+globs: pilot/lab/**,pilot/inventories/**,pilot/src/lab.ts,**/nginx-dle*
+alwaysApply: false
+---
+
+# DLE MVP official hosts
+
+Official G1 roster is **exactly 7** (5+2 identity). Seat identity is `domainId` + `participantWallet`, **not** the IP.
+
+| domainId | live sshHost | role |
+|---|---|---|
+| `fd-01-ionos-45` | `45.132.74.220` | active keeper (L2 keep-data running) |
+| `fd-02-ionos-189` | `216.225.197.189` | active keeper |
+| `fd-03-ionos-98` | `45.132.74.221` | active keeper (L2 keep-data running) |
+| `fd-04-hosthatch-tokyo1` | `167.254.243.38` | active keeper |
+| `fd-05-hosthatch-tokyo2` | `170.205.39.67` | active wipe-safe |
+| `fd-06-ionos-174` | `216.225.193.174` | standby |
+| `fd-07-ionos-207` | `212.227.242.207` | standby |
+
+Live keepers are **fd-01 / fd-02 / fd-03 / fd-04**. Do **not** auto-promote a standby. Remapped NYC keepers already have authorized keep-data L2. Refresh those two with `lab:keep-remap-l2` only — never official-seven keep (that starts standby). Completing a remap **MUST NOT** start `pilotStartedAt`.
+
+## Retired IPs (MVP exclude)
+
+Do not SSH, keep-deploy, `extraPeers`, on-demand hook, newchain-user, or nginx-upstream **`74.208.224.45`** or **`198.251.77.98`**.
+
+- `fd-01-ionos-45` **stays live**. `sshHost` must be `45.132.74.220`. Do **not** mark the seat `retired`. `agentConfigFor(fd-01)` must succeed.
+- `fd-03-ionos-98` **stays live**. `sshHost` must be `45.132.74.221`. Do **not** mark the seat `retired`. `agentConfigFor(fd-03)` must succeed.
+- `loadLabHosts` / `runSsh` / `runScp` must refuse the excluded IPs.
+- Explorer nginx: `45.132.74.220:27101`, `45.132.74.221:27101`, `167.254.243.38:27101`, `170.205.39.67:27101`. **Never** `74.208.224.45:27101` or `198.251.77.98:27101`. Do not proxy shared-beacon `216.225.197.189`.
+- Keep both `domainId`s. Do **not** rename seats. Do **not** wipe keepers.
+- Do **not** rewrite `pilot/evidence/**` that still names the old IPs.
+- This is **not** an L1 health-check delist. Do not restart EL/CL.

@@ -38,6 +38,7 @@
     "lab:smoke-rejected-safety": "npm run build && node dist/src/cli.js lab-smoke-rejected-safety",
     "lab:probe-p11-joiner": "npm run build && node dist/src/cli.js lab-probe-p11-joiner",
     "lab:keep-p11-peers": "npm run build && node dist/src/cli.js lab-keep-p11-peers",
+    "lab:keep-remap-l2": "npm run build && node dist/src/cli.js lab-keep-remap-l2",
     "lab:keep-p11-joiner": "npm run build && node dist/src/cli.js lab-keep-p11-joiner",
     "lab:deploy-p11-joiner": "npm run build && node dist/src/cli.js lab-deploy-p11-joiner",
     "lab:accept-p11-join": "npm run build && node dist/src/cli.js lab-accept-p11-join",
