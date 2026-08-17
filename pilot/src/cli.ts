@@ -18,8 +18,22 @@ import {
   loadOfficialLabInventory,
   startOfficialWarmup,
   statusIsolatedLab,
+  wipeG1ArchiveDataAndRestart,
+  acceptSyncJoin,
+  acceptP11FullOpenJoin,
+  deployP11FullOpenJoiner,
+  probeP11Joiner,
+  smokeLabCgOpening,
+  smokeLabRejectedSafety,
 } from './lab.js'
-import { acceptM6Plane, deployM6Plane } from './m6.js'
+import {
+  acceptM6Plane,
+  deployM6Plane,
+  keepUpdateG1PlaneDirectory,
+  keepUpdateG1WithP11Joiner,
+  p11JoinerKeepExtras,
+  runP11FullOpenFromZeroJoin,
+} from './m6.js'
 import type { PilotGateSnapshotV1, PilotInventoryV1 } from './model.js'
 import { runDryRunSimulation } from './simulation.js'
 
@@ -156,15 +170,75 @@ async function main(): Promise<void> {
       if (!result.ok) process.exitCode = 2
       return
     }
+    case 'lab-deploy-g1-keep': {
+      const result = await keepUpdateG1PlaneDirectory()
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
     case 'lab-accept-m6': {
       const result = await acceptM6Plane()
       process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
       if (!result.ok) process.exitCode = 2
       return
     }
+    case 'lab-wipe-sync-join': {
+      const result = await wipeG1ArchiveDataAndRestart()
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
+    case 'lab-accept-sync-join': {
+      const result = await acceptSyncJoin()
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
+    case 'lab-smoke-cg-open': {
+      const result = await smokeLabCgOpening()
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
+    case 'lab-smoke-rejected-safety': {
+      const result = await smokeLabRejectedSafety()
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
+    case 'lab-probe-p11-joiner': {
+      const result = await probeP11Joiner()
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
+    case 'lab-keep-p11-peers': {
+      const result = await keepUpdateG1WithP11Joiner()
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
+    case 'lab-deploy-p11-joiner': {
+      const result = await deployP11FullOpenJoiner({ extras: await p11JoinerKeepExtras() })
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
+    case 'lab-accept-p11-join': {
+      const result = await acceptP11FullOpenJoin()
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
+    case 'lab-p11-full-open-join': {
+      const result = await runP11FullOpenFromZeroJoin()
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
     default:
       throw new Error(
-        'usage: cli preflight --inventory FILE | dry-run [--output DIR] | bundle --source DIR --output DIR --pilot-id ID --gate FILE [--simulation-only true] [--redaction-salt SALT] | verify --bundle DIR | lab-preflight [--inventory FILE] | lab-deploy | lab-deploy-archive | lab-deploy-archive-keep | lab-accept-archive | lab-accept-ondemand | lab-deploy-ondemand-http-clients | lab-deploy-newchain-user | lab-deploy-m6 | lab-accept-m6 | lab-status | lab-warmup [--evidence DIR] | lab-inject-crash --domain ID',
+        'usage: cli preflight --inventory FILE | dry-run [--output DIR] | bundle --source DIR --output DIR --pilot-id ID --gate FILE [--simulation-only true] [--redaction-salt SALT] | verify --bundle DIR | lab-preflight [--inventory FILE] | lab-deploy | lab-deploy-archive | lab-deploy-archive-keep | lab-accept-archive | lab-accept-ondemand | lab-deploy-ondemand-http-clients | lab-deploy-newchain-user | lab-deploy-m6 | lab-deploy-g1-keep | lab-accept-m6 | lab-wipe-sync-join | lab-accept-sync-join | lab-smoke-cg-open | lab-smoke-rejected-safety | lab-probe-p11-joiner | lab-keep-p11-peers | lab-deploy-p11-joiner | lab-accept-p11-join | lab-p11-full-open-join | lab-status | lab-warmup [--evidence DIR] | lab-inject-crash --domain ID',
       )
   }
 }

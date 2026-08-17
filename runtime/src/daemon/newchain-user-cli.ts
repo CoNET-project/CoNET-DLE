@@ -218,6 +218,9 @@ async function submitClass(classId: LabChainClassId): Promise<SubmittedChain> {
     if (String(reply.valueHash).toLowerCase() !== valueHash.toLowerCase()) {
       throw new Error('archives disagreed on valueHash')
     }
+    if (!isRecord(reply.validatorQuorum) || reply.validatorQuorum.schema !== 'DleLabValidatorQuorumV1') {
+      throw new Error('archives omitted lab validator quorum')
+    }
   }
   const row: SubmittedChain = {
     requestId,

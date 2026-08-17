@@ -4,6 +4,9 @@ import {
   drawCommittee,
   LAB_DAEMON_PROBE_MINER,
   LAB_GROUP_ID,
+  LAB_HOOK_FANOUT_INCOMPLETE_NOTE,
+  LAB_HOOK_FANOUT_QUEUED_NOTE,
+  LAB_HOOK_SINGLE_ARCHIVE_NOTE,
   sameHexList,
   type SelectionView,
   type WaitingPoolView,
@@ -45,6 +48,11 @@ export interface OnDemandWaitSession {
   recomputed: boolean
   endorsed: boolean
   note: string
+  hookNotGossip: true
+  mustFanoutToEveryActiveArchive: true
+  notProductionDepinGossip: true
+  singleArchiveAcceptNotGroupPool: true
+  fanoutComplete: boolean
 }
 
 export function createWaitSession(): OnDemandWaitSession {
@@ -59,7 +67,12 @@ export function createWaitSession(): OnDemandWaitSession {
     standbys: [],
     recomputed: false,
     endorsed: false,
-    note: 'Local queued placeholder. Call submitWaitHook to post a real wait-to-mine hook.',
+    note: 'Local queued placeholder. Call submitWaitHookToArchives to post the same wait-to-mine hook to every live archive. Hooks are not intra-group gossip.',
+    hookNotGossip: true,
+    mustFanoutToEveryActiveArchive: true,
+    notProductionDepinGossip: true,
+    singleArchiveAcceptNotGroupPool: true,
+    fanoutComplete: false,
   }
 }
 
@@ -137,10 +150,15 @@ export async function submitWaitHook(
     endorsed: selected?.endorsed === true,
     note:
       status === 'frozen'
-        ? 'Pool already frozen. Daemon recomputed 7+2 from public poolRoot and beacon.'
+        ? 'Pool already frozen on this archive. One archive accept is not a group waiting pool. Hooks are not intra-group gossip.'
         : status === 'rejected'
-          ? 'Duplicate wait hook rejected (one in-flight hook per miner and group).'
-          : 'Wait hook queued. Freeze poolRoot before drawing 7+2.',
+          ? 'Duplicate wait hook rejected (one in-flight hook per miner and group). Hooks are not intra-group gossip.'
+          : LAB_HOOK_SINGLE_ARCHIVE_NOTE,
+    hookNotGossip: true,
+    mustFanoutToEveryActiveArchive: true,
+    notProductionDepinGossip: true,
+    singleArchiveAcceptNotGroupPool: true,
+    fanoutComplete: false,
   }
 }
 
@@ -281,12 +299,17 @@ export async function submitWaitHookToArchives(
     recomputed,
     endorsed: selected?.endorsed === true,
     archives,
+    hookNotGossip: true,
+    mustFanoutToEveryActiveArchive: true,
+    notProductionDepinGossip: true,
+    singleArchiveAcceptNotGroupPool: true,
+    fanoutComplete: allQueued,
     note:
       status === 'frozen'
-        ? 'One or more archives already froze the waiting pool.'
+        ? 'One or more archives already froze the waiting pool. Hooks are not intra-group gossip.'
         : status === 'rejected'
-          ? 'Wait hook was not queued on every archive.'
-          : 'Wait hook queued on every archive. Freeze poolRoot before drawing 7+2.',
+          ? LAB_HOOK_FANOUT_INCOMPLETE_NOTE
+          : LAB_HOOK_FANOUT_QUEUED_NOTE,
   }
 }
 

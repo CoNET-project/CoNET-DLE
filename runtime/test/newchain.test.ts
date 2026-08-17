@@ -5,6 +5,7 @@ import { after, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createNewChainEngine } from '../src/archive/newchain/engine.js'
 import { createHashLookupAdapter } from '../src/archive/hashPipe.js'
+import { ERR_INVENTORY_FROZEN, setInventoryCatalogFrozen } from '../src/archive/inventoryFreeze.js'
 import { openArchiveStore } from '../src/archive/store.js'
 import { DLE_LAB_CHAIN_NFT_ID, DLE_LAB_GROUP_ID } from '../src/shared/hashLookup.js'
 import { labRouteTableFromPeers, liveGroupCount, liveGroupIds, routeView } from '../src/shared/labRoute.js'
@@ -21,6 +22,7 @@ import {
 const dirs: string[] = []
 
 after(async () => {
+  setInventoryCatalogFrozen(false)
   await Promise.all(dirs.map((dir) => rm(dir, { recursive: true, force: true })))
 })
 
@@ -71,12 +73,54 @@ test('new-chain accept is idempotent and registers a lab route', async () => {
   assert.equal(second.body.duplicate, true)
   assert.equal(second.body.chainNftId, chainNftId)
   const lookup = createHashLookupAdapter(store.hash, { table: routeTable })
-  const hit = lookup.locate(String(first.body.valueHash))
-  assert.equal(hit.status, 'hit')
-  if (hit.status === 'hit') {
-    assert.equal(hit.locator.chainNftId, chainNftId)
-    assert.equal(hit.locator.kind, 'ac')
+  const valueHit = lookup.locate(String(first.body.valueHash))
+  assert.equal(valueHit.status, 'notFound')
+  const tipHit = lookup.locate(String(first.body.tipStateRoot))
+  assert.equal(tipHit.status, 'hit')
+  if (tipHit.status === 'hit') {
+    assert.equal(tipHit.locator.chainNftId, chainNftId)
+    assert.equal(tipHit.locator.kind, 'tipStateRoot')
   }
+  const quorum = first.body.validatorQuorum as {
+    schema?: string
+    quorum?: number
+    attestations?: unknown[]
+    eip712?: boolean
+    hmacForgeable?: boolean
+    validatorQuorumEip712?: boolean
+  }
+  assert.equal(quorum.schema, 'DleLabValidatorQuorumV1')
+  assert.equal(quorum.quorum, 5)
+  assert.equal(quorum.eip712, true)
+  assert.equal(quorum.hmacForgeable, false)
+  assert.equal(quorum.validatorQuorumEip712, true)
+  assert.equal(Array.isArray(quorum.attestations) && quorum.attestations.length >= 5, true)
+  assert.equal(first.body.archiveCertificatePending, true)
+  assert.equal(first.body.archiveCertificate, null)
+})
+
+test('new-chain accept rejects a fresh request while inventory is frozen', async () => {
+  const { engine } = await tempEngine('fd-frozen')
+  const existing = makeNewChainRequest({
+    classId: LAB_CLASS_ASSET,
+    nonce: 2,
+    salt: keccak256Utf8('dle.test.newchain.frozen.existing'),
+  })
+  assert.equal(engine.accept(existing).status, 200)
+  setInventoryCatalogFrozen(true, 'challenge-open')
+  const duplicate = engine.accept(existing)
+  assert.equal(duplicate.status, 200)
+  assert.equal(duplicate.body.duplicate, true)
+  const fresh = engine.accept(
+    makeNewChainRequest({
+      classId: LAB_CLASS_TRADE,
+      nonce: 3,
+      salt: keccak256Utf8('dle.test.newchain.frozen.fresh'),
+    }),
+  )
+  assert.equal(fresh.status, 409)
+  assert.equal(fresh.body.error, ERR_INVENTORY_FROZEN)
+  setInventoryCatalogFrozen(false)
 })
 
 test('asset, storage, and trade genesis each persist and reload', async () => {
@@ -103,6 +147,11 @@ test('asset, storage, and trade genesis each persist and reload', async () => {
   assert.equal(reloaded.list().count, 3)
   const health = reloaded.health()
   assert.deepEqual(health.newchainByClass, { asset: 1, storage: 1, trade: 1 })
+  assert.equal(health.newchainValidatorQuorum, 5)
+  assert.equal(health.newchainValidatorQuorumEip712, true)
+  assert.equal(health.newchainHmacForgeable, false)
+  assert.equal(health.newchainArchivePending, 3)
+  assert.equal(health.newchainArchiveCertified, 0)
   const chains = reloaded.list().chains as Array<{ chainNftId: string }>
   for (const row of chains) {
     assert.equal(routeView(reloadedTable, row.chainNftId).groupId, DLE_LAB_GROUP_ID)

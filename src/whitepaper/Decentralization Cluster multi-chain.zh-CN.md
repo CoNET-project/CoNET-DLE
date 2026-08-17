@@ -4,7 +4,7 @@
 
 **作者：** Peter Xie  
 **初稿：** 2023  
-**修订：** 2026-08-16（实验室 M6 第二归档组 + 全平面 gather 已落地；G2 Group ID 为实验室 hash，不是 L1 登记交易；全平面 JSON-RPC `null` 仅当每个活跃组都返回可信本组 `notFound`；一组超时是 `unavailable`；仍不是生产 DePIN / 不是 30 天资格；此前 2026-08-15：hash RPC 事实核查：DLE 已承诺的每个 hash 返回 `hit` 或本组 `notFound`；仅核查未完成才 `unavailable`；PrevoteQC 为一等 `kind=prevoteQc` — 方案 C；今后 hash 种类必须新增 typed `HashObjectKind`，禁止 AC 字段别名 — §5.2.0e；实验室清零后 M0–M5 hash 管道已上线；hop-1 `historyProviders` 走实验室 HTTP :27101；每组 `hashIndexRoot` 是独立实验室检查点，不是 AC 投票字段 — 仍不是生产 DePIN；hash-only RPC 必须先击中 `chainNftId`，再 hop-1 代理 — §5.2.0e；组内 geth 式热 KV + 按 `(nft, height)` 的 freezer；每组 `HashIndexTreeV1` / `hashIndexRoot`；全平面 `null` 仅在可信 not-found 之后；同日此前：on-demand 等待钩组内投递：钩 **不得** 视为已在归档间 gossip；miner/daemon **必须** 把同一等待钩投到该组每一台活跃归档 — §5.4 / §8.1；实验室 HTTP `POST /ondemand/hook` 是实验室 / MVP 控制面路径，**不是** 生产 DePIN gossip，也 **不是** explorer HTTPS；实验室 beacon ≠ L1 CL RANDAO — §7.8.5；HTTP 30 miner 排队是实测实验室证据，**不是** 30 天资格 — §15；此前 2026-08-14：全局 DLE RPC 真相面：任一活跃归档均可作为 RPC 入口；非本组查询 **必须** 代理到该组 `historyProviders` — §5.2.0d；EIP-155 平面 Chain ID（testnet `0x44c45`）与用户可见 Group ID = L1 登记交易 hash；L1 uint `groupId` 仍为存储键；L1 Global 归档路由注册表：归档钱包 + 所托管链 NFT id，链路由 / 历史提供者 — §5.2.0d；每组 5 名活跃归档 + 2 名专属有序备选、严格 4/5 quorum、可执行 Archive Tendermint v2 语料/Archive A MVP、五槽 AdaptiveRotationV1、OperatorDomainRegistryV1、L1QueueAccumulatorV1、线级 Tendermint/SSZ/WAL 规则、确定性 `dle.rs.v1` 正确编码证明、带挑战期强制退出、Treasury V3 规范 ERC-20 burn/remint 网关、**P1 实测证据边界：100-USDC 安全封顶已冻结，10-USDC 下限与 1.2× coverage 仍属临时参数**、L1 锚定卖方订单、x402 v2 AI pay-per-use / API gateway 目标 profile、协议费/执行准备金/可用性预算三账本、Treasury 规范资产 L1 pool/TWAP 准入；归档无出块权）
+**修订：** 2026-08-16（实验室门面已实现 `ArchiveStateChallengeV1`；G1 fd-05/fd-07 从零加入 `accept.json` 为 `ok:true`（leaf 4956，四根对齐）— 仍不是 30 天资格；同日此前：ArchiveSyncQualificationV1：追块 `SYNCING` 不得入席位资格；自报已同步仅为 `CLAIMED_SYNC`；须对本组全部托管链做随机状态抽检，并由现任 active \(Q_A=4/5\)（已大于 2/3，禁止 3/5）投票 — §5.2.0f；仍不是 30 天资格；同日此前：实验室 G2 主机 `hop1.ownGroupId` / `liveGroupIds` 已 emit L1 登记 tx `0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153`；实验室 keccak 仅为别名；仍不是 30 天资格；同日此前：实验室 G2 L1 registerLiveGroup 已落地；用户可见 G2 Group ID 为该 tx；仍不是 30 天资格；同日此前：实验室 P6 live keep：7/7 独立 AC，NFT 42 tip 仍为 `0x1`；新链创世为实验室 \(Q_V=5/7\) HMAC + 该链自己的 \(Q_A=4/5\) PrevoteQC/AC — 禁止写入 NFT 42 Tendermint / `bft-state.json`；旧 `DleLabGenesisCertificateV1` stub 不是 AC；仍不是 L1 出生证 / 不是 30 天资格；同日此前：实验室 M7：`tipStateRoot` / `membershipRoot` 为一等 `HashObjectKind` — 方案 C；禁止 AC 字段别名；仍不是 L1 登记 / 不是 30 天资格；同日此前：实验室 M6 第二归档组 + 全平面 gather 已落地；G2 Group ID 为实验室 hash，不是 L1 登记交易；全平面 JSON-RPC `null` 仅当每个活跃组都返回可信本组 `notFound`；一组超时是 `unavailable`；仍不是生产 DePIN / 不是 30 天资格；此前 2026-08-15：hash RPC 事实核查：DLE 已承诺的每个 hash 返回 `hit` 或本组 `notFound`；仅核查未完成才 `unavailable`；PrevoteQC 为一等 `kind=prevoteQc` — 方案 C；今后 hash 种类必须新增 typed `HashObjectKind`，禁止 AC 字段别名 — §5.2.0e；实验室清零后 M0–M5 hash 管道已上线；hop-1 `historyProviders` 走实验室 HTTP :27101；每组 `hashIndexRoot` 是独立实验室检查点，不是 AC 投票字段 — 仍不是生产 DePIN；hash-only RPC 必须先击中 `chainNftId`，再 hop-1 代理 — §5.2.0e；组内 geth 式热 KV + 按 `(nft, height)` 的 freezer；每组 `HashIndexTreeV1` / `hashIndexRoot`；全平面 `null` 仅在可信 not-found 之后；同日此前：on-demand 等待钩组内投递：钩 **不得** 视为已在归档间 gossip；miner/daemon **必须** 把同一等待钩投到该组每一台活跃归档 — §5.4 / §8.1；实验室 HTTP `POST /ondemand/hook` 是实验室 / MVP 控制面路径，**不是** 生产 DePIN gossip，也 **不是** explorer HTTPS；实验室 beacon ≠ L1 CL RANDAO — §7.8.5；HTTP 30 miner 排队是实测实验室证据，**不是** 30 天资格 — §15；此前 2026-08-14：全局 DLE RPC 真相面：任一活跃归档均可作为 RPC 入口；非本组查询 **必须** 代理到该组 `historyProviders` — §5.2.0d；EIP-155 平面 Chain ID（testnet `0x44c45`）与用户可见 Group ID = L1 登记交易 hash；L1 uint `groupId` 仍为存储键；L1 Global 归档路由注册表：归档钱包 + 所托管链 NFT id，链路由 / 历史提供者 — §5.2.0d；每组 5 名活跃归档 + 2 名专属有序备选、严格 4/5 quorum、可执行 Archive Tendermint v2 语料/Archive A MVP、五槽 AdaptiveRotationV1、OperatorDomainRegistryV1、L1QueueAccumulatorV1、线级 Tendermint/SSZ/WAL 规则、确定性 `dle.rs.v1` 正确编码证明、带挑战期强制退出、Treasury V3 规范 ERC-20 burn/remint 网关、**P1 实测证据边界：100-USDC 安全封顶已冻结，10-USDC 下限与 1.2× coverage 仍属临时参数**、L1 锚定卖方订单、x402 v2 AI pay-per-use / API gateway 目标 profile、协议费/执行准备金/可用性预算三账本、Treasury 规范资产 L1 pool/TWAP 准入；归档无出块权）
 
 **成对译本（必须同步更新）：** [`Decentralization Cluster multi-chain.md`](./Decentralization%20Cluster%20multi-chain.md)
 **同步守则：** `.cursor/rules/conet-layer2-whitepaper-bilingual-sync.mdc`
@@ -37,7 +37,8 @@
 - **归档平面裂变 + BFT 终局：** \(G_e\) 表示 L1 已注册活跃组数，\(N_e=5G_e\) 表示唯一活跃投票归档数，\(U_e\) 表示 `UnassignedPool` 中合格未分配归档数；仅当 \(U_e\ge7\) 才消耗七个全新、互不重叠身份，组成 **5 名活跃 + 2 名专属有序备选**。`maxGroupsPerArchive=1`，跨组名册交集为零。`OperatorDomainRegistryV1` 以可挑战的规范运营者、基础设施与角色域约束成组及归档/验证人隔离。既有组保留当前归属，只见证新组形成或经 **全局 RPC 代理** 为其它组提供带证明的只读数据（§5.2.0d）；`groupId` 单调且不复用。增长不重映射已有 tip，MigrationCertificate 仅用于解散/re-home。每组以 \(N_A=5,f=1,Q_A=4\) 的 **PrevoteQC → PrecommitQC（= AC）** 终局验证人产生的事件块；`AdaptiveRotationV1` 即使无故障也必须逐槽轮换，并在期限内完成五槽 churn。共识使用规范 SSZ sign-bytes、正确 nil/锁规则与 crash-consistent WAL；静态二项数值仅是初始抽签基线，长期风险须计入自适应腐化与相关故障（§5.2、§5.2.1a、§12.3.1a）。
 - **EIP-155 Chain ID 与 Group ID：** 平面唯一的 **EIP-155 Chain ID**（`eth_chainId` / 钱包）用来把本 DLE 平面与 CoNET L1 `224422` 及其它 EVM 链区分开。**CoNET-DLE Testnet** 为 `0x44c45` / `281669`。用户可见 **Group ID** 是该归档组在 L1 的 **登记交易 hash**。L1 `archiveGroupId[tokenId]` 仍是 uint **存储键**（引导组 `1`）。创世时只有 **一个** 活跃组；裂变后形成第二个唯一组（新的登记 hash）、第三个唯一组，以此类推。CoNET L1 **Global 归档路由注册表** 登记每个参与归档的 **钱包地址** 以及该组托管的全部链 **NFT id**，客户端据此获得 **链路由** 与 **可提供该链历史的归档节点**（§5.2.0d）。
 - **全局 RPC 真相 + 跨组代理：** 每个活跃归档 **必须** 暴露同一套全局 DLE RPC 面，客户端可向 **任一** 归档发起查询。若请求 **不是** 该节点自身 **Group ID**（门面 `route(chainNftId)` = 登记 hash），节点 **必须** 代理到 `historyProviders(chainNftId)`——托管组的归档钱包——**不得** 用本地副本冒充该外组的 RPC 真相。外组比较的是 **Group ID**，不是 EIP-155（§5.2.0d）。
-- **Hash-only 检索先击中一条 tip：** 客户端若只持有块 / 交易 / AC / PrevoteQC / `daRoot` 的 hash，入口 **必须** 先解析出含 **`chainNftId`** 的 `HashLocatorV1`，再 `route(nftId)` 并 hop-1 代理。RPC **必须** 对本组出现过的每个 hash 做事实核查：`hit`（按 `kind` 投影的对象）或本组 `notFound`。`unavailable` 仅表示核查未完成。本地未命中 **不是** 全平面 `null`。本组热路径为 geth 式 KV `hash → (chainNftId, kind, height)`，freezer 键为 `(nft, height)` 且按 `kind` 分对象；每组承诺 `hashIndexRoot` 以做包含 / 不包含证明。成功响应缺少 `chainNftId` 是协议错误（§5.2.0e）。
+- **Hash-only 检索先击中一条 tip：** 客户端若只持有块 / 交易 / AC / PrevoteQC / `daRoot` / `tipStateRoot` / `membershipRoot` 的 hash，入口 **必须** 先解析出含 **`chainNftId`** 的 `HashLocatorV1`，再 `route(nftId)` 并 hop-1 代理。RPC **必须** 对本组出现过的每个 hash 做事实核查：`hit`（按 `kind` 投影的对象）或本组 `notFound`。`unavailable` 仅表示核查未完成。本地未命中 **不是** 全平面 `null`。本组热路径为 geth 式 KV `hash → (chainNftId, kind, height)`，freezer 键为 `(nft, height)` 且按 `kind` 分对象；每组承诺 `hashIndexRoot` 以做包含 / 不包含证明。成功响应缺少 `chainNftId` 是协议错误（§5.2.0e）。
+- **归档同步资格：** 新启动或仍在追最新 hash 的归档处于 `SYNCING`，**不得**获得席位资格。自报已同步只是 `CLAIMED_SYNC`。目标组现任 active 必须对该组 **全部托管链** 做确定性随机状态抽检；入席须 `ArchiveSyncQualificationCertificate`，门槛为 \(Q_A=4/5\)（已大于 2/3；**禁止 3/5**）。这 **不是** 30 天试点门（§5.2.0f）。
 - **归档成员退出与罚没：** 归档身份按 `ACTIVE → EXIT_REQUESTED → DRAINING → STANDBY_SYNCING → HANDOVER_READY → MEMBERSHIP_SWITCHED → UNBONDING → EXITED` 退出；L1 `membershipRoot` 原子切换前仍承担全部职责。可验证不参与、交接前强行关机、DA 欺诈与双签按递增等级处罚；归档退出 **不同于** 用户 `AssetBurnMintGateway` 的 request → challenge → finalize 强制退出 claim（§5.2.1）。
 - **DA：** v1 固定字节精确的 **`dle.rs.v1`** 系统型 Reed–Solomon \((n,k)=(7,4)\)。每个 precommit 签署者必须先取得规范完整 body、独立重放、确定性重编码全部七份 chunk，并重新计算 `bodyCommitment` 与 `daRoot`；仅证明 Merkle 成员关系或持有四份 chunk 不足。错误码字由 `BadEncodingEvidence / BadEncodingProof` 处理（§5.2.1）。
 - **经济层（三个独立账本）：** **存储类** 按内容计费并以 **conet-GB** 结算；**资产类** 转账在 L1 pool/TWAP 估值后以规范 **conet-USDC** 支付 1 bp 协议价值费；**交易类** 成交以同一 `quoteAsset` 支付 1 bp，且不使用 NFT 价格 oracle。付款人封顶的规范 conet-USDC **执行准备金**仅偿付可客观验证的 L1 gas 与 `FeeScheduleV1` 冻结资源单位；每 epoch 独立 **可用性预算**以链租金、创建准备金或显式封顶 bootstrap 补贴承保固定 5+2 归档、备选就绪、验证人与历史服务容量。1 bp 协议费按 **50% 托管归档 / 50% \(Q_V\) 接受验证人** 拆分，且不得宣称其足以覆盖执行或固定可用性成本（§13）。
@@ -889,7 +890,7 @@ flowchart TB
 | --- | --- |
 | \(G_e\) | epoch \(e\) 中 L1 已注册的活跃归档组数 |
 | \(N_e\) | epoch \(e\) 中所有活跃组的**唯一名册活跃投票归档身份数**；“活跃”指仍在 L1 名册内，而非仅指当前在线 / 可达，不含备选、未分配身份与跨组只读副本 |
-| \(U_e\) | `UnassignedPool` 中已质押、已激活、冷静期完成且既不属于任何活跃名册、也不属于任何备选名册的归档数 |
+| \(U_e\) | `UnassignedPool` 中 **IdentityEligible** 归档数（已质押、已激活、冷静期完成、`OperatorDomainRegistryV1 = ELIGIBLE`），且既不属于任何活跃名册、也不属于任何备选名册。\(U_e\) **不是** 席位资格：投票 / standby-ready / 形成接受仍须对该目标组取得 `SyncQualified`（§5.2.0f） |
 | \(A_g\) | 组 \(g\) 的恰好 **5 名**活跃共识名册 |
 | \(S_g\) | 组 \(g\) 的恰好 **2 名**专属有序备选名册 `standby[0..1]` |
 | \(O_g\) | 经 `OperatorDomainRegistryV1` 绑定进组 \(g\) 七个成员叶的 `canonicalOperatorId` 集合 |
@@ -1074,7 +1075,7 @@ MembershipFormationCertificate = {
   + L1 注册
 ```
 
-五名 active 与两名 standby 在组上线或接受新链前必须完成质押、激活、冷静期、历史同步与 readiness challenges。active 接受门槛为 \(Q_A=4/5\)；两名 standby readiness 签名均为必需，因为 standby availability 是退出/活性前置条件，而不是共识权限。既有组通过 checkpoint/history commitments 提供连续性，不会把永久 active/standby 成员复制进新组。
+五名 active 与两名 standby 在组上线或接受新链前必须完成质押、激活、冷静期、历史同步与 readiness challenges。席位 readiness 证明是 `ArchiveSyncQualificationV1`（§5.2.0f）：追块 `SYNCING` 无资格；自报已同步不是证据；同组现任 active 必须对该组全部托管链（\(C_G\) 为空时则对见证组 `historySnapshotRoot` / 空库存承诺）做随机状态抽检；投票门槛为 \(Q_A=4/5\)，禁止 3/5。active 接受门槛为 \(Q_A=4/5\)；两名 standby readiness 签名均为必需，因为 standby availability 是退出/活性前置条件，而不是共识权限。既有组通过 checkpoint/history commitments 提供连续性，不会把永久 active/standby 成员复制进新组。
 
 **负载均衡与带宽：** `QUEUED` admission 是全局复制控制面；每组仅有独立的 on-demand miner 等待队列、PoH 时钟与归档 BFT。聚合事件带宽随 \(G_e\) 增长。
 
@@ -1209,7 +1210,7 @@ GlobalGroupRecord = {
 ```
 HashLocatorV1 = {
   chainNftId,          // 必填
-  kind,                // ac | prevoteQc | block | tx | daRootProof
+  kind,                // ac | prevoteQc | tipStateRoot | membershipRoot | block | tx | daRootProof
   height,              // 该 tip 上的高度
   acRef?,              // 绑定该 tip 的 AC / valueHash
   groupId?             // 仅调试；权威路由是当时 L1 route(nftId)
@@ -1252,7 +1253,7 @@ Archive geth 用扁平 KV（`H` / `l`）应答 `eth_getBlockByHash` / `eth_getTr
 | 叶 | `{ kind, chainNftId, height 或 acRef, migratedTo? }` — **不存正文** |
 | 证明 | 包含 **与** 不包含（稀疏 Merkle 或排序范围证明） |
 | 范围 | **每组一棵树**，不是全球一棵，也不是每 tip 一棵 |
-| 不是 | 该树 **不是** DA / membership / tip-state **trie**。这些 32 字节根在各自拥有独立 `HashObjectKind` + typed 对象之前，**不是** 热 locate 键。 |
+| 不是 | 该树 **不是** DA / membership / tip-state **trie**。这些 32 字节根 **是** 热 locate 键（实验室 M7：各自独立 `HashObjectKind` + typed 对象）。该树仍 **不是** 那些 trie，也 **不是** AC 字段别名。 |
 | 哈希 | v1 用域隔离 Keccak；v1 **不上** Verkle / KZG |
 
 该树加速外组 locate 与客户端可验证的 not-found。它 **不** 替代托管组的 O(1) KV，也 **不** 授权副本应答外组 RPC。
@@ -1271,16 +1272,15 @@ Archive geth 用扁平 KV（`H` / `l`）应答 `eth_getBlockByHash` / `eth_getTr
 
 | 走 hash 管道 | 不走 hash 管道 |
 | --- | --- |
-| AC / `valueHash`（`kind=ac`）；PrevoteQC / `prevoteQCRef`（`kind=prevoteQc`）；块；交易；`daRoot` 证明包 | 版权明文 / IPFS fragment |
+| AC / `valueHash`（`kind=ac`）；PrevoteQC / `prevoteQCRef`（`kind=prevoteQc`）；`tipStateRoot`（`kind=tipStateRoot`）；`membershipRoot`（`kind=membershipRoot`）；块；交易；`daRoot` 证明包 | 版权明文 / IPFS fragment |
 |  | 等待池状态（组局部） |
-|  | `tipStateRoot` / `membershipRoot` 作为 locate 键，直到各自拥有独立 typed `HashObjectKind` |
 
 **失败语义（三分；可信空 vs 不可用）。**
 
 - **`hit`：** 本组已承诺语料含该 hash → locator + **按 `kind` 投影后的对象**。
 - **`notFound`：** 本组目录已完整检索且不在语料中；`planeWideNull: false`；`scope: 'thisGroup'`。
 - **`unavailable`：** 事实核查 **未完成**（超时、hop 失败且无本地回落、hint 冲突、lookup 适配器未挂、非法输入）。
-- JSON-RPC `null` / 全平面可信 not-found **仅** 当每个 **活跃** 组都对所查命名空间返回了 **可信** `notFound`（M6；实验室 gather 已落地；第二组 L1 `registerLiveGroup` 仍待做）。本组 KV 已查完的 miss **必须** 是 `notFound`，不是 `unavailable`，也不是 `null`。
+- JSON-RPC `null` / 全平面可信 not-found **仅** 当每个 **活跃** 组都对所查命名空间返回了 **可信** `notFound`（M6；实验室 gather 已落地；G2 L1 `registerLiveGroup` 已落地；主机 emit 该 tx）。本组 KV 已查完的 miss **必须** 是 `notFound`，不是 `unavailable`，也不是 `null`。
 - 副本 **不得** 把「我没有这个 hash」转换成全平面 `null`。
 
 **代理义务（扩展 §5.2.0d）。**
@@ -1301,11 +1301,99 @@ Archive geth 用扁平 KV（`H` / `l`）应答 `eth_getBlockByHash` / `eth_getTr
 - 用 `HashIndexTreeV1` 做本组热 Get
 - 把版权明文或等待池条目放进公开 hash 目录
 - 已有承诺的 `prevoteQCRef` 却只编目 `valueHash`
-- 把 `tipStateRoot` / `membershipRoot` 别名到 AC，而不给未来独立 `HashObjectKind`
+- 把 `tipStateRoot` / `membershipRoot` 别名到 AC，而不用 **各自** 的 typed `HashObjectKind`（实验室 M7）
+- 在该链 PrecommitQC 形成前把新链 `valueHash` 编目为 `kind=ac`（实验室 P6）
+- 把新链票写入 NFT 42 `/bft/message` 或 `bft-state.json`
 - 本组 KV 已查完却返回 `unavailable`
 - 用 `boundField` 别名新增 hash 种类，而不新增 `HashObjectKind` + typed freezer 对象
 
-2026-08-15 实验室清零后，实验室门面已实现 **M0–M5** 以及 **方案 C** PrevoteQC 对象：本组 hash KV、按 `(chainNftId, height)` 且按 `kind` 分槽的 freezer，同一管道上的 `dle_locateHash` / `dle_getByHash` / `eth_*ByHash`，经实验室 HTTP `:27101` 向 `historyProviders(chainNftId)` 的 hop-1 取回，以及每组排序 Keccak `HashIndexTreeV1`，其 `hashIndexRoot` 是**独立实验室检查点**（`committedInAc: false`；不是 AC 投票字段）。命中 **必须** 含 `chainNftId`，并返回该 `kind` 的对象（`ac` 与 `prevoteQc` 是不同对象）。本组检索完成的 miss 返回 `notFound`（`planeWideNull: false`），不是全平面 `null`，也不是 `unavailable`。`dle_proveHash` 返回包含或排序范围不包含；单组不包含 **不是** 全平面 `null`，且 **不得** 替代 O(1) KV Get。本组 hop 失败 **可以** 回落本地 freezer，且 **必须** 标记 `usedLocalFallback`。外组 hop 失败 **不得** 把本地副本当作 RPC 真相。`dle_getObject` 只读本地 freezer，**不得** 再调 `dle_getByHash`。实验室 HTTP / HMAC / lab beacon **仍不是** 生产 DePIN。**M6**（第二实验室组 + 跨组证据）已在实验室门面落地（2026-08-16）：`planeDirectory` + `locatePlane`；G2 Group ID `0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07` 是实验室 hash（`keccak256(utf8("dle.lab.group.m6.g2.v1"))`），不是 L1 登记交易；JSON-RPC `null` 仅当每个活跃组都返回可信本组 `notFound`；一组超时是 `unavailable`。这 **不是** 30 天资格（§15.20）。
+#### 5.2.0f ArchiveSyncQualificationV1 — 追块不是席位资格（产品冻结）
+
+**问题。** 新启动或重启后尚未追上该组最新 hash 的归档处于 **追块 sync**。自报 `eth_syncing = false`、HTTP `/health` 成功、实验室 `lastQuorumOk` 或 HMAC 心跳 **不得** 授予归档席位资格。只持有托管 tip 子集（例如仅 NFT 42）的节点 **不得** 视为持有该组状态。
+
+**两层资格（禁止合并）：**
+
+| 层 | 名称 | 授予 |
+| --- | --- | --- |
+| 身份 | `IdentityEligible` | 归档 NFT + 质押 + 激活 + 冷静期 + `OperatorDomainRegistryV1 = ELIGIBLE` + 角色域排斥。可进入 `UnassignedPool` 并计入 \(U_e\)。**不**授予投票、standby-ready、形成接受或 `lastQuorumOk` 席位。 |
+| 同步席位 | `SyncQualified` | 针对 **特定目标组** \(G\) 的 `ArchiveSyncQualificationCertificate`。身份须持有该证书，才可投票、计为 ready standby、接受 `MembershipFormationCertificate` / `MembershipUpdateCertificate`，或被宣传为投票对等点。 |
+
+30 天试点门（`PilotQualificationGate`、`pilotStartedAt`、轮换 / re-home / takeover）是 **另一扇** 生产准入时钟。完成 §5.2.0f **不得** 启动该时钟。
+
+**托管集合。** 对活跃组 \(G\)，令 \(C_G\) 为 L1 `archiveGroupId` 指向 \(G\) 的全部 `chainNftId` 的有序集合，再加上该组当前 `lastAC` / `membershipRoot` / `hashIndexRoot` 对象。正在形成且 \(C_G\) 为空的组仍须抽检见证组 `historySnapshotRoot` / 空库存承诺。\(C_G\) 的 **每一个** 元素都必须出现在抽检样本集中。只抽 NFT 42、只抽新链 tip 或自选子集均无效。
+
+**状态机（按身份、按目标组）：**
+
+```text
+BOOT / RESTART / SELECTED
+  → SYNCING
+  → CLAIMED_SYNC          // 仅自报；仍无资格
+  → STATE_CHALLENGE       // 他证随机抽检
+  → QUALIFIED | REJECTED
+```
+
+| 状态 | 规范效果 |
+| --- | --- |
+| `SYNCING` | 本地 tip / `lastAC` / freezer / `hashIndex` 落后 \(C_G\) 中任一条链，或 WAL 恢复未完成。**不得** 签 AC / Prevote / Precommit，**不得** 入席，**不得** 计为 ready standby。Quorum 仍为当前 `membershipRoot` 的 \(Q_A=4/5\)；正在 sync 的成员 **不** 降低 quorum。 |
+| `CLAIMED_SYNC` | 候选人声称追块完成。该声称 **不是** 证据。其他现任 active **必须** 运行 `ArchiveStateChallengeV1`。 |
+| `STATE_CHALLENGE` | 覆盖 \(C_G\) **全部** 的确定性随机样本。候选人用 **本地 freezer** 字节作答（`dle_getObject` 语义）。挑战期间 hop-1 / `historyProviders` / 外组 proxy **即失败**。抽检方与自己的可信 freezer 逐字节比对。超时 / 不匹配 / 缺链 / 远程鹦鹉学舌 → 拒绝。 |
+| `QUALIFIED` | `ArchiveSyncQualificationCertificate` 取得 \(\ge Q_A=4/5\) 现任 active ACCEPT 签名。方可入席。 |
+| `REJECTED` | 保持无资格；回到 `SYNCING`。仅在新的 challenge nonce 后可重试。 |
+
+**谁投票。** 投票人是目标组 \(G\) **当前 active** `membershipRoot`。若 \(G\) 正在形成，则由 L1 指定 **见证组** 的现任 active 投票。候选人 **不得** 投自己。Standby、未分配身份与外组归档 **不得** 投票。全平面 \(Q_G\) 与「在线者的 2/3」均 **拒绝**。
+
+**门槛。** 口语「其他归档的 2/3」映射到已冻结的 \(Q_A=\lfloor 2N_A/3\rfloor+1=4\)（\(N_A=5\)），该值已大于 2/3。两个 4-of-5 法定人数至少相交三名。**3/5 不安全且禁止**（两个三签集合可能只在唯一拜占庭成员处相交）。不得对六名非候选人或全部七个席位另设第二套 2/3 计数。
+
+**抽检种子（生产）：**
+
+\[
+R^{\mathrm{sync}}_e=H(\texttt{"dle.archive.sync.challenge.v1"}\|
+\mathrm{L1BeaconFinalizedRandomness}_e\|
+\mathrm{groupId}\|\mathrm{candidateNftId}\|
+\mathrm{challengeNonce}\|\mathrm{lastACRef}\|
+\mathrm{hostedChainSetRoot})
+\]
+
+在绑定 beacon 已知前冻结 `hostedChainSetRoot`、`lastACRef` 与候选集合。实验室实现 **必须** 把 freeze 后 keccak beacon 标注为非生产，且 **不得** 把 `publicrpc` / `rpc1` 读成 live CL RANDAO。
+
+每个样本是抽检方可信 freezer 中已有的 `(chainNftId, kind, hash|height)`。\(C_G\) 中 **每条链都必须出现**。「每链至少 1 个样本」只是 **覆盖** 约束，**单独不是** 持有证明。对每条托管链，样本集必须 **分层**：一个 tip 类对象（`ac` 或 `tipStateRoot`）；当该链 freezer 高度跨度 \(> 0\) 时再抽一个非 tip 历史对象；该链有 DA 时再抽一个 `daRootProof`；整次挑战还必须在同一 `hashIndexRoot` 下抽随机 `hashIndex` 叶（不得只抽 tip）。候选人必须返回精确对象字节；仅 locator 或「我有 tip hash」作答即失败。作答必须来自本地 freezer（`dle_getObject`）。`STATE_CHALLENGE` 期间走 `dle_getByHash` hop-1 / `historyProviders` / 任何远程鹦鹉学舌 → `REJECTED`。
+
+**可靠性 — 为何通过 test 即视为已持有该组信息（产品冻结）。**
+
+通过 `ArchiveStateChallengeV1` 断言的是 **席位级持有：组 \(G\) 的已承诺库存**。它 **不是** 一轮线性扫完全部历史字节，也 **不** 替代入席后的 `UnavailableChallenge` / DA 托管。论证分三层：
+
+1. **承诺根绑定整份库存。** 候选人必须返回与抽检方可信副本逐字节一致的 `lastAC`、`membershipRoot`、`hashIndexRoot`。`hashIndexRoot` 是该组当前编目的全部对象 hash 目录（§5.2.0e）。只存了 NFT 42、或只存了各链当前 tip 的节点，**对不上** 多链 / 多高度的 `hashIndexRoot`。根一致 = 声称「我看着的集合与诚实多数已承诺的是同一份」。
+
+2. **不可预测打开证明这不是只背了 32 字节根。** 在绑定 beacon 揭晓前冻结 `hostedChainSetRoot`、`lastACRef` 与候选集合。揭晓后同一 seed 为每名现任 active 派生同一 `samples[]`。候选人无法预做小抄。每个正文样本要精确 freezer 字节；每个索引叶样本要在 **同一** `hashIndexRoot` 下给出包含证明。若候选人缺失非根对象的比例为 \(f\)，独立打开 \(k\) 次仍存活的概率至多为 \((1-f)^k\)。
+
+3. **对 \(C_G\) 分层覆盖，堵住「我只有一条链 / 只有 tip」。** 每条托管 `chainNftId` 都出现；tip + 历史 + DA + 索引叶都抽。只抽 NFT 42、只抽新链 tip、或只抽 tip 类 **无效**，**不满足**「已拥有该组全部信息」。
+
+**通过仍不证明：** 入席后的持续可用性；候选人以后仍诚实；每一高度的全部 Reed–Solomon 分片（被抽到的高度须有可重构本地集；持续 DA 托管在入席之后，§5.2.1）。仍在 `SYNCING`、只是转发诚实节点答案的节点 **必须失败**（本地作答层）。
+
+```text
+ArchiveStateChallengeV1 = {
+  groupId, candidateArchiveNftId,
+  challengeEpoch, challengeNonce,
+  hostedChainSetRoot, lastACRef, hashIndexRootRef,
+  samples[], seed, deadline
+}
+
+ArchiveSyncQualificationCertificate = {
+  groupId, candidateArchiveNftId,
+  challengeRef, hostedChainSetRoot,
+  lastACRef, hashIndexRootRef,
+  result: QUALIFIED | REJECTED
+} + ≥ QA=4/5 现任 active 签名
+  + 候选人接受签名（仅 QUALIFIED）
+```
+
+该证书服从统一 \(Q_A=4/5\) 规则（§5.2.1）。它 **不是** 针对 tip 的 Archive Certificate，**不是** PlacementCertificate，也 **不是** 30 天资格。
+
+**适用：** 已分配 active/standby 的冷启动 / 重启；从 `UnassignedPool` 抽进既有组的 standby 替换；被抽成新组的七个身份（空 \(C_G\) 仍走见证快照）。历史复制或临时 sync 服务仍 **不会** 使节点成为组成员（§5.2）。
+
+**实验室诚实。** 隔离实验室 HTTP `:27101`、HMAC `lastQuorumOk` 与 `GET /liveness` 只证明可达。实验室门面现已实现 `ArchiveStateChallengeV1`（HMAC 投票 + 实验室 keccak beacon — **不是** 生产 EIP-712 / CL RANDAO）。Explorer **必须** 仅在 `seatingQualified === true` 时显示绿色席位胶囊。`/health` / `lastQuorumOk` 仍 **不是** 席位。从零加入验收证据：`pilot/evidence/conet-dle-sync-join-2026-08/`。本节 **不** 启动 `pilotStartedAt`。
+
+2026-08-15 实验室清零后，实验室门面已实现 **M0–M5** 以及 **方案 C** PrevoteQC 对象：本组 hash KV、按 `(chainNftId, height)` 且按 `kind` 分槽的 freezer，同一管道上的 `dle_locateHash` / `dle_getByHash` / `eth_*ByHash`，经实验室 HTTP `:27101` 向 `historyProviders(chainNftId)` 的 hop-1 取回，以及每组排序 Keccak `HashIndexTreeV1`，其 `hashIndexRoot` 是**独立实验室检查点**（`committedInAc: false`；不是 AC 投票字段）。命中 **必须** 含 `chainNftId`，并返回该 `kind` 的对象（`ac` 与 `prevoteQc` 是不同对象）。本组检索完成的 miss 返回 `notFound`（`planeWideNull: false`），不是全平面 `null`，也不是 `unavailable`。`dle_proveHash` 返回包含或排序范围不包含；单组不包含 **不是** 全平面 `null`，且 **不得** 替代 O(1) KV Get。本组 hop 失败 **可以** 回落本地 freezer，且 **必须** 标记 `usedLocalFallback`。外组 hop 失败 **不得** 把本地副本当作 RPC 真相。`dle_getObject` 只读本地 freezer，**不得** 再调 `dle_getByHash`。实验室 HTTP / HMAC / lab beacon **仍不是** 生产 DePIN。**M6**（第二实验室组 + 跨组证据）已在实验室门面落地（2026-08-16）：`planeDirectory` + `locatePlane`；G2 Group ID `0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153` 是 L1 `registerLiveGroup` tx；主机 emit 该 tx 作为 `hop1.ownGroupId` / `liveGroupIds`；实验室 keccak `0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07` 为别名（keccak 本身不是 L1 tx）；JSON-RPC `null` 仅当每个活跃组都返回可信本组 `notFound`；一组超时是 `unavailable`。**M7**（2026-08-16）把 `tipStateRoot` / `membershipRoot` 编目为一等 kind，typed 对象为 `DleLabTipStateRootV1` / `DleLabMembershipRootV1`；命中返回该对象，不是 AC。同 hash 后一 height 为 first-write-wins；`ZERO32` 不编目；side-index 失败 **不得** 让父 AC 编目失败。**P6**（2026-08-16）实验室新链创世：Mode A 重放之后，归档 **必须** 形成确定性 5-of-7 验证人 HMAC（`DleLabValidatorQuorumV1`，`hmacForgeable: true`，`notProductionSecp256k1: true`）；G1 且 `enableBft` 时再对该 **`chainNftId`** 走 4-of-5 PrevoteQC → PrecommitQC（= AC），gossip 走 `POST /newchain/bft`（`DleLabNewChainBftMessageV1`）。新链 AC **必须** 用带该 `chainNftId` 的 `labChainObjectLocator`（永不为 `42`）。Accept **不得** 在真 AC 之前把 `valueHash` 编成 `kind=ac`（freezer 仅追加）。G2（`enableBft: false`）只做 Mode A + \(Q_V\)。新链 AC **不得** 更新 NFT 42 tip / `eth_blockNumber`。Clusters 仍是 \(G_e\)。这 **不是** L1 出生证，也 **不是** 30 天资格（§15.20）。
 
 ### 5.2.1 归档分片 BFT 与归档证书（产品冻结）
 
@@ -1343,7 +1431,7 @@ Archive geth 用扁平 KV（`H` / `l`）应答 `eth_getBlockByHash` / `eth_getTr
 
 仅当前根下五名活跃成员的签名计入 \(Q_A\)。standby、未质押或尚在冷静期的归档 NFT **不能**签署。离线、罚没、退出请求或惩罚待执行都 **不改变** 当前 `membershipRoot` 的五人集合，也不重算 \(f,Q_A\)：在 L1 原子切换到新根前，所有 Proposal / PrevoteQC / PrecommitQC / AC 仍按旧五人根验签且必须取得 4 签。已有 tip 低于 4 签即停滞，不得以“实际在线人数”降低门槛。
 
-**统一归档证书阈值（产品冻结）。** `PrevoteQC`、`PrecommitQC / AC`、`PlacementCertificate`、`MembershipFormationCertificate` 的形成见证、`CandidateRejectCertificate`、`MembershipUpdateCertificate` 旧名册批准，以及 `MigrationCertificate` 的源组与目标组两侧，均须当前相应 `membershipRoot` 下 **\(Q_A=4/5\)** 个不同活跃成员签名。队列排序不是归档证书，由 `L1QueueAccumulatorV1` 提供且不依赖 \(Q_G\)。不得另设 3/5、5/5、动态在线 quorum 或“最后签字者”权限。
+**统一归档证书阈值（产品冻结）。** `PrevoteQC`、`PrecommitQC / AC`、`PlacementCertificate`、`MembershipFormationCertificate` 的形成见证、`CandidateRejectCertificate`、`MembershipUpdateCertificate` 旧名册批准、`MigrationCertificate` 的源组与目标组两侧，以及 `ArchiveSyncQualificationCertificate`（§5.2.0f），均须当前相应 `membershipRoot` 下 **\(Q_A=4/5\)** 个不同活跃成员签名。队列排序不是归档证书，由 `L1QueueAccumulatorV1` 提供且不依赖 \(Q_G\)。不得另设 3/5、5/5、动态在线 quorum 或“最后签字者”权限。
 
 #### 5.2.1a AdaptiveRotationV1、归档成员规范退出、备选提升与原子名册切换
 
@@ -1351,7 +1439,7 @@ Archive geth 用扁平 KV（`H` / `l`）应答 `eth_getBlockByHash` / `eth_getTr
 
 1. L1 治理冻结 `T_slot`、`T_cycleMax`、`T_operatorCooldown`、`rotationPolicyId` 与未来 beacon 日程。每轮周期开始时，在候选根和域根冻结后，以已终局 beacon 随机性生成活跃槽 `[0..4]` 的一个排列；每槽恰好出现一次。
 2. 每个 `T_slot` 区间内至少必须激活一次计划活跃槽替换；五次替换最迟在 `T_cycleMax` 内完成一个全轮换周期。安全冻结可以推迟激活，但同时必须冻结新链分配并开放 `ArchiveRotationDelayChallenge`，不得静默延长攻击窗口。
-3. 在 AC/checkpoint 边界提升有序 ready `standby[0]`。新备选以新的 L1 随机性从 `UnassignedPool` 选择，且必须通过 `OperatorDomainRegistryV1`、角色排斥、历史/状态/DA 同步与 readiness 后，组才恢复新链承接资格。
+3. 在 AC/checkpoint 边界提升有序 ready `standby[0]`。新备选以新的 L1 随机性从 `UnassignedPool` 选择，且必须通过 `OperatorDomainRegistryV1`、角色排斥、历史/状态/DA 同步与 `ArchiveSyncQualificationV1`（§5.2.0f）后，组才恢复新链承接资格。
 4. 离任身份及其 `canonicalOperatorId` 下全部别名进入 `T_operatorCooldown`；其时长至少覆盖一次完整五槽轮换。更换 EOA、归档 NFT、主机名或云账号都不能绕过冷静期。
 5. 每次切换递增 `membershipEpoch` 与 `keyEpoch`；投票同时绑定二者。旧/新根在同一高度绝不同时拥有写权。v1 使用可问责的个人签名密钥；节点必须从可度量软件镜像重建、轮换设备/签名密钥并尽力安全擦除旧密钥。擦除证明只是可审计运营证据，并不能证明已被攻破的运营者重新诚实。
 6. 若未来版本引入门限组密钥，每次槽位切换还须执行全新 DKG/主动 resharing 并删除旧份额；同一主机/运营者仍被攻破时，resharing 不足以恢复安全，因此不能替代名册轮换。
@@ -1377,7 +1465,7 @@ ACTIVE
 | --- | --- |
 | `ACTIVE → EXIT_REQUESTED` | 退出者在 L1 提交唯一 `exitNonce`；请求本身不解除投票、存储、DA、挑战响应或历史服务职责。 |
 | `DRAINING` | 完成已分配轮次、保存最新 AC / checkpoint / DA；禁止以退出请求为由停止签名或关机。 |
-| `STANDBY_SYNCING` | 默认提升 `standby[0]`；其须同步最新 history/state/DA 与 `lastAC`，形成 readiness 证明。 |
+| `STANDBY_SYNCING` | 默认提升 `standby[0]`；其须同步最新 history/state/DA 与 `lastAC`，并以 `ArchiveSyncQualificationV1`（§5.2.0f）形成 readiness 证明。自报 tip hash 不是 readiness 证明。 |
 | `HANDOVER_READY` | **计划退出** 只有在退出前两名 standby 都仍为 ready 时才可进入终局；提升 `standby[0]` 后原 `standby[1]` 前移，组内仍保留 1 名 ready 备选，并须补充新的第二备选后才能恢复完整新链承接能力。 |
 | `MEMBERSHIP_SWITCHED` | 任意 relayer 把合法 `MembershipUpdateCertificate` 原子提交 L1；旧根失效、新根与新 standbyRoot 同时生效。每个 `membershipEpoch` 最多更换一个活跃槽，因此保留四席交集。 |
 | `UNBONDING → EXITED` | 旧成员进入证据 / 反证 / 罚没窗口；窗口结束且无未决责任后方可解押退出。切换后发现的任职期证据仍可罚没旧成员。 |
@@ -2440,8 +2528,9 @@ L2Envelope {
 - [ ] 新链托管 = `UniformPlacementV1`；队列检查点与合格组根须在 beacon 揭示前冻结；v1 无动态负载或自报计数（§5.2.0a）。
 - [ ] EIP-155 Chain ID 是平面唯一 uint（testnet `0x44c45`）；用户可见 Group ID 是该组的 L1 登记交易 hash；L1 uint `groupId` 只是存储键。Global 归档路由注册表登记归档 **钱包** + 所托管链 **NFT id**；客户端经门面 `route(nftId)` → `historyProviders` 取历史——不得用 CoNET L1 `224422`，不得把 EIP-155 当作 Group ID，不得用 `tokenId` 哈希（§5.2.0d）。
 - [ ] 每个活跃归档暴露 **全局 DLE RPC** 面；**非本组** 查询 **必须** 代理到 `historyProviders` / `archivesOf(targetGroupId)`，**不得** 用本地副本充当 RPC 真相（§5.2.0d）。
-- [ ] Hash-only 检索先击中 **`chainNftId`**（`HashLocatorV1`）；再 `route(nftId)` 并 hop-1 到 `historyProviders`。成功响应缺少 `chainNftId` 是协议错误。RPC 对本组已承诺 hash 做事实核查：`hit`（按 `kind` 投影，含 `prevoteQc`）或本组 `notFound`。仅核查未完成才 `unavailable`。本地未命中不是全平面 `null`（§5.2.0e）。
+- [ ] Hash-only 检索先击中 **`chainNftId`**（`HashLocatorV1`）；再 `route(nftId)` 并 hop-1 到 `historyProviders`。成功响应缺少 `chainNftId` 是协议错误。RPC 对本组已承诺 hash 做事实核查：`hit`（按 `kind` 投影，含 `prevoteQc` / `tipStateRoot` / `membershipRoot`）或本组 `notFound`。仅核查未完成才 `unavailable`。本地未命中不是全平面 `null`（§5.2.0e）。
 - [ ] 本组热路径为 O(1) KV `hash → (chainNftId, kind, height)`，freezer/WAL 键为 `(chainNftId, height)` 且按 `kind` 分对象。新 hash 种类 **必须** 新增 `HashObjectKind`，禁止 AC 字段别名。每组 `hashIndexRoot` 做包含 / 不包含证明；它不是热 Get，也不是 `daRoot` / `membershipRoot` / `tipStateRoot`（§5.2.0e）。
+- [ ] 归档入席须 `ArchiveSyncQualificationV1`：追块 `SYNCING` 无资格；自报已同步不是证据；同组现任 active 随机抽检目标组 **全部** 托管链；投票为 \(Q_A=4/5\)（禁止 3/5）。HTTP `/health` / `lastQuorumOk` / 自报 `eth_syncing` 不是席位。这 **不是** 30 天试点门（§5.2.0f）。
 - [ ] 出块提案接受 = 对 `blockHash` 的 **≥ Q_V** 份 secp256k1 接受票（§6.5）。
 - [ ] 日志不含私钥；中继不做明文镜像。
 
@@ -3409,7 +3498,8 @@ CoNET-DLE 精神上最接近 **「许多微账本 + 随机委员会 + 归档终�
 17. **可验证 DA + burn/mint 退出** 形式已产品冻结（§5.2.1、§4.6）：字节精确 **`dle.rs.v1` \((7,4)\)**，含冻结的 \(GF(2^8)\) 矩阵、padding、叶树、测试向量、每个 precommit signer 的完整 body 重编码、`BadEncodingProof`、指派份额保管与 **UnavailableChallenge**。AC 字段含 `bodyCommitment`、`payloadLength`、`codecSpecHash`、`daRoot`、`chunkAssignmentRoot`、`tipStateRoot`、parent AC 与 L1 context。Treasury V3 精确 burn 规范 L1 单位；普通退出只在 AC 支持的 debit 后通过 Treasury V3 remint，并可使用 `ExitFeeQuoteV1`；强制退出采用 **`requestForceWithdraw → challengeForceWithdraw → finalizeForceWithdraw`**、单调 `latestKnownAC`、合约派生 claim id/nullifier、pending owner 支出冻结、累计 `totalBurnedIn` / `totalMintedOut` 会计、紧急准备金承保与 \(T_{\mathrm{exit}}\)。旧一步式接口和 escrow-vault 模型禁止。开放项：DA/exit/archive 超时、保证金/赏金、精确规范 `BlockBodyV1` 容器、欺诈证明执行环境/gas 基准、AC ancestry 证明编码、gateway + Treasury DLE authority interface ABI 与规范 token allowlist——**不是** chunk membership 是否足以证明正确编码。
 18. **AI pay-per-use / x402 v2 的边界已目标冻结，但实现尚未完成**（§4.7a）：HTTP 使用 `PAYMENT-REQUIRED` / `PAYMENT-SIGNATURE` / `PAYMENT-RESPONSE`；CoNET 标识为 `eip155:224422`；`exact`、单次消费 `upto` 与资本担保 `batch-settlement` 保持各自 scheme 语义；DLE 只存承诺，不存 prompt/output 明文或任意 API 代码。开放发布门包括：为每个公布 scheme 冻结 CoNET mechanism binding 与规范 asset-transfer method；facilitator `/supported` discovery；`conet-dle` extension JSON Schema；字节精确 `AiUsageReceiptV1` 及 voucher/FSM 编码；幂等/replay、零扣款、局部 streaming、timeout、facilitator 故障与 L1 reorg vectors；L1 escrow/channel 实现及 batch settlement gas/capacity 实测；metering-policy 挑战规则；以及显式 `AiUsageFeePolicyV1`。上述门未通过前，既有 `src/x402sdk` legacy exact 路径不得公布为 v2。
 19. **实验室 HTTP 等待钩排队（实测，不作生产 gossip 规范）：** 2026-08-15 隔离实验室证据显示，`70.35.205.77` 上 30 个 on-demand 客户端经 `http://<archive>:27101/ondemand/hook` 把同一 miner 钩投到全部七台实验室归档（钩 **不是** 组内 gossip）。冻结后七台共享 `poolRoot=0xafdf42e9625961ce16f2403f509835d79bba94b144bba9606346c9adf0c3c2c4`、`minerCount=30`、`frozen=true`、5 台 active HMAC 背书、`endorsed=true`。证据：`src/conet-layer2/pilot/evidence/conet-dle-30d-lab-2026-08/ondemand-http-queue-30.json`。这 **不是** 生产 DePIN gossip，**不是** L1 CL RANDAO（§7.8.5），**不是** 归档证书，也 **不是** 30 天归档组资格。
-20. **Hash-only RPC 管道（实验室 M0–M5 + 方案 C PrevoteQC）：** §5.2.0e 已产品冻结。2026-08-15 DLE 实验室清零后，实验室门面已实现 **M0–M5** 以及一等 `kind=prevoteQc`：本组检索完成的 miss → `notFound`（`planeWideNull: false`），禁止全平面 `null`，也禁止 KV 查完后回 `unavailable`；`unavailable` 仅表示事实核查未完成；本组文件 KV `hash → (chainNftId, kind, height)`；按 `(chainNftId, height)` 仅追加 freezer 且按 `kind` 分对象（`ac` 与 `prevoteQc`）；`dle_locateHash` / `dle_getByHash` / `eth_getBlockByHash` / `eth_getTransactionByHash` 走同一管道；命中 **必须** 含 `chainNftId` 并返回该 `kind` 的 typed 对象；locate 之后 hop-1 向 `historyProviders` 取槽（实验室 HTTP `:27101`；`dle_getObject` 仅本地）；每组暴露 `dle_getHashIndexRoot` / `dle_proveHash`，底层为排序 Keccak `HashIndexTreeV1`（独立检查点，不是 AC 投票；不是热 Get；单组不包含 ≠ 全平面 `null`）。`tipStateRoot` / `membershipRoot` 在各自拥有独立 `HashObjectKind` 之前 **不是** 热 locate 键。今后种类 **必须** 新增 typed kind，禁止 `boundField` 别名。Explore（`https://dle.conet.network`）可检索 32 字节 hash 并展示 hop + 证明回执。**M6** 实验室裂变（2026-08-16）已在七台绿场主机落地（`/home/peter/dle-m6-g2`，TCP 27101，关闭 BFT/ondemand）：G2 Group ID 为实验室 hash `0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07`（`keccak256(utf8("dle.lab.group.m6.g2.v1"))`），**不是** L1 登记交易；`locatePlane` 仅在每个活跃组都返回可信本组 `notFound` 后给出全平面 JSON-RPC `null`；一组超时是 `unavailable`。第二组 L1 `registerLiveGroup` 仍待做。HMAC ≠ EIP-712；实验室 beacon ≠ L1 CL RANDAO；HTTP 钩 ≠ 生产 DePIN。做完 M0–M6 **并不** 开始 30 天资格。
+20. **Hash-only RPC 管道（实验室 M0–M7 + P6 + 方案 C）：** §5.2.0e 已产品冻结。2026-08-15 DLE 实验室清零后，实验室门面已实现 **M0–M5** 以及一等 `kind=prevoteQc`：本组检索完成的 miss → `notFound`（`planeWideNull: false`），禁止全平面 `null`，也禁止 KV 查完后回 `unavailable`；`unavailable` 仅表示事实核查未完成；本组文件 KV `hash → (chainNftId, kind, height)`；按 `(chainNftId, height)` 仅追加 freezer 且按 `kind` 分对象（`ac` 与 `prevoteQc`）；`dle_locateHash` / `dle_getByHash` / `eth_getBlockByHash` / `eth_getTransactionByHash` 走同一管道；命中 **必须** 含 `chainNftId` 并返回该 `kind` 的 typed 对象；locate 之后 hop-1 向 `historyProviders` 取槽（实验室 HTTP `:27101`；`dle_getObject` 仅本地）；每组暴露 `dle_getHashIndexRoot` / `dle_proveHash`，底层为排序 Keccak `HashIndexTreeV1`（独立检查点，不是 AC 投票；不是热 Get；单组不包含 ≠ 全平面 `null`）。**M7**（2026-08-16）把 `tipStateRoot` / `membershipRoot` 做成一等 `HashObjectKind` + typed 对象（禁止 AC 别名；first-write-wins；跳过 `ZERO32`）。今后种类 **必须** 新增 typed kind，禁止 `boundField` 别名。Explore（`https://dle.conet.network`）可检索 32 字节 hash 并展示 hop + 证明回执。**M6** 实验室裂变（2026-08-16）已在七台绿场主机落地（`/home/peter/dle-m6-g2`，TCP 27101，关闭 BFT/ondemand）：G2 Group ID 为 L1 登记 tx `0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153`；实验室 keccak `0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07` 为别名，**不是** uint `2`；`locatePlane` 仅在每个活跃组都返回可信本组 `notFound` 后给出全平面 JSON-RPC `null`；一组超时是 `unavailable`。主机已 emit 该 tx 作为 `hop1.ownGroupId` / `liveGroupIds`。HMAC ≠ EIP-712；实验室 beacon ≠ L1 CL RANDAO；HTTP 钩 ≠ 生产 DePIN。**P6**（2026-08-16）实验室新链创世为 \(Q_V=5/7\) HMAC + 每链 \(Q_A=4/5\) AC（禁止写入 NFT 42 Tendermint）。做完 M0–M7+P6 **并不** 开始 30 天资格。
+21. **归档同步资格（产品冻结；实验室门面已落地）：** §5.2.0f。追块 `SYNCING` 不得入席。自报已同步只是 `CLAIMED_SYNC`。其他现任 active 必须随机抽检候选人是否持有目标组 **全部托管链**；入席凭 `ArchiveSyncQualificationCertificate`，门槛 \(Q_A=4/5\)（已大于 2/3；**禁止 3/5**）。通过 = **席位级持有已承诺库存**：`lastAC` / `membershipRoot` / `hashIndexRoot` 一致 + 不可预测的本地 freezer 打开 + tip/历史/DA/索引分层抽检。「每链 1 个样本」只是覆盖不是证明。挑战期间 hop-1 / proxy 即失败。HTTP `/health`、`lastQuorumOk` 与自报 `eth_syncing` 只证明可达。实验室 HMAC / keccak beacon **不是** 生产 EIP-712 / CL RANDAO。从零加入验收：只清 G1 `fd-05` + `fd-07` 的 DLE datadir，再走 `SYNCING` → `QUALIFIED`。这 **不是** `PilotQualificationGate` / `pilotStartedAt`。
 
 ---
 
@@ -3471,10 +3561,11 @@ CoNET-DLE 以去中心化集群维护大量并行、事件驱动的原子链：�
 | **Group ID** | 用户可见的归档组身份 = 该组的 L1 **登记交易 hash**。L1 uint `groupId` 只是注册表存储键（引导组 `1`）。裂变发放新 hash；已解散 hash 永不复用（§5.2.0d）。 |
 | **Global 归档路由注册表** | CoNET L1 合约（或门面）：登记每个活跃组的归档 **钱包** 与所托管链 **NFT id**。客户端据此获得 **链路由** 与 **权威历史提供者**（§5.2.0d）。 |
 | **全局 RPC 真相 / 跨组代理** | 每个活跃归档暴露全平面 DLE RPC 入口。询问其它组时 **必须** 代理到该组 `historyProviders`；本地副本不是 RPC 真相（§5.2.0d）。 |
-| **HashLocatorV1** | 成功的 hash-only locate 结果：**必须含 `chainNftId`**，另加 `kind`（`ac` \| `prevoteQc` \| `block` \| `tx` \| `daRootProof`）、`height`，可选 `acRef` / 调试用 `groupId`。缺少 nft 的 200 是协议错误。新种类须新增 `HashObjectKind`，禁止 AC 别名（§5.2.0e）。 |
+| **HashLocatorV1** | 成功的 hash-only locate 结果：**必须含 `chainNftId`**，另加 `kind`（`ac` \| `prevoteQc` \| `tipStateRoot` \| `membershipRoot` \| `block` \| `tx` \| `daRootProof`）、`height`，可选 `acRef` / 调试用 `groupId`。缺少 nft 的 200 是协议错误。新种类须新增 `HashObjectKind`，禁止 AC 别名（§5.2.0e）。 |
 | **`hashIndexRoot` / HashIndexTreeV1** | 每组一棵稀疏 / 排序 Merkle 目录：对象 hash → locator（无正文）。支持包含与不包含证明。不是本组热 Get；不是 `daRoot` / `membershipRoot` / `tipStateRoot`（§5.2.0e）。 |
 | **Hash 必须击中 `chainNftId`** | Hash-only RPC 先解析 tip NFT，再 `route()` 并 hop-1 代理。只定位到组不完整；freezer/WAL 键为 `(chainNftId, height)`（§5.2.0e）。 |
-| **G_e / N_e / U_e** | L1 注册活跃组数 / 唯一活跃投票归档身份数 / UnassignedPool 中合格未分配身份数。五人名册完全不重叠时 \(N_e=5G_e\)；仅 \(U_e\ge7\) 才可形成一个完整组。 |
+| **G_e / N_e / U_e** | L1 注册活跃组数 / 唯一活跃投票归档身份数 / UnassignedPool 中 **IdentityEligible** 未分配身份数。五人名册完全不重叠时 \(N_e=5G_e\)；仅 \(U_e\ge7\) 才可形成一个完整组。\(U_e\) 不是席位；入席须 `SyncQualified`（§5.2.0f）。 |
+| **ArchiveSyncQualificationV1** | 入席 FSM：`SYNCING` → `CLAIMED_SYNC` → `STATE_CHALLENGE` → `QUALIFIED` \| `REJECTED`。同组现任 active 随机抽检目标组全部托管链；投票为 \(Q_A=4/5\)。不是 30 天试点门（§5.2.0f）。 |
 | **跨组只读副本** | 保留旧库存或镜像其它组已终局 AC 链的归档；用于 DA 恢复 / 追赶 / 审计（须先验证托管组 AC）；**不得** 代替跨组 RPC 代理；无外组共识或写权限（§5.2、§5.2.0d）。 |
 | **归属盐 \(R_e^{\mathrm{place}}\)** | 域隔离的新链托管随机种子，绑定 L1 已终局 beacon、L1 queue range hash、epoch 与 eligible-group registry root（§5.2.0a）。 |
 | **L1BeaconFinalizedRandomness** | CoNET CL 已终局随机信标字段（RANDAO 或等价），写入生产 \(R_e\)；**非** execution `block.hash`（§7.8.1）。 |

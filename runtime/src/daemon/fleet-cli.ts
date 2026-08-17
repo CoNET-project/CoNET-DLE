@@ -194,9 +194,14 @@ async function pollQueued(
     endorsed: selected?.endorsed === true,
     archives:
       lastTrusted?.archives ?? archives.map((archiveUrl) => ({ archiveUrl, status: 'queued', minerInPool: true })),
+    hookNotGossip: true,
+    mustFanoutToEveryActiveArchive: true,
+    notProductionDepinGossip: true,
+    singleArchiveAcceptNotGroupPool: true,
+    fanoutComplete: lastTrusted?.fanoutComplete === true,
     note: pool.frozen
-      ? 'Already queued; archive waiting pool is now frozen.'
-      : 'Already queued; polling HTTP /ondemand/pool without re-hooking.',
+      ? 'Already queued; archive waiting pool is now frozen. Hooks are not intra-group gossip.'
+      : 'Already queued; polling HTTP /ondemand/pool without re-hooking. Hooks are not intra-group gossip.',
   }
 }
 

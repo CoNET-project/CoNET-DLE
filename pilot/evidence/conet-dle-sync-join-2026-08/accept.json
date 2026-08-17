@@ -1,0 +1,103 @@
+{
+  "schema": "DleLabSyncJoinAcceptV1",
+  "labOnly": true,
+  "hmacForgeable": true,
+  "notClRandao": true,
+  "notThirtyDayQualification": true,
+  "lastQuorumOkIsNotSeating": true,
+  "p8dZeroLeafGrowth": true,
+  "quorum": 4,
+  "wipedDomainIds": [
+    "fd-05-hosthatch-tokyo2",
+    "fd-06-ionos-174"
+  ],
+  "keeperDomainIds": [
+    "fd-01-ionos-45",
+    "fd-02-ionos-189",
+    "fd-03-ionos-98",
+    "fd-04-hosthatch-tokyo1"
+  ],
+  "wipeLeafCount": 5194,
+  "maxKeeperLeafDuringJoin": 5194,
+  "leafGrew": false,
+  "stale": false,
+  "joiners": [
+    {
+      "domainId": "fd-05-hosthatch-tokyo2",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "leafCount": 5194,
+      "rejectReason": null,
+      "inventoryFrozen": false,
+      "hostedChainSetRoot": "0x3a5441b1be30c8fe8b516c011408b14f75e3f204473e98366bb262b3955a21c3",
+      "lastACRef": "0x6216d0fb08bf7379678cb48d9b1eee7dc206b26fbdb6819d119ca50b482c56a6",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "hashIndexRoot": "0xb42210d4c01eb5f2c3c5ce30bb37b451a46947fac49f565a90279e86bdf4cb23"
+    },
+    {
+      "domainId": "fd-06-ionos-174",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "leafCount": 5194,
+      "rejectReason": null,
+      "inventoryFrozen": false,
+      "hostedChainSetRoot": "0x3a5441b1be30c8fe8b516c011408b14f75e3f204473e98366bb262b3955a21c3",
+      "lastACRef": "0x6216d0fb08bf7379678cb48d9b1eee7dc206b26fbdb6819d119ca50b482c56a6",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "hashIndexRoot": "0xb42210d4c01eb5f2c3c5ce30bb37b451a46947fac49f565a90279e86bdf4cb23"
+    }
+  ],
+  "keepers": [
+    {
+      "domainId": "fd-01-ionos-45",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "leafCount": 5194,
+      "rejectReason": null,
+      "inventoryFrozen": false,
+      "hostedChainSetRoot": "0x3a5441b1be30c8fe8b516c011408b14f75e3f204473e98366bb262b3955a21c3",
+      "lastACRef": "0x6216d0fb08bf7379678cb48d9b1eee7dc206b26fbdb6819d119ca50b482c56a6",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "hashIndexRoot": "0xb42210d4c01eb5f2c3c5ce30bb37b451a46947fac49f565a90279e86bdf4cb23"
+    },
+    {
+      "domainId": "fd-02-ionos-189",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "leafCount": 5194,
+      "rejectReason": null,
+      "inventoryFrozen": false,
+      "hostedChainSetRoot": "0x3a5441b1be30c8fe8b516c011408b14f75e3f204473e98366bb262b3955a21c3",
+      "lastACRef": "0x6216d0fb08bf7379678cb48d9b1eee7dc206b26fbdb6819d119ca50b482c56a6",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "hashIndexRoot": "0xb42210d4c01eb5f2c3c5ce30bb37b451a46947fac49f565a90279e86bdf4cb23"
+    },
+    {
+      "domainId": "fd-03-ionos-98",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "leafCount": 5194,
+      "rejectReason": null,
+      "inventoryFrozen": false,
+      "hostedChainSetRoot": "0x3a5441b1be30c8fe8b516c011408b14f75e3f204473e98366bb262b3955a21c3",
+      "lastACRef": "0x6216d0fb08bf7379678cb48d9b1eee7dc206b26fbdb6819d119ca50b482c56a6",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "hashIndexRoot": "0xb42210d4c01eb5f2c3c5ce30bb37b451a46947fac49f565a90279e86bdf4cb23"
+    },
+    {
+      "domainId": "fd-04-hosthatch-tokyo1",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "leafCount": 5194,
+      "rejectReason": null,
+      "inventoryFrozen": false,
+      "hostedChainSetRoot": "0x3a5441b1be30c8fe8b516c011408b14f75e3f204473e98366bb262b3955a21c3",
+      "lastACRef": "0x6216d0fb08bf7379678cb48d9b1eee7dc206b26fbdb6819d119ca50b482c56a6",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "hashIndexRoot": "0xb42210d4c01eb5f2c3c5ce30bb37b451a46947fac49f565a90279e86bdf4cb23"
+    }
+  ],
+  "waitedMs": 128098,
+  "ok": true,
+  "at": "2026-08-17T06:18:41.255Z"
+}

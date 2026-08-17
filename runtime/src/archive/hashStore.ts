@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   canonicalGroupId,
@@ -21,6 +21,7 @@ export interface DleLabFreezerSlotV1 {
 export interface HashStore {
   putLocator(locator: HashLocatorV1): { ok: true } | { ok: false; error: string }
   getLocator(hash: string): HashLocatorV1 | null
+  locatorCount(): number
   listLocators(): HashLocatorV1[]
   putBody(
     chainNftId: string,
@@ -29,6 +30,9 @@ export interface HashStore {
     kind?: HashObjectKind,
   ): { ok: true } | { ok: false; error: string }
   getBody(chainNftId: string, height: string, kind?: HashObjectKind): unknown | null
+  beginBatch(): void
+  endBatch(): void
+  isBatching(): boolean
 }
 
 interface HashIndexFile {
@@ -150,20 +154,51 @@ function loadFreezer(path: string): Record<string, unknown> {
   return { ...parsed.bodies }
 }
 
+function atomicWriteJson(path: string, value: unknown): void {
+  const tmp = `${path}.tmp`
+  writeFileSync(tmp, `${JSON.stringify(value)}\n`, 'utf8')
+  renameSync(tmp, path)
+}
+
 function writeIndex(path: string, locators: Record<string, HashLocatorV1>): void {
   const file: HashIndexFile = { schema: 'DleLabHashIndexV1', locators }
-  writeFileSync(path, `${JSON.stringify(file, null, 2)}\n`, 'utf8')
+  atomicWriteJson(path, file)
 }
 
 function writeFreezer(path: string, bodies: Record<string, unknown>): void {
   const file: HashFreezerFile = { schema: 'DleLabHashFreezerV1', bodies }
-  writeFileSync(path, `${JSON.stringify(file, null, 2)}\n`, 'utf8')
+  atomicWriteJson(path, file)
 }
 
 export function openHashStore(dataDir: string): HashStore {
   mkdirSync(dataDir, { recursive: true })
   const indexPath = join(dataDir, 'hash-index.json')
   const freezerPath = join(dataDir, 'hash-freezer.json')
+  const locators = loadIndex(indexPath)
+  const bodies = loadFreezer(freezerPath)
+  let locatorN = Object.keys(locators).length
+  let listed: HashLocatorV1[] | null = null
+  let batching = false
+  let indexDirty = false
+  let freezerDirty = false
+  function flushIndex(): void {
+    if (!indexDirty) return
+    writeIndex(indexPath, locators)
+    indexDirty = false
+  }
+  function flushFreezer(): void {
+    if (!freezerDirty) return
+    writeFreezer(freezerPath, bodies)
+    freezerDirty = false
+  }
+  function markIndex(): void {
+    indexDirty = true
+    if (!batching) flushIndex()
+  }
+  function markFreezer(): void {
+    freezerDirty = true
+    if (!batching) flushFreezer()
+  }
   return {
     putLocator(locator) {
       const hash = normalizeHash32(locator.hash)
@@ -181,60 +216,80 @@ export function openHashStore(dataDir: string): HashStore {
         ...(locator.groupId !== undefined ? { groupId: canonicalGroupId(locator.groupId) } : {}),
         ...(locator.acRef !== undefined ? { acRef: locator.acRef } : {}),
       }
-      const locators = loadIndex(indexPath)
       const existing = locators[hash]
       if (existing !== undefined) {
         if (existing.chainNftId !== next.chainNftId) return { ok: false, error: 'ERR_HASH_NFT_CONFLICT' }
         if (!locatorsEqual(existing, next)) return { ok: false, error: 'ERR_HASH_LOCATOR_CONFLICT' }
         if ((existing.groupId ?? '') !== (next.groupId ?? '')) {
           locators[hash] = next
-          writeIndex(indexPath, locators)
+          if (!batching) listed = null
+          markIndex()
         }
         return { ok: true }
       }
       locators[hash] = next
-      writeIndex(indexPath, locators)
+      locatorN += 1
+      if (!batching) listed = null
+      markIndex()
       return { ok: true }
     },
     getLocator(hash) {
       const normalized = normalizeHash32(hash)
       if (normalized === null) return null
-      return loadIndex(indexPath)[normalized] ?? null
+      return locators[normalized] ?? null
+    },
+    locatorCount() {
+      return locatorN
     },
     listLocators() {
-      return Object.values(loadIndex(indexPath)).sort((left, right) => left.hash.localeCompare(right.hash))
+      if (listed !== null) return listed
+      listed = Object.values(locators).sort((left, right) => left.hash.localeCompare(right.hash))
+      return listed
     },
     putBody(chainNftId, height, body, kind) {
       const nft = normalizeChainNftId(chainNftId)
       const heightHex = normalizeHeightHex(height)
       if (nft === null || heightHex === null) return { ok: false, error: 'ERR_INVALID_FREEZER_KEY' }
       const key = freezerKey(nft, heightHex)
-      const bodies = loadFreezer(freezerPath)
       if (kind === undefined) {
-        if (key in bodies) {
+        if (Object.prototype.hasOwnProperty.call(bodies, key)) {
           if (JSON.stringify(bodies[key]) !== JSON.stringify(body)) {
             return { ok: false, error: 'ERR_FREEZER_APPEND_ONLY' }
           }
           return { ok: true }
         }
         bodies[key] = body
-        writeFreezer(freezerPath, bodies)
+        markFreezer()
         return { ok: true }
       }
       const merged = mergeKindIntoSlot(bodies[key], kind, body)
       if (!merged.ok) return merged
-      if (key in bodies && JSON.stringify(bodies[key]) === JSON.stringify(merged.slot)) {
+      if (
+        Object.prototype.hasOwnProperty.call(bodies, key) &&
+        JSON.stringify(bodies[key]) === JSON.stringify(merged.slot)
+      ) {
         return { ok: true }
       }
       bodies[key] = merged.slot
-      writeFreezer(freezerPath, bodies)
+      markFreezer()
       return { ok: true }
+    },
+    beginBatch() {
+      batching = true
+    },
+    endBatch() {
+      batching = false
+      listed = null
+      flushIndex()
+      flushFreezer()
+    },
+    isBatching() {
+      return batching
     },
     getBody(chainNftId, height, kind) {
       const nft = normalizeChainNftId(chainNftId)
       const heightHex = normalizeHeightHex(height)
       if (nft === null || heightHex === null) return null
-      const bodies = loadFreezer(freezerPath)
       const key = freezerKey(nft, heightHex)
       if (!Object.prototype.hasOwnProperty.call(bodies, key)) return null
       const raw = bodies[key]

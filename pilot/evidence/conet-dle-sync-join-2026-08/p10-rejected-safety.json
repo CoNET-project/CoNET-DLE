@@ -1,0 +1,89 @@
+{
+  "schema": "DleLabRejectedSafetySmokeV1",
+  "labOnly": true,
+  "hmacForgeable": true,
+  "notProductionCg": true,
+  "notThirtyDayQualification": true,
+  "neverWipe": true,
+  "neverInjectMissingObject": true,
+  "keeperDomainIds": [
+    "fd-01-ionos-45",
+    "fd-02-ionos-189",
+    "fd-03-ionos-98",
+    "fd-04-hosthatch-tokyo1"
+  ],
+  "activeDomainIds": [
+    "fd-01-ionos-45",
+    "fd-02-ionos-189",
+    "fd-03-ionos-98",
+    "fd-04-hosthatch-tokyo1",
+    "fd-05-hosthatch-tokyo2"
+  ],
+  "rows": [
+    {
+      "domainId": "fd-01-ionos-45",
+      "host": "74.208.224.45",
+      "role": "active",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "ok": true,
+      "detail": "active QUALIFIED"
+    },
+    {
+      "domainId": "fd-02-ionos-189",
+      "host": "216.225.197.189",
+      "role": "active",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "ok": true,
+      "detail": "active QUALIFIED"
+    },
+    {
+      "domainId": "fd-03-ionos-98",
+      "host": "198.251.77.98",
+      "role": "active",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "ok": true,
+      "detail": "active QUALIFIED"
+    },
+    {
+      "domainId": "fd-04-hosthatch-tokyo1",
+      "host": "167.254.243.38",
+      "role": "active",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "ok": true,
+      "detail": "active QUALIFIED"
+    },
+    {
+      "domainId": "fd-05-hosthatch-tokyo2",
+      "host": "170.205.39.67",
+      "role": "active",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "ok": true,
+      "detail": "active QUALIFIED"
+    },
+    {
+      "domainId": "fd-06-ionos-174",
+      "host": "216.225.193.174",
+      "role": "standby",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "ok": true,
+      "detail": "standby QUALIFIED"
+    },
+    {
+      "domainId": "fd-07-ionos-207",
+      "host": "212.227.242.207",
+      "role": "standby",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "ok": true,
+      "detail": "standby QUALIFIED"
+    }
+  ],
+  "ok": true,
+  "at": "2026-08-17T06:55:13.921Z"
+}

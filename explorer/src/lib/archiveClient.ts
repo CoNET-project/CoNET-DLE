@@ -16,10 +16,12 @@ import type {
   DleTipView,
   DleWaitingPoolView,
   JsonRpcResponse,
+  ArchiveSyncPhase,
   LabArchiveRow,
   RpcProbeRow,
 } from '../types'
 import { LAB_ARCHIVE_FIXTURES } from '../fixtures/labArchives'
+import { parseArchiveSyncPhase } from './archiveSeating'
 import { sortEventsNewestFirst } from './events'
 import { isRecord, parseJsonRpcResponse } from './jsonrpc'
 
@@ -297,7 +299,7 @@ export function parseSelectionLog(
     note:
       typeof value.note === 'string'
         ? value.note
-        : 'Lab SelectionLog. Beacon is keccak after freeze, not CoNET L1 CL RANDAO. HMAC attests are forgeable. Not an Archive Certificate. Not 30-day qualification.',
+        : 'Lab SelectionLog. Beacon is freeze-then-bind lab keccak (P19), not CoNET L1 CL RANDAO. Instant labBeaconAfterFreeze(poolRoot) is contrast-only. Attests are EIP-712 ArchiveOnDemandAttest (P17). Wait hooks are not intra-group gossip (P20); lab HTTP is not production DePIN gossip. Not an Archive Certificate. Not 30-day qualification.',
     ...(typeof value.acceptedAt === 'string' ? { acceptedAt: value.acceptedAt } : {}),
     source,
   }
@@ -354,19 +356,51 @@ export function mergeArchivesWithHealth(
   const lastQuorumOk = typeof health.lastQuorumOk === 'boolean' ? health.lastQuorumOk : null
   const lastPeerOk = typeof health.lastPeerOk === 'number' ? health.lastPeerOk : null
   const heartbeats = typeof health.heartbeats === 'number' ? health.heartbeats : null
-  if (domainId === '') {
-    return roster.map((row) => ({ ...row }))
+  const seatingByDomain = new Map<string, { syncPhase: ArchiveSyncPhase | null; seatingQualified: boolean }>()
+  const qualification = isRecord(health.syncQualification) ? health.syncQualification : null
+  if (qualification !== null && typeof qualification.domainId === 'string') {
+    seatingByDomain.set(qualification.domainId, {
+      syncPhase: parseArchiveSyncPhase(qualification.phase),
+      seatingQualified: qualification.seatingQualified === true,
+    })
+  }
+  if (Array.isArray(health.syncRoster)) {
+    for (const item of health.syncRoster) {
+      if (!isRecord(item) || typeof item.domainId !== 'string') continue
+      seatingByDomain.set(item.domainId, {
+        syncPhase: parseArchiveSyncPhase(item.phase),
+        seatingQualified: item.seatingQualified === true,
+      })
+    }
+  }
+  if (domainId !== '' && typeof health.seatingQualified === 'boolean' && !seatingByDomain.has(domainId)) {
+    seatingByDomain.set(domainId, {
+      syncPhase: health.seatingQualified === true ? 'QUALIFIED' : parseArchiveSyncPhase(qualification?.phase),
+      seatingQualified: health.seatingQualified === true,
+    })
   }
   return roster.map((row) => {
-    if (row.domainId !== domainId) return row
+    const seating = seatingByDomain.get(row.domainId)
+    const isReporter = domainId !== '' && row.domainId === domainId
     return {
       ...row,
-      health: 'live',
-      lastQuorumOk,
-      lastPeerOk,
-      heartbeats,
-      source: 'live',
-      role: health.role === 'standby' || health.role === 'active' ? health.role : row.role,
+      ...(isReporter
+        ? {
+            health: 'live' as const,
+            lastQuorumOk,
+            lastPeerOk,
+            heartbeats,
+            source: 'live' as const,
+            role: health.role === 'standby' || health.role === 'active' ? health.role : row.role,
+          }
+        : {}),
+      ...(seating
+        ? {
+            syncPhase: seating.syncPhase,
+            seatingQualified: seating.seatingQualified,
+            source: 'live' as const,
+          }
+        : {}),
     }
   })
 }

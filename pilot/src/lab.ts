@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { randomUUID } from 'node:crypto'
+import { randomInt, randomUUID } from 'node:crypto'
 import { AppendOnlyNdjsonWriter, PublicEvidenceRedactor } from './evidence.js'
 import { PilotQualificationGate } from './gate.js'
 import { assertOperatorDomainPreflight, preflightOperatorDomains } from './inventory.js'
@@ -22,8 +22,7 @@ function sameGroupId(left: string, right: string): boolean {
 export const PILOT_LAB_ID = 'conet-dle-30d-lab-2026-08'
 export const LAB_PORT = 27101
 export const LAB_DIR = '/home/peter/dle-30d-lab'
-function extractArchiveHealthJson(stdout: string): Record<string, unknown> {
-  const marker = '{"ok":true,"command":"archive"'
+function extractJsonObject(stdout: string, marker: string): Record<string, unknown> {
   const start = stdout.indexOf(marker)
   if (start < 0) return {}
   let depth = 0
@@ -60,6 +59,14 @@ function extractArchiveHealthJson(stdout: string): Record<string, unknown> {
     }
   }
   return {}
+}
+
+function extractArchiveHealthJson(stdout: string): Record<string, unknown> {
+  return extractJsonObject(stdout, '{"ok":true,"command":"archive"')
+}
+
+function extractSyncStatusJson(stdout: string): Record<string, unknown> {
+  return extractJsonObject(stdout, '{"schema":"ArchiveSyncQualificationLabV1"')
 }
 
 export const PROTECTED_PROCESS_NAMES = [
@@ -101,6 +108,67 @@ export const DEFAULT_INVENTORY_PATH = resolve(here, '../../inventories/conet-dle
 export const DEFAULT_HOSTS_PATH = resolve(here, '../../lab/hosts.json')
 export const DEFAULT_AGENT_PATH = resolve(here, '../../lab/agent.mjs')
 export const DEFAULT_EVIDENCE_DIR = resolve(here, '../../evidence/conet-dle-30d-lab-2026-08')
+export const DEFAULT_SYNC_JOIN_EVIDENCE_DIR = resolve(here, '../../evidence/conet-dle-sync-join-2026-08')
+export const G1_SYNC_JOIN_KEEPER_DOMAIN_IDS = [
+  'fd-01-ionos-45',
+  'fd-02-ionos-189',
+  'fd-03-ionos-98',
+  'fd-04-hosthatch-tokyo1',
+] as const
+/** Only wipe-safe G1 joiners. Keepers are never in this set. */
+export const G1_SYNC_JOIN_WIPE_SAFE_DOMAIN_IDS = [
+  'fd-05-hosthatch-tokyo2',
+  'fd-06-ionos-174',
+  'fd-07-ionos-207',
+] as const
+/** Only wipe-safe active. Standby-only wipe would not freeze cataloguing. */
+export const G1_SYNC_JOIN_REQUIRED_ACTIVE_WIPE = 'fd-05-hosthatch-tokyo2' as const
+const G1_SYNC_JOIN_WIPE_SAFE_STANDBY_IDS = ['fd-06-ionos-174', 'fd-07-ionos-207'] as const
+/** @deprecated Prefer resolveWipeJoinDomainIds(); kept as the historical P7 pair. */
+export const G1_SYNC_JOIN_WIPE_DOMAIN_IDS = ['fd-05-hosthatch-tokyo2', 'fd-07-ionos-207'] as const
+/** Extra standby joiner for P11 full-open from-zero. Never official 5+2. Never wipe fd-01..07. */
+export const P11_JOINER_DOMAIN_ID = 'fd-08-hosthatch-hk1'
+export const P11_JOINER_SSH_HOST = '167.104.98.104'
+export const P11_JOINER_ROLE = 'standby' as const
+export const DEFAULT_P11_JOINER_HOSTS_PATH = resolve(here, '../../lab/hosts-p11-joiner.json')
+
+export function pickRandomWipeJoiners(options?: {
+  count?: number
+  randomInt?: (maxExclusive: number) => number
+}): string[] {
+  const total = options?.count ?? 2
+  if (total < 2 || total > G1_SYNC_JOIN_WIPE_SAFE_DOMAIN_IDS.length) {
+    throw new Error('P8d wipe count must be 2 or 3 wipe-safe hosts')
+  }
+  const rand = options?.randomInt ?? ((maxExclusive: number) => randomInt(maxExclusive))
+  const standbys = [...G1_SYNC_JOIN_WIPE_SAFE_STANDBY_IDS]
+  for (let i = standbys.length - 1; i > 0; i -= 1) {
+    const j = rand(i + 1)
+    const current = standbys[i]!
+    standbys[i] = standbys[j]!
+    standbys[j] = current
+  }
+  const extra = total - 1
+  return [G1_SYNC_JOIN_REQUIRED_ACTIVE_WIPE, ...standbys.slice(0, extra)].sort()
+}
+
+export function resolveWipeJoinDomainIds(): string[] {
+  const raw = process.env.LAB_SYNC_JOIN_WIPE_DOMAIN_IDS?.trim()
+  if (!raw) return pickRandomWipeJoiners()
+  const ids = [...new Set(raw.split(',').map((item) => item.trim()).filter(Boolean))].sort()
+  for (const id of ids) {
+    if ((G1_SYNC_JOIN_KEEPER_DOMAIN_IDS as readonly string[]).includes(id)) {
+      throw new Error(`refusing to wipe keeper ${id}`)
+    }
+    if (!(G1_SYNC_JOIN_WIPE_SAFE_DOMAIN_IDS as readonly string[]).includes(id)) {
+      throw new Error(`wipe target ${id} is not wipe-safe`)
+    }
+  }
+  if (!ids.includes(G1_SYNC_JOIN_REQUIRED_ACTIVE_WIPE)) {
+    throw new Error('P8d freeze requires wiping the only wipe-safe active fd-05')
+  }
+  return ids
+}
 const LAYER2_ROOT = resolve(here, here.includes(`${sep}dist${sep}src`) ? '../../..' : '../..')
 export const DEFAULT_ARCHIVE_DIST_DIR = resolve(LAYER2_ROOT, 'runtime/dist/archive')
 export const DEFAULT_DAEMON_PROBE_PATH = resolve(LAYER2_ROOT, 'runtime/src/daemon/probe.mjs')
@@ -248,6 +316,68 @@ export async function runScp(localPath: string, host: string, remotePath: string
   })
 }
 
+const SSH_RETRY_ATTEMPTS = 4
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolvePromise) => {
+    setTimeout(resolvePromise, ms)
+  })
+}
+
+function isTransientRemoteError(text: string, code?: number): boolean {
+  if (code === 3 || /PROTECTED/.test(text)) return false
+  return (
+    code === 255 ||
+    /Connection closed|Connection reset|Connection timed out|Broken pipe|kex_exchange_identification|Connection refused|No route to host|Operation timed out/i.test(
+      text,
+    )
+  )
+}
+
+export async function runSshRetry(
+  host: string,
+  remoteCommand: string,
+  attempts = SSH_RETRY_ATTEMPTS,
+): Promise<{ code: number; stdout: string; stderr: string }> {
+  let last = { code: 1, stdout: '', stderr: '' }
+  for (let i = 0; i < attempts; i += 1) {
+    last = await runSsh(host, remoteCommand)
+    if (last.code === 0) return last
+    const text = `${last.stderr}\n${last.stdout}`
+    if (!isTransientRemoteError(text, last.code) || i === attempts - 1) return last
+    await sleep(1500 * (i + 1))
+  }
+  return last
+}
+
+export async function runScpRetry(
+  localPath: string,
+  host: string,
+  remotePath: string,
+  attempts = SSH_RETRY_ATTEMPTS,
+): Promise<void> {
+  let lastError: unknown
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      await runScp(localPath, host, remotePath)
+      return
+    } catch (error) {
+      lastError = error
+      const text = error instanceof Error ? error.message : String(error)
+      if (!isTransientRemoteError(text, 255) || i === attempts - 1) throw error
+      await sleep(1500 * (i + 1))
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError))
+}
+
+export interface LabPeerSpec {
+  domainId: string
+  host: string
+  port: number
+  role: string
+}
+
 export interface AgentConfigExtras {
   autoSeedLabMiners?: boolean
   autoFreeze?: boolean
@@ -255,11 +385,112 @@ export interface AgentConfigExtras {
   enableBft?: boolean
   enableOndemand?: boolean
   seedFissionMarker?: boolean
+  extraPeers?: LabPeerSpec[]
   planeDirectory?: Array<{
     groupId: string
     wallets: Array<{ domainId: string; role: string; url?: string; labOnly: true }>
   }>
   foreignChains?: Array<{ chainNftId: string; groupId: string }>
+}
+
+export function p11JoinerPeer(): LabPeerSpec {
+  return {
+    domainId: P11_JOINER_DOMAIN_ID,
+    host: P11_JOINER_SSH_HOST,
+    port: LAB_PORT,
+    role: P11_JOINER_ROLE,
+  }
+}
+
+export function p11JoinerHost(): PilotLabHostV1 {
+  return {
+    domainId: P11_JOINER_DOMAIN_ID,
+    sshHost: P11_JOINER_SSH_HOST,
+    class: 'greenfield-lab',
+    leftoverElCl: false,
+    doNotStartValidator: true,
+    notes:
+      'P11 extra standby joiner. HostHatch HK1 167.104.98.104. Empty datadir only. Never official 5+2. Never wipe fd-01..07.',
+  }
+}
+
+export async function loadP11JoinerHost(path = DEFAULT_P11_JOINER_HOSTS_PATH): Promise<PilotLabHostV1> {
+  const file = JSON.parse(await readFile(path, 'utf8')) as {
+    schema?: string
+    joiner?: PilotLabHostV1
+  }
+  if (file.schema !== 'PilotLabP11JoinerV1' || file.joiner === undefined) {
+    throw new Error('p11 joiner schema is invalid')
+  }
+  if (file.joiner.domainId !== P11_JOINER_DOMAIN_ID) {
+    throw new Error(`p11 joiner domain mismatch ${file.joiner.domainId}`)
+  }
+  if (file.joiner.sshHost !== P11_JOINER_SSH_HOST) {
+    throw new Error(`p11 joiner host mismatch ${file.joiner.sshHost}`)
+  }
+  return file.joiner
+}
+
+export function assertP11JoinerOutsideOfficial(
+  inventory: PilotInventoryV1,
+  hosts: PilotLabHostsV1,
+  joiner: PilotLabHostV1,
+): void {
+  if (inventory.domains.some((domain) => domain.domainId === joiner.domainId)) {
+    throw new Error(`P11 joiner ${joiner.domainId} must not be in official inventory`)
+  }
+  if (hosts.hosts.some((host) => host.domainId === joiner.domainId || host.sshHost === joiner.sshHost)) {
+    throw new Error('P11 joiner must not be in official hosts.json')
+  }
+  if (hosts.hosts.length !== 7 || inventory.domains.length !== 7) {
+    throw new Error('official G1 roster must stay exactly 7')
+  }
+}
+
+function mergeAgentPeers(
+  official: LabPeerSpec[],
+  extra: LabPeerSpec[] | undefined,
+  selfDomainId: string,
+): LabPeerSpec[] {
+  const merged: LabPeerSpec[] = []
+  const seen = new Set<string>()
+  for (const peer of [...official, ...(extra ?? [])]) {
+    if (peer.domainId === selfDomainId || seen.has(peer.domainId)) continue
+    seen.add(peer.domainId)
+    merged.push(peer)
+  }
+  return merged
+}
+
+export function appendExtraPlaneWallet(
+  directory: AgentConfigExtras['planeDirectory'],
+  groupId: string,
+  wallet: { domainId: string; role: string; url: string; labOnly: true },
+): NonNullable<AgentConfigExtras['planeDirectory']> {
+  const rows = (directory ?? []).map((group) => ({
+    ...group,
+    wallets: [...group.wallets],
+  }))
+  const index = rows.findIndex((group) => group.groupId === groupId)
+  if (index < 0) {
+    rows.push({ groupId, wallets: [wallet] })
+    return rows
+  }
+  if (!rows[index]!.wallets.some((item) => item.domainId === wallet.domainId)) {
+    rows[index]!.wallets.push(wallet)
+  }
+  return rows
+}
+
+function applyAgentConfigExtras(config: Record<string, unknown>, extras?: AgentConfigExtras): void {
+  if (extras?.autoSeedLabMiners !== undefined) config.autoSeedLabMiners = extras.autoSeedLabMiners
+  if (extras?.autoFreeze !== undefined) config.autoFreeze = extras.autoFreeze
+  if (extras?.ownGroupId !== undefined) config.ownGroupId = extras.ownGroupId
+  if (extras?.enableBft !== undefined) config.enableBft = extras.enableBft
+  if (extras?.enableOndemand !== undefined) config.enableOndemand = extras.enableOndemand
+  if (extras?.seedFissionMarker !== undefined) config.seedFissionMarker = extras.seedFissionMarker
+  if (extras?.planeDirectory !== undefined) config.planeDirectory = extras.planeDirectory
+  if (extras?.foreignChains !== undefined) config.foreignChains = extras.foreignChains
 }
 
 export function planeDirectoryFromHosts(
@@ -292,6 +523,17 @@ export function agentConfigFor(
   const domain = inventory.domains.find((item) => item.domainId === domainId)
   const self = hosts.hosts.find((item) => item.domainId === domainId)
   if (!domain || !self) throw new Error(`unknown domain ${domainId}`)
+  const officialPeers = hosts.hosts
+    .filter((item) => item.domainId !== domainId)
+    .map((item) => {
+      const peerDomain = inventory.domains.find((row) => row.domainId === item.domainId)
+      return {
+        domainId: item.domainId,
+        host: item.sshHost,
+        port: hosts.labPort,
+        role: peerDomain?.role ?? 'standby',
+      }
+    })
   const config: Record<string, unknown> = {
     schema: 'DleLabAgentConfigV1',
     agent: 'dle-30d-lab',
@@ -301,26 +543,40 @@ export function agentConfigFor(
     isolatedFromElCl: true,
     doNotStartValidator: true,
     protectedProcessNames: hosts.protectedProcessNames,
-    peers: hosts.hosts
-      .filter((item) => item.domainId !== domainId)
-      .map((item) => {
-        const peerDomain = inventory.domains.find((row) => row.domainId === item.domainId)
-        return {
-          domainId: item.domainId,
-          host: item.sshHost,
-          port: hosts.labPort,
-          role: peerDomain?.role ?? 'standby',
-        }
-      }),
+    peers: mergeAgentPeers(officialPeers, extras?.extraPeers, domainId),
   }
-  if (extras?.autoSeedLabMiners !== undefined) config.autoSeedLabMiners = extras.autoSeedLabMiners
-  if (extras?.autoFreeze !== undefined) config.autoFreeze = extras.autoFreeze
-  if (extras?.ownGroupId !== undefined) config.ownGroupId = extras.ownGroupId
-  if (extras?.enableBft !== undefined) config.enableBft = extras.enableBft
-  if (extras?.enableOndemand !== undefined) config.enableOndemand = extras.enableOndemand
-  if (extras?.seedFissionMarker !== undefined) config.seedFissionMarker = extras.seedFissionMarker
-  if (extras?.planeDirectory !== undefined) config.planeDirectory = extras.planeDirectory
-  if (extras?.foreignChains !== undefined) config.foreignChains = extras.foreignChains
+  applyAgentConfigExtras(config, extras)
+  return config
+}
+
+export function agentConfigForJoiner(
+  inventory: PilotInventoryV1,
+  hosts: PilotLabHostsV1,
+  joiner: PilotLabHostV1,
+  extras?: AgentConfigExtras,
+): Record<string, unknown> {
+  assertP11JoinerOutsideOfficial(inventory, hosts, joiner)
+  const officialPeers = hosts.hosts.map((item) => {
+    const peerDomain = inventory.domains.find((row) => row.domainId === item.domainId)
+    return {
+      domainId: item.domainId,
+      host: item.sshHost,
+      port: hosts.labPort,
+      role: peerDomain?.role ?? 'standby',
+    }
+  })
+  const config: Record<string, unknown> = {
+    schema: 'DleLabAgentConfigV1',
+    agent: 'dle-30d-lab',
+    domainId: joiner.domainId,
+    role: P11_JOINER_ROLE,
+    port: hosts.labPort,
+    isolatedFromElCl: true,
+    doNotStartValidator: true,
+    protectedProcessNames: hosts.protectedProcessNames,
+    peers: mergeAgentPeers(officialPeers, extras?.extraPeers, joiner.domainId),
+  }
+  applyAgentConfigExtras(config, extras)
   return config
 }
 
@@ -398,19 +654,45 @@ export async function deployIsolatedLab(options?: {
 
 const STOP_LAB_ONLY = [
   'set -euo pipefail',
+  'protect_pid() {',
+  '  comm=$(ps -p "$1" -o comm= || true)',
+  '  args=$(ps -p "$1" -o args= || true)',
+  '  case "$comm $args" in',
+  '    *geth*|*beacon-chain*|*validator*|*prysm*) echo PROTECTED; exit 3 ;;',
+  '  esac',
+  '}',
   'for pattern in "[n]ode .*dle-30d-lab/agent.mjs" "[n]ode .*dle-30d-lab/app/archive/lab-cli.js"; do',
   '  PIDS=$(pgrep -f "$pattern" || true)',
   '  for pid in $PIDS; do',
-  '    comm=$(ps -p "$pid" -o comm= || true)',
-  '    args=$(ps -p "$pid" -o args= || true)',
-  '    case "$comm $args" in',
-  '      *geth*|*beacon-chain*|*validator*|*prysm*) echo PROTECTED; exit 3 ;;',
-  '    esac',
+  '    protect_pid "$pid"',
   '    kill -TERM "$pid" || true',
   '    echo STOPPED=$pid',
   '  done',
   'done',
-  'sleep 1',
+  'for _ in 1 2 3 4 5 6 7 8; do',
+  '  leftover=$(pgrep -f "[n]ode .*dle-30d-lab/(agent.mjs|app/archive/lab-cli.js)" || true)',
+  '  [ -z "$leftover" ] && break',
+  '  sleep 1',
+  'done',
+  'leftover=$(pgrep -f "[n]ode .*dle-30d-lab/(agent.mjs|app/archive/lab-cli.js)" || true)',
+  'for pid in $leftover; do',
+  '  protect_pid "$pid"',
+  '  kill -KILL "$pid" || true',
+  '  echo KILLED=$pid',
+  'done',
+].join('\n')
+
+const WAIT_ARCHIVE_LIVENESS = [
+  'ok=0',
+  'for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do',
+  `  if curl -fsS --max-time 3 http://127.0.0.1:${LAB_PORT}/liveness 2>/dev/null | grep -q '"ok":true'; then`,
+  '    echo LIVE_OK',
+  '    ok=1',
+  '    break',
+  '  fi',
+  '  sleep 2',
+  'done',
+  'test "$ok" = 1',
 ].join('\n')
 
 const START_ARCHIVE = [
@@ -421,8 +703,18 @@ const START_ARCHIVE = [
   `if [ -x '${LAB_DIR}/runtime/bin/node' ]; then NODE='${LAB_DIR}/runtime/bin/node'; else NODE=$(command -v node); fi`,
   `nohup "$NODE" '${REMOTE_ARCHIVE_ENTRY}' --config '${LAB_DIR}/config.json' --data-dir '${LAB_DIR}/data' >> '${LAB_DIR}/archive.log' 2>&1 &`,
   'echo STARTED=$!',
-  'sleep 2',
-  `curl -fsS --max-time 5 http://127.0.0.1:${LAB_PORT}/health`,
+  WAIT_ARCHIVE_LIVENESS,
+].join('\n')
+
+const START_ARCHIVE_WIPE = [
+  'set -euo pipefail',
+  `rm -rf '${LAB_DIR}/data'`,
+  `mkdir -p '${LAB_DIR}/app' '${LAB_DIR}/data' '${LAB_DIR}/daemon' '${LAB_DIR}/wal'`,
+  `cd '${LAB_DIR}'`,
+  `if [ -x '${LAB_DIR}/runtime/bin/node' ]; then NODE='${LAB_DIR}/runtime/bin/node'; else NODE=$(command -v node); fi`,
+  `nohup "$NODE" '${REMOTE_ARCHIVE_ENTRY}' --config '${LAB_DIR}/config.json' --data-dir '${LAB_DIR}/data' >> '${LAB_DIR}/archive.log' 2>&1 &`,
+  'echo STARTED=$!',
+  WAIT_ARCHIVE_LIVENESS,
 ].join('\n')
 
 const START_ARCHIVE_KEEP_BFT = [
@@ -433,8 +725,7 @@ const START_ARCHIVE_KEEP_BFT = [
   `if [ -x '${LAB_DIR}/runtime/bin/node' ]; then NODE='${LAB_DIR}/runtime/bin/node'; else NODE=$(command -v node); fi`,
   `nohup "$NODE" '${REMOTE_ARCHIVE_ENTRY}' --config '${LAB_DIR}/config.json' --data-dir '${LAB_DIR}/data' >> '${LAB_DIR}/archive.log' 2>&1 &`,
   'echo STARTED=$!',
-  'sleep 2',
-  `curl -fsS --max-time 5 http://127.0.0.1:${LAB_PORT}/health`,
+  WAIT_ARCHIVE_LIVENESS,
 ].join('\n')
 
 const START_ARCHIVE_KEEP_ALL = [
@@ -444,8 +735,7 @@ const START_ARCHIVE_KEEP_ALL = [
   `if [ -x '${LAB_DIR}/runtime/bin/node' ]; then NODE='${LAB_DIR}/runtime/bin/node'; else NODE=$(command -v node); fi`,
   `nohup "$NODE" '${REMOTE_ARCHIVE_ENTRY}' --config '${LAB_DIR}/config.json' --data-dir '${LAB_DIR}/data' >> '${LAB_DIR}/archive.log' 2>&1 &`,
   'echo STARTED=$!',
-  'sleep 2',
-  `curl -fsS --max-time 5 http://127.0.0.1:${LAB_PORT}/health`,
+  WAIT_ARCHIVE_LIVENESS,
 ].join('\n')
 
 const STATUS_ARCHIVE = [
@@ -459,6 +749,33 @@ const STATUS_ARCHIVE = [
   "echo BEACON=$(pgrep -x beacon-chain | tr '\\n' ' ')",
   "echo VALIDATOR=$(pgrep -x validator | tr '\\n' ' ')",
   `curl -fsS --max-time 3 http://127.0.0.1:${LAB_PORT}/health 2>/dev/null || echo HEALTH=down`,
+].join('\n')
+
+const PROBE_P11_JOINER = [
+  'set +e',
+  'echo HOST=$(hostname)',
+  'echo USER=$(whoami)',
+  'echo MEM=$(free -h | awk \'/Mem:/{print $2,$3,$7}\')',
+  'echo DISK=$(df -h / | awk \'NR==2{print $2,$3,$4}\')',
+  `echo LAB_DIR_EXISTS=$([ -d '${LAB_DIR}' ] && echo yes || echo no)`,
+  `echo LAB_DATA=$([ -d '${LAB_DIR}/data' ] && echo yes || echo no)`,
+  `echo ARCHIVE_PIDS=$(pgrep -f '[n]ode .*dle-30d-lab/app/archive/lab-cli.js' | tr '\\n' ' ')`,
+  `echo AGENT_PIDS=$(pgrep -f '[n]ode .*dle-30d-lab/agent.mjs' | tr '\\n' ' ')`,
+  "echo GETH=$(pgrep -x geth | tr '\\n' ' ')",
+  "echo BEACON=$(pgrep -x beacon-chain | tr '\\n' ' ')",
+  "echo VALIDATOR=$(pgrep -x validator | tr '\\n' ' ')",
+  'echo NODE=$(command -v node || true)',
+  `curl -fsS --max-time 3 http://127.0.0.1:${LAB_PORT}/health 2>/dev/null || echo HEALTH=down`,
+].join('\n')
+
+const SYNC_STATUS_ONLY = [
+  'set +e',
+  `curl -fsS --max-time 8 http://127.0.0.1:${LAB_PORT}/sync/status 2>/dev/null || echo SYNC=down`,
+].join('\n')
+
+const HEALTH_SEATING_ONLY = [
+  'set +e',
+  `curl -fsS --max-time 8 http://127.0.0.1:${LAB_PORT}/health 2>/dev/null || echo HEALTH=down`,
 ].join('\n')
 
 export async function deployArchiveRuntime(options?: {
@@ -479,7 +796,7 @@ export async function deployArchiveRuntime(options?: {
   })
   const results: Array<{ domainId: string; host: string; ok: boolean; detail: string }> = []
   for (const host of hosts.hosts) {
-    const ensure = await runSsh(host.sshHost, ENSURE_NODE)
+    const ensure = await runSshRetry(host.sshHost, ENSURE_NODE)
     if (ensure.code !== 0) {
       results.push({
         domainId: host.domainId,
@@ -492,14 +809,24 @@ export async function deployArchiveRuntime(options?: {
     const config = agentConfigFor(inventory, hosts, host.domainId, options?.extras)
     const tmpConfig = `/tmp/dle-lab-${host.domainId}.json`
     await writeFile(tmpConfig, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
-    await runSsh(
-      host.sshHost,
-      `mkdir -p '${LAB_DIR}/app' '${LAB_DIR}/data' '${LAB_DIR}/daemon' '${LAB_DIR}/wal'`,
-    )
-    await runScp(bundlePath, host.sshHost, '/tmp/dle-archive-runtime.tgz')
-    await runScp(tmpConfig, host.sshHost, `${LAB_DIR}/config.json`)
-    await runScp(daemonProbePath, host.sshHost, REMOTE_DAEMON_PROBE)
-    const unpacked = await runSsh(
+    try {
+      await runSshRetry(
+        host.sshHost,
+        `mkdir -p '${LAB_DIR}/app' '${LAB_DIR}/data' '${LAB_DIR}/daemon' '${LAB_DIR}/wal'`,
+      )
+      await runScpRetry(bundlePath, host.sshHost, '/tmp/dle-archive-runtime.tgz')
+      await runScpRetry(tmpConfig, host.sshHost, `${LAB_DIR}/config.json`)
+      await runScpRetry(daemonProbePath, host.sshHost, REMOTE_DAEMON_PROBE)
+    } catch (error) {
+      results.push({
+        domainId: host.domainId,
+        host: host.sshHost,
+        ok: false,
+        detail: error instanceof Error ? error.message : String(error),
+      })
+      continue
+    }
+    const unpacked = await runSshRetry(
       host.sshHost,
       `rm -rf '${LAB_DIR}/app' && mkdir -p '${LAB_DIR}/app' && tar -xzf /tmp/dle-archive-runtime.tgz -C '${LAB_DIR}/app' && printf '%s\\n' '{"type":"module","private":true,"name":"@conet/dle-archive-runtime"}' > '${LAB_DIR}/app/package.json'`,
     )
@@ -512,7 +839,7 @@ export async function deployArchiveRuntime(options?: {
       })
       continue
     }
-    const stopped = await runSsh(host.sshHost, STOP_LAB_ONLY)
+    const stopped = await runSshRetry(host.sshHost, STOP_LAB_ONLY)
     if (stopped.code !== 0) {
       results.push({
         domainId: host.domainId,
@@ -522,8 +849,8 @@ export async function deployArchiveRuntime(options?: {
       })
       continue
     }
-    const started = await runSsh(host.sshHost, options?.keepData === true ? START_ARCHIVE_KEEP_ALL : START_ARCHIVE)
-    const healthOk = started.stdout.includes('"command":"archive"')
+    const started = await runSshRetry(host.sshHost, options?.keepData === true ? START_ARCHIVE_KEEP_ALL : START_ARCHIVE)
+    const healthOk = started.stdout.includes('LIVE_OK') || started.stdout.includes('"command":"archive"')
     results.push({
       domainId: host.domainId,
       host: host.sshHost,
@@ -1479,6 +1806,815 @@ export async function injectIsolatedProcessCrash(domainId: string): Promise<{ ok
   ].join('\n')
   const result = await runSsh(host.sshHost, script)
   return { ok: result.code === 0, detail: result.stdout.trim() || result.stderr.trim() }
+}
+
+type SyncJoinRow = {
+  domainId: string
+  phase: string | null
+  seatingQualified: boolean
+  leafCount: number | null
+  rejectReason: string | null
+  inventoryFrozen: boolean | null
+  hostedChainSetRoot: string | null
+  lastACRef: string | null
+  membershipRoot: string | null
+  hashIndexRoot: string | null
+}
+
+function rootField(status: Record<string, unknown>, key: string): string | null {
+  return typeof status[key] === 'string' && status[key] ? String(status[key]) : null
+}
+
+function keepersFourRootsAligned(rows: SyncJoinRow[]): boolean {
+  const qualified = rows.filter((row) => row.seatingQualified)
+  if (qualified.length < 4) return false
+  const fingerprint = (row: SyncJoinRow): string | null => {
+    if (!row.hostedChainSetRoot || !row.lastACRef || !row.membershipRoot || !row.hashIndexRoot) {
+      return null
+    }
+    return `${row.hostedChainSetRoot}|${row.lastACRef}|${row.membershipRoot}|${row.hashIndexRoot}`
+  }
+  const first = fingerprint(qualified[0]!)
+  if (first === null) return false
+  return qualified.every((row) => fingerprint(row) === first)
+}
+
+async function readSyncStatus(host: PilotLabHostV1): Promise<SyncJoinRow> {
+  const result = await runSshRetry(host.sshHost, HEALTH_SEATING_ONLY)
+  const health = extractArchiveHealthJson(result.stdout)
+  const status =
+    health.syncQualification && typeof health.syncQualification === 'object'
+      ? (health.syncQualification as Record<string, unknown>)
+      : extractSyncStatusJson(result.stdout)
+  return {
+    domainId: host.domainId,
+    phase: typeof status.phase === 'string' ? status.phase : null,
+    seatingQualified: status.seatingQualified === true,
+    leafCount: typeof status.leafCount === 'number' ? status.leafCount : null,
+    rejectReason: typeof status.rejectReason === 'string' ? status.rejectReason : null,
+    inventoryFrozen: typeof health.inventoryFrozen === 'boolean' ? health.inventoryFrozen : null,
+    hostedChainSetRoot: rootField(status, 'hostedChainSetRoot'),
+    lastACRef: rootField(status, 'lastACRef'),
+    membershipRoot: rootField(status, 'membershipRoot'),
+    hashIndexRoot: rootField(status, 'hashIndexRoot'),
+  }
+}
+
+function keeperLeafSnapshot(rows: SyncJoinRow[]): number | null {
+  const leaves = rows
+    .filter((row) => row.seatingQualified && typeof row.leafCount === 'number')
+    .map((row) => row.leafCount as number)
+  if (leaves.length < 4) return null
+  const first = leaves[0]!
+  return leaves.every((leaf) => leaf === first) ? first : null
+}
+
+export async function waitOfficialKeepersQualified(options?: {
+  timeoutMs?: number
+  pollMs?: number
+}): Promise<{ ok: boolean; rows: SyncJoinRow[]; waitedMs: number }> {
+  const hosts = await loadLabHosts()
+  const keepers = hosts.hosts.filter((host) =>
+    (G1_SYNC_JOIN_KEEPER_DOMAIN_IDS as readonly string[]).includes(host.domainId),
+  )
+  if (keepers.length !== G1_SYNC_JOIN_KEEPER_DOMAIN_IDS.length) {
+    throw new Error('G1 keeper roster is incomplete')
+  }
+  const timeoutMs = options?.timeoutMs ?? 15 * 60_000
+  const pollMs = options?.pollMs ?? 10_000
+  const started = Date.now()
+  let rows: SyncJoinRow[] = []
+  while (Date.now() - started <= timeoutMs) {
+    rows = []
+    for (const host of keepers) {
+      rows.push(await readSyncStatus(host))
+    }
+    if (rows.filter((row) => row.seatingQualified).length >= 4 && keepersFourRootsAligned(rows)) {
+      return { ok: true, rows, waitedMs: Date.now() - started }
+    }
+    await sleep(pollMs)
+  }
+  return { ok: false, rows, waitedMs: Date.now() - started }
+}
+
+export async function wipeG1ArchiveDataAndRestart(): Promise<{
+  ok: boolean
+  wiped: string[]
+  keepers: SyncJoinRow[]
+  results: Array<{ domainId: string; ok: boolean; detail: string }>
+}> {
+  const hosts = await loadLabHosts()
+  const wipeDomainIds = resolveWipeJoinDomainIds()
+  const keepers = await waitOfficialKeepersQualified()
+  const wipeHosts = hosts.hosts.filter((host) => wipeDomainIds.includes(host.domainId))
+  if (wipeHosts.length !== wipeDomainIds.length) {
+    throw new Error('G1 wipe roster is incomplete; refusing wipe')
+  }
+  if (!keepers.ok) {
+    return {
+      ok: false,
+      wiped: [],
+      keepers: keepers.rows,
+      results: [
+        {
+          domainId: 'keepers',
+          ok: false,
+          detail: 'need 4 QUALIFIED G1 keepers (fd-01..04) with the same four inventory roots before wiping joiners',
+        },
+      ],
+    }
+  }
+  const results: Array<{ domainId: string; ok: boolean; detail: string }> = []
+  for (const host of wipeHosts) {
+    const stopped = await runSshRetry(host.sshHost, STOP_LAB_ONLY)
+    if (stopped.code !== 0) {
+      results.push({
+        domainId: host.domainId,
+        ok: false,
+        detail: stopped.stderr || stopped.stdout || 'refused to stop protected process',
+      })
+      continue
+    }
+    const started = await runSshRetry(host.sshHost, START_ARCHIVE_WIPE)
+    const healthOk = started.stdout.includes('LIVE_OK') || started.stdout.includes('"command":"archive"')
+    results.push({
+      domainId: host.domainId,
+      ok: started.code === 0 && healthOk,
+      detail: `${stopped.stdout.trim()}\n${started.stdout.trim() || started.stderr.trim()}`.trim(),
+    })
+  }
+  const ok = results.every((row) => row.ok)
+  await mkdir(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, { recursive: true })
+  await writeFile(
+    join(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, 'wipe.json'),
+    `${JSON.stringify(
+      {
+        schema: 'DleLabSyncJoinWipeV1',
+        labOnly: true,
+        notThirtyDayQualification: true,
+        wipedDomainIds: wipeDomainIds,
+        wipeSelection: {
+          mode: process.env.LAB_SYNC_JOIN_WIPE_DOMAIN_IDS?.trim() ? 'env' : 'random',
+          requiredActive: G1_SYNC_JOIN_REQUIRED_ACTIVE_WIPE,
+          wipeSafe: G1_SYNC_JOIN_WIPE_SAFE_DOMAIN_IDS,
+          neverKeepers: G1_SYNC_JOIN_KEEPER_DOMAIN_IDS,
+        },
+        keeperLeafCount: keeperLeafSnapshot(keepers.rows),
+        keeperDomainIds: G1_SYNC_JOIN_KEEPER_DOMAIN_IDS,
+        dataDir: `${LAB_DIR}/data`,
+        neverGethBeacon: true,
+        keepers: keepers.rows,
+        results: results.map((row) => ({ domainId: row.domainId, ok: row.ok })),
+        at: new Date().toISOString(),
+      },
+      null,
+      2,
+    )}\n`,
+  )
+  return {
+    ok,
+    wiped: results.filter((row) => row.ok).map((row) => row.domainId),
+    keepers: keepers.rows,
+    results,
+  }
+}
+
+const G1_SMOKE_DOMAIN_IDS = [
+  ...G1_SYNC_JOIN_KEEPER_DOMAIN_IDS,
+  ...G1_SYNC_JOIN_WIPE_SAFE_DOMAIN_IDS,
+] as const
+
+async function fetchArchiveJsonTimed(url: string, timeoutMs: number): Promise<Record<string, unknown>> {
+  const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) })
+  if (!response.ok) throw new Error(`HTTP ${response.status} ${url}`)
+  const body: unknown = await response.json()
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) throw new Error(`invalid JSON ${url}`)
+  return body as Record<string, unknown>
+}
+
+export async function smokeLabCgOpening(): Promise<{
+  ok: boolean
+  hostedChainCount: number | null
+  openedChainCount: number | null
+  rows: Array<{
+    domainId: string
+    host: string
+    ok: boolean
+    hostedChainCount: number | null
+    openedChainCount: number | null
+    openedAllHostedChains: boolean | null
+    policy: string | null
+    sampleCount: number | null
+    detail: string
+  }>
+}> {
+  const hosts = await loadLabHosts()
+  const g1 = hosts.hosts.filter((host) => (G1_SMOKE_DOMAIN_IDS as readonly string[]).includes(host.domainId))
+  const rows: Array<{
+    domainId: string
+    host: string
+    ok: boolean
+    hostedChainCount: number | null
+    openedChainCount: number | null
+    openedAllHostedChains: boolean | null
+    policy: string | null
+    sampleCount: number | null
+    detail: string
+  }> = []
+  for (const host of g1) {
+    const url = `http://${host.sshHost}:${LAB_PORT}/sync/opening`
+    try {
+      const opening = await fetchArchiveJsonTimed(url, 30_000)
+      const hosted = typeof opening.hostedChainCount === 'number' ? opening.hostedChainCount : null
+      const opened = typeof opening.openedChainCount === 'number' ? opening.openedChainCount : null
+      const openedAll = opening.openedAllHostedChains === true
+      const policy = typeof opening.policy === 'string' ? opening.policy : null
+      const sampleCount = typeof opening.sampleCount === 'number' ? opening.sampleCount : null
+      const ok =
+        opening.schema === 'DleLabCgOpeningV1' &&
+        opening.notProductionCg === true &&
+        policy === 'all-hosted' &&
+        hosted !== null &&
+        opened !== null &&
+        hosted > 8 &&
+        opened === hosted &&
+        openedAll
+      rows.push({
+        domainId: host.domainId,
+        host: host.sshHost,
+        ok,
+        hostedChainCount: hosted,
+        openedChainCount: opened,
+        openedAllHostedChains: openedAll,
+        policy,
+        sampleCount,
+        detail: ok ? 'opened===hosted all-hosted' : `opening mismatch ${JSON.stringify(opening)}`,
+      })
+    } catch (error) {
+      rows.push({
+        domainId: host.domainId,
+        host: host.sshHost,
+        ok: false,
+        hostedChainCount: null,
+        openedChainCount: null,
+        openedAllHostedChains: null,
+        policy: null,
+        sampleCount: null,
+        detail: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+  const hostedChainCount = rows.find((row) => row.hostedChainCount !== null)?.hostedChainCount ?? null
+  const openedChainCount = rows.find((row) => row.openedChainCount !== null)?.openedChainCount ?? null
+  const ok =
+    rows.length === G1_SMOKE_DOMAIN_IDS.length &&
+    rows.every((row) => row.ok) &&
+    hostedChainCount !== null &&
+    hostedChainCount > 8
+  await mkdir(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, { recursive: true })
+  await writeFile(
+    join(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, 'p9-opening.json'),
+    `${JSON.stringify(
+      {
+        schema: 'DleLabCgOpeningSmokeV1',
+        labOnly: true,
+        hmacForgeable: true,
+        notProductionCg: true,
+        notThirtyDayQualification: true,
+        policy: 'all-hosted',
+        hostedChainCount,
+        openedChainCount,
+        rows,
+        ok,
+        at: new Date().toISOString(),
+      },
+      null,
+      2,
+    )}\n`,
+  )
+  return { ok, hostedChainCount, openedChainCount, rows }
+}
+
+const G1_ACTIVE_SMOKE_DOMAIN_IDS = [
+  ...G1_SYNC_JOIN_KEEPER_DOMAIN_IDS,
+  G1_SYNC_JOIN_REQUIRED_ACTIVE_WIPE,
+] as const
+
+export async function smokeLabRejectedSafety(): Promise<{
+  ok: boolean
+  rows: Array<{
+    domainId: string
+    host: string
+    role: string | null
+    phase: string | null
+    seatingQualified: boolean | null
+    ok: boolean
+    detail: string
+  }>
+}> {
+  const hosts = await loadLabHosts()
+  const g1 = hosts.hosts.filter((host) => (G1_SMOKE_DOMAIN_IDS as readonly string[]).includes(host.domainId))
+  const keeperSet = new Set<string>(G1_SYNC_JOIN_KEEPER_DOMAIN_IDS)
+  const activeSet = new Set<string>(G1_ACTIVE_SMOKE_DOMAIN_IDS)
+  const rows: Array<{
+    domainId: string
+    host: string
+    role: string | null
+    phase: string | null
+    seatingQualified: boolean | null
+    ok: boolean
+    detail: string
+  }> = []
+  for (const host of g1) {
+    const url = `http://${host.sshHost}:${LAB_PORT}/health`
+    try {
+      const health = await fetchArchiveJsonTimed(url, 30_000)
+      const sync = isRecordish(health.syncQualification) ? health.syncQualification : null
+      const role =
+        typeof health.role === 'string' ? health.role : typeof sync?.role === 'string' ? sync.role : null
+      const phase = typeof sync?.phase === 'string' ? sync.phase : null
+      const seatingQualified = sync?.seatingQualified === true
+      const isKeeper = keeperSet.has(host.domainId)
+      const isActive = activeSet.has(host.domainId) || role === 'active'
+      const rejected = phase === 'REJECTED'
+      const keeperOk = !isKeeper || (phase === 'QUALIFIED' && seatingQualified)
+      const activeOk = !isActive || !rejected
+      const ok = keeperOk && activeOk
+      rows.push({
+        domainId: host.domainId,
+        host: host.sshHost,
+        role,
+        phase,
+        seatingQualified,
+        ok,
+        detail: ok
+          ? `${role ?? 'unknown'} ${phase ?? 'no-phase'}`
+          : isKeeper && !keeperOk
+            ? `keeper not QUALIFIED (${phase ?? 'no-phase'})`
+            : `active REJECTED`,
+      })
+    } catch (error) {
+      rows.push({
+        domainId: host.domainId,
+        host: host.sshHost,
+        role: null,
+        phase: null,
+        seatingQualified: null,
+        ok: false,
+        detail: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+  const ok =
+    rows.length === G1_SMOKE_DOMAIN_IDS.length &&
+    rows.every((row) => row.ok) &&
+    G1_SYNC_JOIN_KEEPER_DOMAIN_IDS.every((id) =>
+      rows.some((row) => row.domainId === id && row.phase === 'QUALIFIED' && row.seatingQualified === true),
+    )
+  await mkdir(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, { recursive: true })
+  await writeFile(
+    join(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, 'p10-rejected-safety.json'),
+    `${JSON.stringify(
+      {
+        schema: 'DleLabRejectedSafetySmokeV1',
+        labOnly: true,
+        hmacForgeable: true,
+        notProductionCg: true,
+        notThirtyDayQualification: true,
+        neverWipe: true,
+        neverInjectMissingObject: true,
+        keeperDomainIds: G1_SYNC_JOIN_KEEPER_DOMAIN_IDS,
+        activeDomainIds: G1_ACTIVE_SMOKE_DOMAIN_IDS,
+        rows,
+        ok,
+        at: new Date().toISOString(),
+      },
+      null,
+      2,
+    )}\n`,
+  )
+  return { ok, rows }
+}
+
+export async function acceptSyncJoin(): Promise<{
+  ok: boolean
+  joiners: SyncJoinRow[]
+  keepers: SyncJoinRow[]
+  waitedMs: number
+}> {
+  const hosts = await loadLabHosts()
+  const wipePath = join(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, 'wipe.json')
+  const wipeRecord = JSON.parse(await readFile(wipePath, 'utf8')) as {
+    wipedDomainIds?: string[]
+    keeperLeafCount?: number | null
+  }
+  const wipeDomainIds = Array.isArray(wipeRecord.wipedDomainIds)
+    ? wipeRecord.wipedDomainIds
+    : resolveWipeJoinDomainIds()
+  const wipeLeaf =
+    typeof wipeRecord.keeperLeafCount === 'number' ? wipeRecord.keeperLeafCount : null
+  const joinerHosts = hosts.hosts.filter((host) => wipeDomainIds.includes(host.domainId))
+  const keeperHosts = hosts.hosts.filter((host) =>
+    (G1_SYNC_JOIN_KEEPER_DOMAIN_IDS as readonly string[]).includes(host.domainId),
+  )
+  const timeoutMs = 25 * 60_000
+  const pollMs = 15_000
+  const started = Date.now()
+  let joiners: SyncJoinRow[] = []
+  let keepers: SyncJoinRow[] = []
+  let maxKeeperLeaf = wipeLeaf
+  const keeperLeafSamples: number[] = []
+  while (Date.now() - started <= timeoutMs) {
+    joiners = []
+    for (const host of joinerHosts) {
+      joiners.push(await readSyncStatus(host))
+    }
+    keepers = []
+    for (const host of keeperHosts) {
+      keepers.push(await readSyncStatus(host))
+    }
+    for (const row of keepers) {
+      if (typeof row.leafCount === 'number') {
+        keeperLeafSamples.push(row.leafCount)
+        if (maxKeeperLeaf === null || row.leafCount > maxKeeperLeaf) maxKeeperLeaf = row.leafCount
+      }
+    }
+    if (joiners.length === wipeDomainIds.length && joiners.every((row) => row.seatingQualified)) {
+      break
+    }
+    if (joiners.some((row) => row.phase === 'REJECTED')) {
+      break
+    }
+    await sleep(pollMs)
+  }
+  const leafGrew = wipeLeaf !== null && maxKeeperLeaf !== null && maxKeeperLeaf > wipeLeaf
+  const stale = [...joiners, ...keepers].some(
+    (row) => typeof row.rejectReason === 'string' && row.rejectReason.includes('ERR_SYNC_CHALLENGE_STALE'),
+  )
+  const ok =
+    joiners.length === wipeDomainIds.length &&
+    joiners.every((row) => row.seatingQualified) &&
+    keepers.filter((row) => row.seatingQualified).length >= 4 &&
+    !leafGrew &&
+    !stale
+  await mkdir(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, { recursive: true })
+  await writeFile(
+    join(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, 'accept.json'),
+    `${JSON.stringify(
+      {
+        schema: 'DleLabSyncJoinAcceptV1',
+        labOnly: true,
+        hmacForgeable: true,
+        notClRandao: true,
+        notThirtyDayQualification: true,
+        lastQuorumOkIsNotSeating: true,
+        p8dZeroLeafGrowth: !leafGrew,
+        quorum: 4,
+        wipedDomainIds: wipeDomainIds,
+        keeperDomainIds: G1_SYNC_JOIN_KEEPER_DOMAIN_IDS,
+        wipeLeafCount: wipeLeaf,
+        maxKeeperLeafDuringJoin: maxKeeperLeaf,
+        leafGrew,
+        stale,
+        joiners,
+        keepers,
+        waitedMs: Date.now() - started,
+        ok,
+        at: new Date().toISOString(),
+      },
+      null,
+      2,
+    )}\n`,
+  )
+  return { ok, joiners, keepers, waitedMs: Date.now() - started }
+}
+
+function probeField(stdout: string, key: string): string {
+  const match = stdout.match(new RegExp(`^${key}=(.*)$`, 'm'))
+  return match?.[1]?.trim() ?? ''
+}
+
+export async function probeP11Joiner(): Promise<{
+  ok: boolean
+  joiner: PilotLabHostV1
+  hostname: string
+  leftoverElCl: boolean
+  detail: string
+}> {
+  const inventory = await loadOfficialLabInventory()
+  const hosts = await loadLabHosts()
+  const joiner = await loadP11JoinerHost()
+  assertP11JoinerOutsideOfficial(inventory, hosts, joiner)
+  const result = await runSshRetry(joiner.sshHost, PROBE_P11_JOINER)
+  const geth = probeField(result.stdout, 'GETH')
+  const beacon = probeField(result.stdout, 'BEACON')
+  const validator = probeField(result.stdout, 'VALIDATOR')
+  const leftoverElCl = Boolean(geth || beacon || validator)
+  const ok = result.code === 0 && leftoverElCl === false
+  await mkdir(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, { recursive: true })
+  await writeFile(
+    join(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, 'p11-probe.json'),
+    `${JSON.stringify(
+      {
+        schema: 'DleLabP11JoinerProbeV1',
+        labOnly: true,
+        notOfficialFivePlusTwo: true,
+        neverWipeOfficialSeven: true,
+        domainId: joiner.domainId,
+        sshHost: joiner.sshHost,
+        role: P11_JOINER_ROLE,
+        leftoverElCl,
+        hostname: probeField(result.stdout, 'HOST'),
+        ok,
+        stdout: result.stdout.trim(),
+        at: new Date().toISOString(),
+      },
+      null,
+      2,
+    )}\n`,
+  )
+  return {
+    ok,
+    joiner,
+    hostname: probeField(result.stdout, 'HOST'),
+    leftoverElCl,
+    detail: result.stdout.trim() || result.stderr.trim(),
+  }
+}
+
+export async function deployP11FullOpenJoiner(options?: {
+  extras?: AgentConfigExtras
+  archiveDistDir?: string
+  daemonProbePath?: string
+}): Promise<{
+  ok: boolean
+  joiner: PilotLabHostV1
+  reachableFromKeeper: boolean
+  results: Array<{ domainId: string; host: string; ok: boolean; detail: string }>
+}> {
+  const inventory = await loadOfficialLabInventory()
+  const hosts = await loadLabHosts()
+  const joiner = await loadP11JoinerHost()
+  assertP11JoinerOutsideOfficial(inventory, hosts, joiner)
+  const archiveDistDir = options?.archiveDistDir ?? DEFAULT_ARCHIVE_DIST_DIR
+  const daemonProbePath = options?.daemonProbePath ?? DEFAULT_DAEMON_PROBE_PATH
+  const bundlePath = '/tmp/dle-archive-runtime.tgz'
+  await runLocal('tar', ['-czf', bundlePath, '--exclude', '._*', '-C', archiveDistDir, '.'], {
+    env: { ...process.env, COPYFILE_DISABLE: '1' },
+  })
+  const results: Array<{ domainId: string; host: string; ok: boolean; detail: string }> = []
+  const ensure = await runSshRetry(joiner.sshHost, ENSURE_NODE)
+  if (ensure.code !== 0) {
+    results.push({
+      domainId: joiner.domainId,
+      host: joiner.sshHost,
+      ok: false,
+      detail: ensure.stderr || ensure.stdout || `ssh exit ${ensure.code}`,
+    })
+  } else {
+    const config = agentConfigForJoiner(inventory, hosts, joiner, options?.extras)
+    const tmpConfig = `/tmp/dle-lab-${joiner.domainId}.json`
+    await writeFile(tmpConfig, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
+    try {
+      await runSshRetry(
+        joiner.sshHost,
+        `mkdir -p '${LAB_DIR}/app' '${LAB_DIR}/data' '${LAB_DIR}/daemon' '${LAB_DIR}/wal'`,
+      )
+      await runScpRetry(bundlePath, joiner.sshHost, '/tmp/dle-archive-runtime.tgz')
+      await runScpRetry(tmpConfig, joiner.sshHost, `${LAB_DIR}/config.json`)
+      await runScpRetry(daemonProbePath, joiner.sshHost, REMOTE_DAEMON_PROBE)
+      const unpacked = await runSshRetry(
+        joiner.sshHost,
+        `rm -rf '${LAB_DIR}/app' && mkdir -p '${LAB_DIR}/app' && tar -xzf /tmp/dle-archive-runtime.tgz -C '${LAB_DIR}/app' && printf '%s\\n' '{"type":"module","private":true,"name":"@conet/dle-archive-runtime"}' > '${LAB_DIR}/app/package.json'`,
+      )
+      if (unpacked.code !== 0) {
+        results.push({
+          domainId: joiner.domainId,
+          host: joiner.sshHost,
+          ok: false,
+          detail: unpacked.stderr || unpacked.stdout,
+        })
+      } else {
+        const stopped = await runSshRetry(joiner.sshHost, STOP_LAB_ONLY)
+        if (stopped.code !== 0) {
+          results.push({
+            domainId: joiner.domainId,
+            host: joiner.sshHost,
+            ok: false,
+            detail: stopped.stderr || stopped.stdout || 'refused to stop protected process',
+          })
+        } else {
+          const started = await runSshRetry(joiner.sshHost, START_ARCHIVE)
+          const healthOk = started.stdout.includes('LIVE_OK') || started.stdout.includes('"command":"archive"')
+          results.push({
+            domainId: joiner.domainId,
+            host: joiner.sshHost,
+            ok: started.code === 0 && healthOk,
+            detail: `${stopped.stdout.trim()}\n${started.stdout.trim() || started.stderr.trim()}`.trim(),
+          })
+        }
+      }
+    } catch (error) {
+      results.push({
+        domainId: joiner.domainId,
+        host: joiner.sshHost,
+        ok: false,
+        detail: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+  const keeper = hosts.hosts.find((host) => host.domainId === 'fd-01-ionos-45')
+  let reachableFromKeeper = false
+  if (keeper && results.every((row) => row.ok)) {
+    const reach = await runSshRetry(
+      keeper.sshHost,
+      `curl -fsS --max-time 8 http://${joiner.sshHost}:${LAB_PORT}/liveness 2>/dev/null || echo REACH=down`,
+    )
+    reachableFromKeeper = reach.code === 0 && reach.stdout.includes('"ok":true')
+  }
+  const ok = results.every((row) => row.ok) && reachableFromKeeper
+  await mkdir(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, { recursive: true })
+  await writeFile(
+    join(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, 'p11-deploy.json'),
+    `${JSON.stringify(
+      {
+        schema: 'DleLabP11JoinerDeployV1',
+        labOnly: true,
+        notOfficialFivePlusTwo: true,
+        neverWipeOfficialSeven: true,
+        wipedOnly: [joiner.domainId],
+        dataDir: `${LAB_DIR}/data`,
+        neverGethBeacon: true,
+        reachableFromKeeper,
+        joiner,
+        results: results.map((row) => ({ domainId: row.domainId, ok: row.ok })),
+        ok,
+        at: new Date().toISOString(),
+      },
+      null,
+      2,
+    )}\n`,
+  )
+  return { ok, joiner, reachableFromKeeper, results }
+}
+
+export async function acceptP11FullOpenJoin(): Promise<{
+  ok: boolean
+  joiner: SyncJoinRow | null
+  keepers: SyncJoinRow[]
+  official: SyncJoinRow[]
+  opening: {
+    ok: boolean
+    hostedChainCount: number | null
+    openedChainCount: number | null
+    policy: string | null
+    sampleCount: number | null
+    detail: string
+  }
+  waitedMs: number
+}> {
+  const inventory = await loadOfficialLabInventory()
+  const hosts = await loadLabHosts()
+  const joinerHost = await loadP11JoinerHost()
+  assertP11JoinerOutsideOfficial(inventory, hosts, joinerHost)
+  const keeperHosts = hosts.hosts.filter((host) =>
+    (G1_SYNC_JOIN_KEEPER_DOMAIN_IDS as readonly string[]).includes(host.domainId),
+  )
+  const fd05 = hosts.hosts.find((host) => host.domainId === G1_SYNC_JOIN_REQUIRED_ACTIVE_WIPE)
+  if (!fd05) throw new Error('official fd-05 missing; refusing P11 accept')
+  const timeoutMs = 60 * 60_000
+  const pollMs = 20_000
+  const started = Date.now()
+  let joiner: SyncJoinRow | null = null
+  let keepers: SyncJoinRow[] = []
+  let official: SyncJoinRow[] = []
+  while (Date.now() - started <= timeoutMs) {
+    joiner = await readSyncStatus(joinerHost)
+    keepers = []
+    for (const host of keeperHosts) {
+      keepers.push(await readSyncStatus(host))
+    }
+    official = []
+    for (const host of hosts.hosts) {
+      official.push(await readSyncStatus(host))
+    }
+    if (joiner.phase === 'REJECTED') break
+    const fd05Row = official.find((row) => row.domainId === G1_SYNC_JOIN_REQUIRED_ACTIVE_WIPE)
+    if (
+      joiner.seatingQualified &&
+      keepers.filter((row) => row.seatingQualified).length >= 4 &&
+      fd05Row?.seatingQualified === true
+    ) {
+      break
+    }
+    await sleep(pollMs)
+  }
+  const fd05Row = official.find((row) => row.domainId === G1_SYNC_JOIN_REQUIRED_ACTIVE_WIPE)
+  let opening: {
+    ok: boolean
+    hostedChainCount: number | null
+    openedChainCount: number | null
+    policy: string | null
+    sampleCount: number | null
+    detail: string
+  } = {
+    ok: false,
+    hostedChainCount: null,
+    openedChainCount: null,
+    policy: null,
+    sampleCount: null,
+    detail: 'not fetched',
+  }
+  if (joiner?.seatingQualified === true) {
+    try {
+      const body = await fetchArchiveJsonTimed(`http://${joinerHost.sshHost}:${LAB_PORT}/sync/opening`, 180_000)
+      const hosted = typeof body.hostedChainCount === 'number' ? body.hostedChainCount : null
+      const opened = typeof body.openedChainCount === 'number' ? body.openedChainCount : null
+      const policy = typeof body.policy === 'string' ? body.policy : null
+      const sampleCount = typeof body.sampleCount === 'number' ? body.sampleCount : null
+      const ok =
+        body.schema === 'DleLabCgOpeningV1' &&
+        body.notProductionCg === true &&
+        policy === 'all-hosted' &&
+        hosted !== null &&
+        opened !== null &&
+        hosted > 8 &&
+        opened === hosted &&
+        body.openedAllHostedChains === true
+      opening = {
+        ok,
+        hostedChainCount: hosted,
+        openedChainCount: opened,
+        policy,
+        sampleCount,
+        detail: ok ? 'opened===hosted all-hosted' : `opening mismatch ${JSON.stringify(body)}`,
+      }
+    } catch (error) {
+      opening = {
+        ok: false,
+        hostedChainCount: null,
+        openedChainCount: null,
+        policy: null,
+        sampleCount: null,
+        detail: error instanceof Error ? error.message : String(error),
+      }
+    }
+  }
+  const ok =
+    joiner?.seatingQualified === true &&
+    keepers.filter((row) => row.seatingQualified).length >= 4 &&
+    fd05Row?.seatingQualified === true &&
+    official.length === 7 &&
+    official.every((row) => row.phase !== 'REJECTED' || row.domainId !== G1_SYNC_JOIN_REQUIRED_ACTIVE_WIPE) &&
+    opening.ok
+  await mkdir(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, { recursive: true })
+  await writeFile(
+    join(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, 'p11-opening.json'),
+    `${JSON.stringify(
+      {
+        schema: 'DleLabP11JoinerOpeningV1',
+        labOnly: true,
+        hmacForgeable: true,
+        notProductionCg: true,
+        notOfficialFivePlusTwo: true,
+        domainId: joinerHost.domainId,
+        ...opening,
+        at: new Date().toISOString(),
+      },
+      null,
+      2,
+    )}\n`,
+  )
+  await writeFile(
+    join(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, 'p11-accept.json'),
+    `${JSON.stringify(
+      {
+        schema: 'DleLabP11FullOpenJoinAcceptV1',
+        labOnly: true,
+        hmacForgeable: true,
+        notClRandao: true,
+        notThirtyDayQualification: true,
+        notOfficialFivePlusTwo: true,
+        neverWipeOfficialSeven: true,
+        neverWipeFd05: true,
+        lastQuorumOkIsNotSeating: true,
+        quorum: 4,
+        joinerDomainId: joinerHost.domainId,
+        joinerRole: P11_JOINER_ROLE,
+        keeperDomainIds: G1_SYNC_JOIN_KEEPER_DOMAIN_IDS,
+        joiner,
+        keepers,
+        official,
+        opening,
+        waitedMs: Date.now() - started,
+        ok,
+        at: new Date().toISOString(),
+      },
+      null,
+      2,
+    )}\n`,
+  )
+  return { ok, joiner, keepers, official, opening, waitedMs: Date.now() - started }
 }
 
 export async function startOfficialWarmup(evidenceDir = DEFAULT_EVIDENCE_DIR): Promise<{

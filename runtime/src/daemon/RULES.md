@@ -8,7 +8,7 @@ After any daemon / browser-client programming or probe-spec change, **update thi
 
 If the client surfaces a cluster / fission number:
 
-- Read **`liveGroupCount`** from trusted `GET /health` (or overview `GET /api/v2/dle`)
+- Read **`liveGroupCount`** from trusted `GET /health` (or overview `GET /api/v2/dle`). Archive↔archive heartbeats use **`GET /liveness`**, not full `/health`.
 - No fission ⇒ **1**; after lab M6 fission ⇒ **2** (two distinct canonical Group IDs)
 - **Do not** use `dle_tip.height`, `eth_blockNumber`, or AC `height` (NFT 42 stays `0x1` after AC)
 
@@ -20,9 +20,11 @@ If the client surfaces a cluster / fission number:
 - `eth_chainId` = **CoNET-DLE Testnet** EIP-155 `0x44c45` — never CoNET L1 `224422`. This distinguishes the DLE plane; it is not Group ID.
 - Group ID (if shown) = L1 bootstrap register tx hash, not uint `1` and not `dle.lab.group.v1`
 - `submitWaitHook` / `submitWaitHookToArchives` send `canonicalGroupId(groupId)` so a legacy caller still posts the hash
+- **P20:** wait hooks are not intra-group gossip. `submitWaitHook` (one archive) sets `fanoutComplete: false` + `singleArchiveAcceptNotGroupPool`. `submitWaitHookToArchives` sets `fanoutComplete` only when every active archive queued. Lab HTTP is **not** production DePIN gossip
 - No tip VM: `eth_call` rejection is expected
 - On-demand wait session ≠ Clusters (see `../shared/ondemand/RULES.md`)
 - No `node:` imports in `core.ts` / `browser.ts`
+- After P11: **P12 seating EIP-712**, **P13 freeze-then-beacon**, **P14 \(C_G\) split**, **P15 challenge EIP-712**, **P16 BFT AC EIP-712**, **P17 on-demand attest EIP-712**, **P18 \(Q_V\) EIP-712**, **P19 on-demand freeze-then-bind**, and **P20 wait-hook honesty landed** (engine + tests). New-chain-user HTTP still only `schema === 'DleLabValidatorQuorumV1'`. Do not treat lab seating / challenge / BFT / on-demand / \(Q_V\) EIP-712, `bftEip712`, `ondemandEip712`, `newchainValidatorQuorumEip712`, `labBeaconAfterFreeze`, `ondemandLabBeaconAfterFreeze`, `ondemandHookNotGossip`, lab freezer 2249, or `productionCgAvailable` as production OperatorDomain / L1 wrapper / live CL RANDAO / 30-day qualification / production \(C_G\) / production DePIN gossip. P18 did **not** replace the on-demand lab beacon or gossip wait-hook. P19 cut over the on-demand lab beacon and did **not** replace gossip wait-hook. P20 cut over wait-hook honesty only. Do not start `pilotStartedAt`.
 
 ## Lab new-chain user (`newchain-user-cli`)
 
@@ -30,9 +32,9 @@ Separate from the isomorphic daemon. Deploy: `npm run lab:deploy-newchain-user` 
 
 | Step | Behavior |
 |---|---|
-| Genesis smoke | One `POST /newchain/request` each for asset / storage / trade; require 7/7 `ok` and identical `requestId` / `chainNftId` / `valueHash` |
+| Genesis smoke | One `POST /newchain/request` each for asset / storage / trade; require 7/7 `ok`, identical `requestId` / `chainNftId` / `valueHash`, and `validatorQuorum.schema === 'DleLabValidatorQuorumV1'` |
 | Random create | After smoke, `setTimeout` 15–45s (no `setInterval`); pick a random class; persist `data/status.json` |
-| Qualification | Archive Mode A replay succeeded; certificate `labOnly` + `notL1Nft` + `notArchiveCertificate`; `dle_route` → bootstrap Group ID hash; `dle_getByHash(valueHash)=hit`; NFT 42 AC still live |
+| Qualification | Mode A replay + \(Q_V=5/7\) EIP-712 `ArchiveValidatorQuorumAttest` (**P18**); G1 then a **per-`chainNftId`** 4-of-5 AC (`archiveCertificate` present, `chainNftId ≠ 42`); `dle_route` → bootstrap Group ID hash; `dle_getByHash(tipStateRoot)=hit`; NFT 42 AC still live and `eth_blockNumber` unchanged by the new-chain AC. Smoke may return after 7/7 + matching hashes **without** waiting for AC. HTTP still only checks `schema === 'DleLabValidatorQuorumV1'`. |
 
 **Not** L1 NFT mint, Treasury burn, Settlement escrow, or 30-day archive qualification. Do not stop `dle-ondemand-clients` when restarting this user.
 

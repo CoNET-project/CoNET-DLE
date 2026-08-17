@@ -50,6 +50,14 @@ export interface ArchiveHttpOptions {
     certificate: DleCertificateView
     waitingPool?: DleWaitingPoolView
     selectionLog?: DleSelectionLogView
+    syncing?:
+      | false
+      | {
+          startingBlock: string
+          currentBlock: string
+          highestBlock: string
+          dleNote: 'not seating'
+        }
   }
   onPost?: (pathname: string, body: unknown) => { status: number; body: unknown } | undefined
   routeTable?: LabRouteTable
@@ -117,6 +125,9 @@ export async function listenArchiveHttp(options: ArchiveHttpOptions): Promise<Ar
   const server: Server = createServer((req, res) => {
     void handle(req, res)
   })
+  server.maxConnections = 128
+  server.requestTimeout = 10_000
+  server.headersTimeout = 5_000
 
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const info = archiveInfo(infoHolder.port, options.identity)
@@ -126,6 +137,15 @@ export async function listenArchiveHttp(options: ArchiveHttpOptions): Promise<Ar
       return
     }
     const url = new URL(req.url ?? '/', `http://127.0.0.1:${infoHolder.port}`)
+    if (req.method === 'GET' && url.pathname === '/liveness') {
+      sendJson(res, 200, {
+        ok: true,
+        command: info.command,
+        domainId: options.identity?.domainId ?? '',
+        role: options.identity?.role ?? '',
+      })
+      return
+    }
     if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/')) {
       sendJson(res, 200, {
         ok: true,

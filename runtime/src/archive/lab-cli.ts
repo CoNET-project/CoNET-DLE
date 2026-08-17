@@ -7,11 +7,19 @@ import { hashIndexRootView } from '../shared/hashIndexTree.js'
 import { DLE_LAB_CHAIN_NFT_ID } from '../shared/hashLookup.js'
 import { labRouteTableFromPeers, liveGroupCount, liveGroupIds, planeWallets } from '../shared/labRoute.js'
 import { seedLabFissionMarker } from './hashPipe.js'
+import {
+  inventoryCatalogFrozen,
+  inventoryCatalogFreezeReason,
+  setInventoryCatalogFrozen,
+} from './inventoryFreeze.js'
 import { createArchiveBftEngine } from './bft/engine.js'
 import { listenArchiveHttp } from './http.js'
 import { createNewChainEngine } from './newchain/engine.js'
+import { fetchLabObject } from './hop1.js'
 import { createOnDemandEngine } from './ondemand/engine.js'
 import { openArchiveStore } from './store.js'
+import { createSyncQualificationEngine } from './syncQualification/index.js'
+import { LAB_HOLD_BFT_AFTER_BOOT_MS, SYNC_ACTIVE_COUNT } from './syncQualification/types.js'
 
 const HEARTBEAT_MS = 6_000
 const REQUEST_TIMEOUT_MS = 2_500
@@ -74,7 +82,7 @@ function isPeerHealthy(body: unknown, domainId: string): boolean {
 
 async function probePeer(peer: LabPeer): Promise<{ domainId: string; ok: boolean }> {
   try {
-    const response = await fetch(`http://${peer.host}:${peer.port}/health`, {
+    const response = await fetch(`http://${peer.host}:${peer.port}/liveness`, {
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
     if (!response.ok) return { domainId: peer.domainId, ok: false }
@@ -166,7 +174,126 @@ const newchain = createNewChainEngine({
   domainId: config.domainId,
   store,
   routeTable,
+  role: config.role,
+  peers,
+  enableBft,
 })
+let bftStarted = false
+let ondemandStarted = false
+let extraHealthCache: { at: number; value: Record<string, unknown> } | null = null
+function seatingComplete(): boolean {
+  if (!sync.seatingQualified()) return false
+  if (sync.alignedQualifiedCount() < SYNC_ACTIVE_COUNT) return false
+  if (sync.hasUnseatedActive()) return false
+  if (Date.now() - startedAt < LAB_HOLD_BFT_AFTER_BOOT_MS) return false
+  return true
+}
+function applyInventoryFreeze(): void {
+  const frozen = sync.inventoryShouldFreeze()
+  const reason = !frozen ? undefined : sync.hasUnseatedActive() ? 'unseated-active' : 'challenge-open'
+  setInventoryCatalogFrozen(frozen, reason)
+  extraHealthCache = null
+  if (!frozen) return
+  if (bftStarted) {
+    engine.stop()
+    newchain.stop()
+    bftStarted = false
+  }
+  if (ondemandStarted) {
+    ondemand.stop()
+    ondemandStarted = false
+  }
+}
+function maybeStartBft(): void {
+  applyInventoryFreeze()
+  if (!enableBft || bftStarted || !seatingComplete() || inventoryCatalogFrozen()) return
+  bftStarted = true
+  void engine.start()
+  void newchain.start()
+}
+function maybeStartOndemand(): void {
+  applyInventoryFreeze()
+  if (!enableOndemand || ondemandStarted || !seatingComplete() || inventoryCatalogFrozen()) return
+  ondemandStarted = true
+  void ondemand.start()
+}
+const sync = createSyncQualificationEngine({
+  domainId: config.domainId,
+  role: config.role,
+  peers: peers.map((peer) => ({
+    domainId: peer.domainId,
+    role: peer.role,
+    url: `http://${peer.host}:${peer.port}`,
+  })),
+  store,
+  table: routeTable,
+  onQualified() {
+    maybeStartBft()
+    maybeStartOndemand()
+  },
+})
+
+let hashIndexHealthCache: { leafCount: number; view: ReturnType<typeof hashIndexRootView> } | null = null
+function healthHashIndex(): ReturnType<typeof hashIndexRootView> {
+  const leafCount = store.hash.locatorCount()
+  if (hashIndexHealthCache !== null && hashIndexHealthCache.leafCount === leafCount) {
+    return hashIndexHealthCache.view
+  }
+  const view = hashIndexRootView(store.hash.listLocators(), routeTable.ownGroupId)
+  hashIndexHealthCache = { leafCount, view }
+  return view
+}
+
+function extraHealthNow(): Record<string, unknown> {
+  applyInventoryFreeze()
+  const bft = engine.status()
+  return {
+    agent: LAB_AGENT_COMPAT,
+    isolatedFromElCl: true,
+    producesBlocks: false,
+    uptimeMs: Date.now() - startedAt,
+    heartbeats: state.heartbeats,
+    lastQuorumOk: state.lastQuorumOk,
+    lastPeerOk: state.lastPeerOk,
+    bftNetworked: bft.networked,
+    bftDiskNetworked: bft.networked,
+    bftProcessStarted: bftStarted,
+    inventoryFrozen: inventoryCatalogFrozen(),
+    inventoryFreezeReason: inventoryCatalogFreezeReason(),
+    bftModeA: bft.modeAAccepted,
+    bftCertificateAvailable: bft.certificateAvailable,
+    bftEip712: bft.bftEip712,
+    bftHmacForgeable: bft.hmacForgeable,
+    bftPrevoteCount: bft.prevoteCount,
+    bftPrecommitCount: bft.precommitCount,
+    bftVoted: bft.voted,
+    ...ondemand.health(),
+    ...newchain.health(),
+    hop1: {
+      labOnly: true,
+      notProductionDepin: true,
+      l1RouteUnproven: true,
+      transport: 'lab-http-27101',
+      ownGroupId: routeTable.ownGroupId,
+      providerCount: planeWallets(routeTable, routeTable.ownGroupId).length,
+      nft42ProviderCount: routeTable.groups[DLE_LAB_CHAIN_NFT_ID]?.wallets.length ?? 0,
+    },
+    enableBft,
+    enableOndemand,
+    liveGroupCount: liveGroupCount(routeTable),
+    liveGroupIds: liveGroupIds(routeTable),
+    hashIndex: healthHashIndex(),
+    ...sync.health(),
+  }
+}
+
+function extraHealthCached(): Record<string, unknown> {
+  const now = Date.now()
+  if (extraHealthCache !== null && now - extraHealthCache.at < 2_000) return extraHealthCache.value
+  const value = extraHealthNow()
+  extraHealthCache = { at: now, value }
+  return value
+}
 
 const server = await listenArchiveHttp({
   port,
@@ -181,45 +308,31 @@ const server = await listenArchiveHttp({
       certificate: bft.certificate,
       waitingPool: waiting.waitingPool,
       selectionLog: waiting.selectionLog,
+      syncing:
+        sync.phase() === 'SYNCING'
+          ? {
+              startingBlock: '0x0',
+              currentBlock: '0x0',
+              highestBlock: '0x0',
+              dleNote: 'not seating' as const,
+            }
+          : false,
     }
   },
-  extraHealth() {
-    const bft = engine.status()
-    return {
-      agent: LAB_AGENT_COMPAT,
-      isolatedFromElCl: true,
-      producesBlocks: false,
-      uptimeMs: Date.now() - startedAt,
-      heartbeats: state.heartbeats,
-      lastQuorumOk: state.lastQuorumOk,
-      lastPeerOk: state.lastPeerOk,
-      bftNetworked: bft.networked,
-      bftModeA: bft.modeAAccepted,
-      bftCertificateAvailable: bft.certificateAvailable,
-      bftPrevoteCount: bft.prevoteCount,
-      bftPrecommitCount: bft.precommitCount,
-      bftVoted: bft.voted,
-      ...ondemand.health(),
-      ...newchain.health(),
-      hop1: {
-        labOnly: true,
-        notProductionDepin: true,
-        l1RouteUnproven: true,
-        transport: 'lab-http-27101',
-        ownGroupId: routeTable.ownGroupId,
-        providerCount: planeWallets(routeTable, routeTable.ownGroupId).length,
-        nft42ProviderCount: routeTable.groups[DLE_LAB_CHAIN_NFT_ID]?.wallets.length ?? 0,
-      },
-      enableBft,
-      enableOndemand,
-      liveGroupCount: liveGroupCount(routeTable),
-      liveGroupIds: liveGroupIds(routeTable),
-      hashIndex: hashIndexRootView(store.hash.listLocators(), routeTable.ownGroupId),
-    }
-  },
+  extraHealth: extraHealthCached,
   extraGet(pathname) {
     if (pathname === '/state') return { ...state, uptimeMs: Date.now() - startedAt }
     if (pathname === '/bft/status') return { ...engine.status() }
+    if (pathname === '/sync/status') return { ...sync.status() }
+    if (pathname === '/sync/inventory') return { ...sync.inventory() }
+    if (pathname === '/sync/opening') return { ...sync.opening() }
+    if (pathname === '/sync/roster') {
+      return {
+        schema: 'DleLabSyncRosterV1',
+        lastQuorumOkIsNotSeating: true,
+        rows: sync.roster(),
+      }
+    }
     return newchain.get(pathname) ?? ondemand.get(pathname)
   },
   onPost(pathname, body) {
@@ -227,12 +340,32 @@ const server = await listenArchiveHttp({
       const result = engine.ingest(body)
       return { status: result.ok ? 200 : 400, body: result }
     }
+    if (pathname === '/sync/challenge') {
+      const result = sync.handleChallenge(body)
+      return { status: result.ok ? 200 : 400, body: result }
+    }
+    if (pathname === '/sync/vote') {
+      const result = sync.handleVote(body)
+      return { status: result.ok ? 200 : 400, body: result }
+    }
+    if (pathname === '/sync/reject') {
+      const result = sync.handleReject(body)
+      return { status: result.ok ? 200 : 400, body: result }
+    }
     return newchain.post(pathname, body) ?? ondemand.post(pathname, body)
+  },
+  hopFetch: async (url, chainNftId, height) => {
+    if (sync.hopForbidden()) {
+      sync.markHopDuringChallenge()
+      return null
+    }
+    return fetchLabObject(url, chainNftId, height)
   },
 })
 
-if (enableBft) await engine.start()
-if (enableOndemand) await ondemand.start()
+await sync.start()
+applyInventoryFreeze()
+if (!enableBft && !inventoryCatalogFrozen()) await newchain.start()
 
 function scheduleHeartbeat(): void {
   setTimeout(() => {
@@ -249,6 +382,8 @@ function scheduleHeartbeat(): void {
         state.lastQuorumOk = activeOk + selfActive >= 4
         state.lastPeerOk = results.filter((row) => row.ok).length
         state.lastError = null
+        maybeStartBft()
+        maybeStartOndemand()
         persistState()
         store.appendWal({
           type: 'heartbeat',
@@ -272,8 +407,10 @@ process.stdout.write(
 )
 
 const shutdown = (): void => {
+  sync.stop()
   engine.stop()
   ondemand.stop()
+  newchain.stop()
   void server.close().then(() => process.exit(0))
 }
 process.on('SIGINT', shutdown)

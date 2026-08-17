@@ -18,10 +18,12 @@ import {
 } from '../config/l1Routing'
 import {
   CONET_L1_CHAIN_ID,
+  DLE_G2_GROUP_REGISTER_TX_HASH,
   DLE_LAB_CHAIN_ID_HEX,
   DLE_LAB_GROUP_ID,
   DLE_TESTNET_CHAIN_NAME,
   HASH32_RE,
+  canonicalGroupId,
   sameGroupId,
 } from '../protocol'
 import { useExplorer } from '../providers/ExplorerProvider'
@@ -36,9 +38,11 @@ export function HomePage() {
   const active = snapshot.archives.filter((row) => row.role === 'active').length
   const standby = snapshot.archives.filter((row) => row.role === 'standby').length
   const liveCount = snapshot.archives.filter((row) => row.health === 'live').length
+  const seatedCount = snapshot.archives.filter((row) => row.seatingQualified === true).length
   const newestEvents = sortEventsNewestFirst(snapshot.events).slice(0, 8)
   const quorumOk = snapshot.health && snapshot.health.lastQuorumOk === true
   const archiveShare = snapshot.archives.length > 0 ? (liveCount / snapshot.archives.length) * 100 : 0
+  const seatingShare = snapshot.archives.length > 0 ? (seatedCount / snapshot.archives.length) * 100 : 0
   const pool = snapshot.waitingPool
   const selection = snapshot.selection
   const selectionReady = selection?.available === true
@@ -133,19 +137,31 @@ export function HomePage() {
                 <p className="text-xs leading-5 text-slate-400">
                   {`${formatInteger(snapshot.clusterCount)} live archive groups after fission`}
                 </p>
-                {snapshot.liveGroupIds
-                  .filter((id) => HASH32_RE.test(id) && !sameGroupId(id, DLE_LAB_GROUP_ID))
-                  .map((id) => (
-                    <div key={id} className="mt-2">
-                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-200/70">
-                        Lab Group ID
-                      </p>
-                      <HashCapsule value={id} />
-                      <p className="mt-1 text-[11px] leading-4 text-slate-500">
-                        Laboratory fission hash — not an L1 register transaction
-                      </p>
-                    </div>
-                  ))}
+                {Array.from(
+                  new Set(
+                    snapshot.liveGroupIds
+                      .map((id) => canonicalGroupId(id))
+                      .filter((id) => HASH32_RE.test(id) && !sameGroupId(id, DLE_LAB_GROUP_ID)),
+                  ),
+                ).map((canonical) => {
+                    const g2Registered = sameGroupId(canonical, DLE_G2_GROUP_REGISTER_TX_HASH)
+                    return (
+                      <div key={canonical} className="mt-2">
+                        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-200/70">
+                          Group ID
+                        </p>
+                        <HashCapsule
+                          value={canonical}
+                          href={g2Registered ? `${CONET_BLOCKSCOUT_TX_URL}${canonical}` : undefined}
+                        />
+                        <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                          {g2Registered
+                            ? 'L1 register transaction'
+                            : 'Laboratory fission hash — not an L1 register transaction'}
+                        </p>
+                      </div>
+                    )
+                  })}
               </>
             )
           }
@@ -200,7 +216,7 @@ export function HomePage() {
               ? `${formatInteger(selection.attestors.length)} / Q_A ${formatInteger(selection.quorum)}`
               : '0 / Q_A 4'
           }
-          hint="Active-archive HMAC attests. Forgeable. Not 30-day qualification."
+          hint="Active-archive EIP-712 attests (P17). Lab-only. Not 30-day qualification."
           tone={selectionReady && selection.endorsed ? 'default' : 'warn'}
         />
       </div>
@@ -217,8 +233,10 @@ export function HomePage() {
           <h2 className="text-sm font-semibold text-white">DLE cluster status</h2>
           <p className="mt-1 text-xs text-slate-400">
             {formatInteger(liveCount)} live of {formatInteger(snapshot.archives.length)} rostered archives
+            {' · '}
+            {formatInteger(seatedCount)} lab-seated (P12 EIP-712; not 30-day)
           </p>
-          <div className="mt-5 grid grid-cols-3 gap-2">
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
             <ClusterGauge
               label="Archives"
               value={archiveShare}
@@ -230,6 +248,12 @@ export function HomePage() {
               value={snapshot.certificate?.available || quorumOk ? 100 : 0}
               hint={snapshot.certificate?.available ? 'BFT 4-of-5' : quorumOk ? 'Heartbeat ok' : 'Not proven'}
               healthy={Boolean(snapshot.certificate?.available || quorumOk)}
+            />
+            <ClusterGauge
+              label="Seating"
+              value={seatingShare}
+              hint={seatedCount > 0 ? 'Lab HMAC seated' : 'Not seated'}
+              healthy={seatedCount > 0}
             />
             <ClusterGauge
               label="Certificate"

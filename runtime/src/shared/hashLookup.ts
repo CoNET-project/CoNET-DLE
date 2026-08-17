@@ -15,30 +15,49 @@ export const DLE_LAB_GROUP_ID = DLE_BOOTSTRAP_GROUP_REGISTER_TX_HASH
 export const DLE_LAB_GROUP_ID_LEGACY = 'dle.lab.group.v1'
 
 /**
- * Lab M6 fission Group ID = keccak256(utf8("dle.lab.group.m6.g2.v1")).
- * Not an L1 register tx hash. L1 `registerLiveGroup` is still pending.
- * Do not open this as Blockscout `/tx/…`.
+ * Laboratory keccak used before G2’s L1 register. Alias only after the host
+ * `ownGroupId` cutover; do not open the keccak as Blockscout `/tx/…`.
  */
-export const DLE_LAB_M6_GROUP_ID =
+export const DLE_LAB_M6_GROUP_ID_LEGACY =
   '0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07'
+
+/** User-visible G2 Group ID = L1 `registerLiveGroup` tx. Not uint 2. */
+export const DLE_G2_GROUP_REGISTER_TX_HASH =
+  '0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153'
+
+export const DLE_LAB_M6_GROUP_ID = DLE_G2_GROUP_REGISTER_TX_HASH
 
 /** Lab-only fission marker chain. Not NFT 42 and not a newchain class id. */
 export const DLE_LAB_M6_MARKER_NFT_ID = '6000000006'
 
-/** keccak256(utf8("dle.lab.fission.marker.v1|" + DLE_LAB_M6_GROUP_ID)). Not an L1 tx. */
+/** keccak256(utf8("dle.lab.fission.marker.v1|" + laboratory keccak)). Seeded before L1 register. */
 export const DLE_LAB_M6_MARKER_HASH =
   '0x7ca21e5aa612caa12bbd137aa374d30a113d42c1f60ea411fdb6998a63e2345c'
 
 export function labFissionMarkerHash(groupId: string): string {
-  return keccak256Utf8(`dle.lab.fission.marker.v1|${canonicalGroupId(groupId)}`)
+  const canonical = canonicalGroupId(groupId)
+  const seededId =
+    canonical.toLowerCase() === DLE_G2_GROUP_REGISTER_TX_HASH.toLowerCase()
+      ? DLE_LAB_M6_GROUP_ID_LEGACY
+      : canonical
+  return keccak256Utf8(`dle.lab.fission.marker.v1|${seededId}`)
 }
 
 export const HASH32_RE = /^0x[0-9a-fA-F]{64}$/
 
-export const HASH_OBJECT_KINDS = ['ac', 'prevoteQc', 'block', 'tx', 'daRootProof'] as const
+export const HASH_OBJECT_KINDS = [
+  'ac',
+  'prevoteQc',
+  'tipStateRoot',
+  'membershipRoot',
+  'block',
+  'tx',
+  'daRootProof',
+] as const
 
 export type HashObjectKind = (typeof HASH_OBJECT_KINDS)[number]
 
+/** Optional locator debug names. Do not catalogue tip/membership hashes via boundField. */
 export const HASH_BOUND_FIELDS = [
   'valueHash',
   'tipStateRoot',
@@ -110,12 +129,15 @@ export interface HashLookupHint {
   thisGroupOnly?: boolean
 }
 
-/** Map legacy lab strings / L1 uint 1 onto the bootstrap register-tx Group ID. */
+/** Map legacy lab strings / L1 uint keys onto the register-tx Group IDs. */
 export function canonicalGroupId(raw: string): string {
   const trimmed = raw.trim()
   const lower = trimmed.toLowerCase()
   if (lower === DLE_LAB_GROUP_ID_LEGACY || lower === '1' || lower === '0x1') {
     return DLE_LAB_GROUP_ID
+  }
+  if (lower === DLE_LAB_M6_GROUP_ID_LEGACY || lower === '2' || lower === '0x2') {
+    return DLE_G2_GROUP_REGISTER_TX_HASH
   }
   return normalizeHash32(trimmed) ?? trimmed
 }

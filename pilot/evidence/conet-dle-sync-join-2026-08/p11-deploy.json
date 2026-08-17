@@ -1,0 +1,28 @@
+{
+  "schema": "DleLabP11JoinerDeployV1",
+  "labOnly": true,
+  "notOfficialFivePlusTwo": true,
+  "neverWipeOfficialSeven": true,
+  "wipedOnly": [
+    "fd-08-hosthatch-hk1"
+  ],
+  "dataDir": "/home/peter/dle-30d-lab/data",
+  "neverGethBeacon": true,
+  "reachableFromKeeper": true,
+  "joiner": {
+    "domainId": "fd-08-hosthatch-hk1",
+    "sshHost": "167.104.98.104",
+    "class": "greenfield-lab",
+    "leftoverElCl": false,
+    "doNotStartValidator": true,
+    "notes": "P11 extra standby joiner. HostHatch HK1 167.104.98.104. Empty datadir only. Never official 5+2. Never wipe fd-01..07."
+  },
+  "results": [
+    {
+      "domainId": "fd-08-hosthatch-hk1",
+      "ok": true
+    }
+  ],
+  "ok": true,
+  "at": "2026-08-17T07:46:44.762Z"
+}

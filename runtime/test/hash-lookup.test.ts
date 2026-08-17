@@ -1,17 +1,31 @@
+import { writeFileSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createHashLookupAdapter, indexLabHashObject, labAcLocator, labPrevoteLocator } from '../src/archive/hashPipe.js'
+import {
+  createHashLookupAdapter,
+  indexLabCertificateRoots,
+  indexLabHashObject,
+  indexLabTypedRoot,
+  labAcLocator,
+  labPrevoteLocator,
+} from '../src/archive/hashPipe.js'
+import { ZERO32 } from '../src/shared/bytes.js'
 import { openHashStore } from '../src/archive/hashStore.js'
 import { dispatchArchiveJsonRpc } from '../src/archive/jsonrpcFacade.js'
 import {
+  DLE_G2_GROUP_REGISTER_TX_HASH,
   DLE_LAB_CHAIN_NFT_ID,
   DLE_LAB_GROUP_ID,
   DLE_LAB_GROUP_ID_LEGACY,
+  DLE_LAB_M6_GROUP_ID,
+  DLE_LAB_M6_GROUP_ID_LEGACY,
+  DLE_LAB_M6_MARKER_HASH,
   canonicalGroupId,
   hashLookupUnavailable,
+  labFissionMarkerHash,
   sameGroupId,
 } from '../src/shared/hashLookup.js'
 import { liveGroupCount, liveGroupIds, routeView } from '../src/shared/labRoute.js'
@@ -68,6 +82,15 @@ test('hash hit must include chainNftId and never treat a miss as plane-wide null
     assert.equal(miss.planeWideNull, false)
     assert.equal(miss.scope, 'thisGroup')
   }
+})
+
+test('hash store is in-process KV; disk is persist-on-write not per-get', () => {
+  const before = store.getLocator(hash)
+  assert.equal(before?.hash, hash)
+  writeFileSync(join(dataDir, 'hash-index.json'), '{"schema":"DleLabHashIndexV1","locators":{}}\n')
+  const after = store.getLocator(hash)
+  assert.equal(after?.hash, hash)
+  assert.equal(after?.chainNftId, DLE_LAB_CHAIN_NFT_ID)
 })
 
 test('legacy freezer body must not alias as prevoteQc', async () => {
@@ -163,6 +186,15 @@ test('bootstrap Group ID is the L1 register tx hash; legacy strings alias it', (
   assert.equal(sameGroupId('dle.lab.group.v2', DLE_LAB_GROUP_ID), false)
 })
 
+test('G2 Group ID is the L1 register tx; laboratory keccak and uint 2 alias it', () => {
+  assert.equal(canonicalGroupId(DLE_LAB_M6_GROUP_ID_LEGACY), DLE_G2_GROUP_REGISTER_TX_HASH)
+  assert.equal(canonicalGroupId('2'), DLE_G2_GROUP_REGISTER_TX_HASH)
+  assert.equal(canonicalGroupId('0x2'), DLE_G2_GROUP_REGISTER_TX_HASH)
+  assert.equal(sameGroupId(DLE_LAB_M6_GROUP_ID_LEGACY, DLE_LAB_M6_GROUP_ID), true)
+  assert.equal(labFissionMarkerHash(DLE_G2_GROUP_REGISTER_TX_HASH), DLE_LAB_M6_MARKER_HASH)
+  assert.equal(labFissionMarkerHash(DLE_LAB_M6_GROUP_ID_LEGACY), DLE_LAB_M6_MARKER_HASH)
+})
+
 test('hashStore migrates a legacy groupId locator to the register hash without conflict', () => {
   const migrated = `0x${'ef'.repeat(32)}`
   const first = store.putLocator({
@@ -184,6 +216,102 @@ test('hashStore migrates a legacy groupId locator to the register hash without c
   })
   assert.equal(second.ok, true)
   assert.equal(store.getLocator(migrated)?.groupId, DLE_LAB_GROUP_ID)
+})
+
+test('tipStateRoot and membershipRoot are first-class kinds, not AC aliases', async () => {
+  const tip = `0x${'a1'.repeat(32)}`
+  const membership = `0x${'b2'.repeat(32)}`
+  const acRef = `0x${'c3'.repeat(32)}`
+  indexLabCertificateRoots(store, {
+    tipStateRoot: tip,
+    membershipRoot: membership,
+    chainNftId: DLE_LAB_CHAIN_NFT_ID,
+    height: '0x1',
+    acRef,
+    groupId: DLE_LAB_GROUP_ID,
+  })
+  const tipHit = await lookup.get(tip)
+  assert.equal(tipHit.status, 'hit')
+  if (tipHit.status === 'hit') {
+    assert.equal(tipHit.locator.kind, 'tipStateRoot')
+    assert.equal(tipHit.locator.chainNftId, DLE_LAB_CHAIN_NFT_ID)
+    assert.equal((tipHit.object as { schema?: string; notAcFieldAlias?: boolean }).schema, 'DleLabTipStateRootV1')
+    assert.equal((tipHit.object as { notAcFieldAlias?: boolean }).notAcFieldAlias, true)
+    assert.equal((tipHit.object as { certificate?: unknown }).certificate, undefined)
+  }
+  const membershipHit = await lookup.get(membership)
+  assert.equal(membershipHit.status, 'hit')
+  if (membershipHit.status === 'hit') {
+    assert.equal(membershipHit.locator.kind, 'membershipRoot')
+    assert.equal((membershipHit.object as { schema?: string }).schema, 'DleLabMembershipRootV1')
+  }
+})
+
+test('same membershipRoot at a later height is first-write-wins', () => {
+  const membership = `0x${'d4'.repeat(32)}`
+  const first = indexLabTypedRoot(
+    store,
+    'membershipRoot',
+    membership,
+    DLE_LAB_CHAIN_NFT_ID,
+    '0x10',
+    `0x${'e5'.repeat(32)}`,
+    DLE_LAB_GROUP_ID,
+  )
+  const second = indexLabTypedRoot(
+    store,
+    'membershipRoot',
+    membership,
+    DLE_LAB_CHAIN_NFT_ID,
+    '0x11',
+    `0x${'f6'.repeat(32)}`,
+    DLE_LAB_GROUP_ID,
+  )
+  assert.equal(first.ok, true)
+  assert.equal(second.ok, true)
+  if (second.ok) assert.equal(second.skipped, 'first-write-wins')
+  const locator = store.getLocator(membership)
+  assert.equal(locator?.kind, 'membershipRoot')
+  assert.equal(locator?.height, '0x10')
+})
+
+test('ZERO32 tipStateRoot is not catalogued', () => {
+  const skipped = indexLabTypedRoot(
+    store,
+    'tipStateRoot',
+    ZERO32,
+    DLE_LAB_CHAIN_NFT_ID,
+    '0x1',
+    `0x${'17'.repeat(32)}`,
+    DLE_LAB_GROUP_ID,
+  )
+  assert.equal(skipped.ok, true)
+  if (skipped.ok) assert.equal(skipped.skipped, 'zero')
+  assert.equal(store.getLocator(ZERO32), null)
+})
+
+test('legacy freezer body must not alias as tipStateRoot or membershipRoot', async () => {
+  const legacyHash = `0x${'18'.repeat(32)}`
+  const tipHash = `0x${'19'.repeat(32)}`
+  const legacyBody = { kind: 'ac', height: '0x3', note: 'unmigrated freezer' }
+  assert.equal(store.putLocator(labAcLocator(legacyHash, '0x3', legacyHash)).ok, true)
+  assert.equal(store.putBody(DLE_LAB_CHAIN_NFT_ID, '0x3', legacyBody).ok, true)
+  assert.equal(
+    store.putLocator({
+      schema: 'HashLocatorV1',
+      hash: tipHash,
+      chainNftId: DLE_LAB_CHAIN_NFT_ID,
+      kind: 'tipStateRoot',
+      height: '0x3',
+      acRef: legacyHash,
+    }).ok,
+    true,
+  )
+  const leaked = await lookup.get(tipHash)
+  assert.equal(leaked.status, 'unavailable')
+  if (leaked.status === 'unavailable') {
+    assert.equal(leaked.planeWideNull, false)
+  }
 })
 
 test('routeView and liveGroupIds emit the hash even if the table still stores v1', () => {

@@ -53,6 +53,7 @@ export async function startArchiveNode(options: ArchiveNodeOptions): Promise<Arc
     },
     close() {
       ondemand.stop()
+      newchain.stop()
       return server.close()
     },
   }

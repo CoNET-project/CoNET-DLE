@@ -1,0 +1,14 @@
+{
+  "schema": "DleLabP11JoinerProbeV1",
+  "labOnly": true,
+  "notOfficialFivePlusTwo": true,
+  "neverWipeOfficialSeven": true,
+  "domainId": "fd-08-hosthatch-hk1",
+  "sshHost": "167.104.98.104",
+  "role": "standby",
+  "leftoverElCl": false,
+  "hostname": "HK1",
+  "ok": true,
+  "stdout": "HOST=HK1\nUSER=peter\nMEM=1.9Gi 322Mi 1.6Gi\nDISK=8.8G 2.9G 6.0G\nLAB_DIR_EXISTS=no\nLAB_DATA=no\nARCHIVE_PIDS=\nAGENT_PIDS=\nGETH=\nBEACON=\nVALIDATOR=\nNODE=\nHEALTH=down",
+  "at": "2026-08-17T07:43:46.717Z"
+}

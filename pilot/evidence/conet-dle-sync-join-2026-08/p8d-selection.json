@@ -1,0 +1,22 @@
+{
+  "schema": "DleLabP8dWipeSelectionV1",
+  "labOnly": true,
+  "mode": "random",
+  "count": 2,
+  "requiredActive": "fd-05-hosthatch-tokyo2",
+  "wipedDomainIds": [
+    "fd-05-hosthatch-tokyo2",
+    "fd-06-ionos-174"
+  ],
+  "notWipedThisRound": [
+    "fd-07-ionos-207"
+  ],
+  "neverKeepers": [
+    "fd-01-ionos-45",
+    "fd-02-ionos-189",
+    "fd-03-ionos-98",
+    "fd-04-hosthatch-tokyo1"
+  ],
+  "note": "fd-05 is required so hasUnseatedActive freezes cataloguing. fd-06 was drawn from {fd-06, fd-07}.",
+  "at": "2026-08-17T06:12:00.000Z"
+}

@@ -13,9 +13,13 @@ export const DLE_BOOTSTRAP_GROUP_REGISTER_TX_HASH =
   '0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0'
 export const DLE_LAB_GROUP_ID = DLE_BOOTSTRAP_GROUP_REGISTER_TX_HASH
 export const DLE_LAB_GROUP_ID_LEGACY = 'dle.lab.group.v1'
-/** Lab M6 second-group hash. Copied from runtime — never import runtime. Not an L1 register tx. */
-export const DLE_LAB_M6_GROUP_ID =
+/** Laboratory keccak used before G2’s L1 register. Copied from runtime — never import runtime. */
+export const DLE_LAB_M6_GROUP_ID_LEGACY =
   '0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07'
+/** User-visible G2 Group ID = L1 register tx. Copied from the CoNET deploy snapshot. */
+export const DLE_G2_GROUP_REGISTER_TX_HASH =
+  '0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153'
+export const DLE_LAB_M6_GROUP_ID = DLE_G2_GROUP_REGISTER_TX_HASH
 
 export const DLE_JSONRPC_VERSION = '2.0' as const
 
@@ -72,6 +76,9 @@ export function canonicalGroupId(raw: string): string {
   const lower = trimmed.toLowerCase()
   if (lower === DLE_LAB_GROUP_ID_LEGACY || lower === '1' || lower === '0x1') {
     return DLE_LAB_GROUP_ID
+  }
+  if (lower === DLE_LAB_M6_GROUP_ID_LEGACY || lower === '2' || lower === '0x2') {
+    return DLE_G2_GROUP_REGISTER_TX_HASH
   }
   return normalizeHash32(trimmed) ?? trimmed
 }

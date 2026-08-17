@@ -67,6 +67,11 @@ export interface DleLabNewChainRecordV1 {
   bodyCommitment: Hex
   acceptedAt: string
   certificate: DleLabGenesisCertificateV1
+  validatorQuorum?: unknown
+  archiveCertificatePending?: boolean
+  archiveCertificate?: unknown
+  prevoteQc?: unknown
+  genesisVotes?: unknown[]
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -28,11 +28,13 @@ Do **not** put EIP-155 `0x44c45` in `groupId` fields.
 
 ## Standing invariants
 
-- Lab beacon = keccak **after** freeze — not CoNET L1 CL RANDAO
-- HMAC attests are forgeable; not 30-day qualification
+- Lab beacon = **freeze-then-bind** (**P19**): persist `ondemandFreezeHex` first, then bind honest-wait `labOnDemandBeaconAfterFreeze` / injected CL view / options beacon. Instant `labBeaconAfterFreeze(poolRoot)` (`dle.lab.beacon.afterFreeze.v1`) is **contrast only**. **Not** CoNET L1 CL RANDAO. P17 / P18 did **not** replace this beacon
+- **P17 landed:** new attests are EIP-712 `ArchiveOnDemandAttest` (same domain as seating / challenge / BFT; seating key reused). HMAC / unsigned ingest → `ERR_ONDEMAND_HMAC_CUTOVER`. keep-only disk HMAC attests may still restore `endorsed`. **Not** 30-day qualification
+- **P20 landed:** wait hooks are **not** intra-group gossip. `ingest` rejects `miners` / `hooks` / `hook` (`ERR_ONDEMAND_HOOK_NOT_GOSSIP`). `gossip()` forwards attests + selection only. miner / daemon **must** POST the same hook to every active archive. One accept ≠ group pool. Lab `POST /ondemand/hook` on TCP 27101 is **not** production DePIN gossip
 - SelectionLog is not AC and does not change Mode A `valueHash`
 - Duplicate hooks rejected (anti-hoard)
 - Public explorer nginx must **not** expose `POST /ondemand/hook` or freeze
+- After P11: **P12–P20 landed** (engine + tests). P17 replaced **attests only**. **P18** cut over P6 \(Q_V\) to EIP-712 and did **not** replace the on-demand lab beacon or gossip wait-hook. **P19** cut over on-demand beacon to freeze-then-bind. **P20** cut over wait-hook honesty (not production DePIN gossip). Do not start `pilotStartedAt`. Do **not** paint `ondemandEip712` / `endorsed` / `ondemandLabBeaconAfterFreeze` / `ondemandHookNotGossip` as production.
 
 ## Related
 

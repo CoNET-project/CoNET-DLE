@@ -1,0 +1,30 @@
+{
+  "schema": "DleLabM7EvidenceV1",
+  "labOnly": true,
+  "notAcFieldAlias": true,
+  "notProductionDepin": true,
+  "notThirtyDayQualification": true,
+  "acceptedAt": "2026-08-16T12:34:00.000Z",
+  "g1Host": "74.208.224.45",
+  "publicRpc": "https://dle.conet.network/rpc",
+  "acHash": "0x79e9732d1e6bce1432e38b62fc2e99c08ad1dacd8da0c3a8e4b84eef8b61625e",
+  "acHeight": "0x1",
+  "chainNftId": "42",
+  "tipStateRoot": {
+    "hash": "0x08c8398028ff56e984c11212410d4328fe88ff04ef28546e146a804fb9ca01e1",
+    "status": "hit",
+    "locatorKind": "tipStateRoot",
+    "objectSchema": "DleLabTipStateRootV1",
+    "explorer": "https://dle.conet.network/hash/0x08c8398028ff56e984c11212410d4328fe88ff04ef28546e146a804fb9ca01e1",
+    "pills": ["Hit", "Tip state root", "chainNftId 42"]
+  },
+  "membershipRoot": {
+    "hash": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+    "status": "hit",
+    "locatorKind": "membershipRoot",
+    "objectSchema": "DleLabMembershipRootV1",
+    "explorer": "https://dle.conet.network/hash/0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+    "pills": ["Hit", "Membership root", "chainNftId 42"]
+  },
+  "note": "Keep-roll G1/G2. G2 has no BFT so M7 objects are on G1 NFT 42. Completing M0–M7 is not 30-day qualification."
+}

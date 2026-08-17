@@ -4,6 +4,7 @@ import { DetailPageShell } from '../components/DetailPageShell'
 import { JsonBlock } from '../components/JsonBlock'
 import { ParticipantWallet } from '../components/ParticipantWallet'
 import { StatusPill } from '../components/StatusPill'
+import { archiveSeatingPill } from '../lib/archiveSeating'
 import { formatInteger } from '../lib/format'
 import { useExplorer } from '../providers/ExplorerProvider'
 import { useExplorerChrome } from '../providers/ExplorerChrome'
@@ -30,6 +31,7 @@ export function ArchiveDetailPage() {
           <>
             <StatusPill label={row.role} tone={row.role === 'active' ? 'blue' : 'purple'} />
             <StatusPill label={row.health} tone={row.health === 'live' ? 'ok' : 'neutral'} />
+            <StatusPill {...archiveSeatingPill(row)} />
           </>
         ) : null
       }
@@ -48,9 +50,17 @@ export function ArchiveDetailPage() {
               </p>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-wide text-cyan-200/60">Last quorum</dt>
+              <dt className="text-xs uppercase tracking-wide text-cyan-200/60">Heartbeat quorum</dt>
               <dd className="mt-1 font-medium text-white">
-                {row.lastQuorumOk === null ? 'Unknown' : row.lastQuorumOk ? 'ok' : 'not ok'}
+                {row.lastQuorumOk === null ? 'Unknown' : row.lastQuorumOk ? 'ok (reachability only)' : 'not ok'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-cyan-200/60">Lab seating</dt>
+              <dd className="mt-1 font-medium text-white">
+                {row.seatingQualified === true
+                  ? 'seated (lab HMAC)'
+                  : row.syncPhase ?? 'not seated'}
               </dd>
             </div>
             <div>

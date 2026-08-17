@@ -36,6 +36,7 @@ export function OnDemandSelectionPanel({
         />
         <StatusPill label={live ? 'Live archive' : 'Lab accept snapshot'} tone={live ? 'ok' : 'neutral'} />
         <StatusPill label="Lab beacon ≠ L1 CL" tone="warn" />
+        <StatusPill label="Hooks are not gossip" tone="warn" />
         <StatusPill label="Not an Archive Certificate" tone="neutral" />
       </div>
 
@@ -103,7 +104,7 @@ export function OnDemandSelectionPanel({
 
       <p className="text-xs leading-5 text-slate-400">
         {available?.note ??
-          'Lab SelectionLog. Beacon is keccak after freeze, not CoNET L1 CL RANDAO. HMAC attests are forgeable. Not an Archive Certificate. Not 30-day qualification.'}
+          'Lab SelectionLog. Beacon is freeze-then-bind lab keccak (P19), not CoNET L1 CL RANDAO. Instant labBeaconAfterFreeze(poolRoot) is contrast-only. Attests are EIP-712 ArchiveOnDemandAttest (P17). Wait hooks are not intra-group gossip (P20); lab HTTP is not production DePIN gossip. Not an Archive Certificate. Not 30-day qualification.'}
         {available?.acceptedAt ? ` Accepted ${available.acceptedAt}.` : ''}
       </p>
     </div>

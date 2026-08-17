@@ -1,5 +1,5 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { dirname, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { assertOperatorDomainPreflight } from './inventory.js'
 import {
@@ -10,14 +10,23 @@ import {
   LAB_PORT,
   PILOT_LAB_ID,
   PROTECTED_PROCESS_NAMES,
+  acceptP11FullOpenJoin,
   agentConfigFor,
+  appendExtraPlaneWallet,
+  DEFAULT_SYNC_JOIN_EVIDENCE_DIR,
   deployArchiveRuntime,
+  deployP11FullOpenJoiner,
   loadLabHosts,
   loadOfficialLabInventory,
+  p11JoinerPeer,
   planeDirectoryFromHosts,
+  probeP11Joiner,
   runLocal,
-  runScp,
+  runScpRetry,
   runSsh,
+  runSshRetry,
+  waitOfficialKeepersQualified,
+  type AgentConfigExtras,
   type PilotLabHostsV1,
 } from './lab.js'
 import type { PilotInventoryV1 } from './model.js'
@@ -25,8 +34,13 @@ import type { PilotInventoryV1 } from './model.js'
 export const PILOT_M6_ID = 'conet-dle-m6-g2-2026-08'
 export const M6_LAB_DIR = '/home/peter/dle-m6-g2'
 export const DLE_LAB_GROUP_ID = '0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0'
-export const DLE_LAB_M6_GROUP_ID =
+/** Laboratory keccak used before G2’s L1 register. Alias only; hosts must emit the register tx. */
+export const DLE_LAB_M6_GROUP_ID_LEGACY =
   '0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07'
+/** User-visible G2 Group ID = L1 `registerLiveGroup` tx. Not uint 2. */
+export const DLE_G2_GROUP_REGISTER_TX_HASH =
+  '0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153'
+export const DLE_LAB_M6_GROUP_ID = DLE_G2_GROUP_REGISTER_TX_HASH
 export const DLE_LAB_M6_MARKER_NFT_ID = '6000000006'
 export const DLE_LAB_M6_MARKER_HASH =
   '0x7ca21e5aa612caa12bbd137aa374d30a113d42c1f60ea411fdb6998a63e2345c'
@@ -74,24 +88,36 @@ const ENSURE_M6_NODE = [
 
 const STOP_M6_ONLY = [
   'set -euo pipefail',
+  'protect_pid() {',
+  '  comm=$(ps -p "$1" -o comm= || true)',
+  '  args=$(ps -p "$1" -o args= || true)',
+  '  case "$comm $args" in',
+  '    *geth*|*beacon-chain*|*validator*|*prysm*|*dle-30d-lab*) echo PROTECTED; exit 3 ;;',
+  '  esac',
+  '}',
   'for pattern in "[n]ode .*dle-m6-g2/app/archive/lab-cli.js" "[n]ode .*dle-m6-g2/agent.mjs"; do',
   '  PIDS=$(pgrep -f "$pattern" || true)',
   '  for pid in $PIDS; do',
-  '    comm=$(ps -p "$pid" -o comm= || true)',
-  '    args=$(ps -p "$pid" -o args= || true)',
-  '    case "$comm $args" in',
-  '      *geth*|*beacon-chain*|*validator*|*prysm*|*dle-30d-lab*) echo PROTECTED; exit 3 ;;',
-  '    esac',
+  '    protect_pid "$pid"',
   '    kill -TERM "$pid" || true',
   '    echo STOPPED=$pid',
   '  done',
   'done',
-  'sleep 1',
+  'for _ in 1 2 3 4 5 6 7 8; do',
+  '  leftover=$(pgrep -f "[n]ode .*dle-m6-g2/(agent.mjs|app/archive/lab-cli.js)" || true)',
+  '  [ -z "$leftover" ] && break',
+  '  sleep 1',
+  'done',
+  'leftover=$(pgrep -f "[n]ode .*dle-m6-g2/(agent.mjs|app/archive/lab-cli.js)" || true)',
+  'for pid in $leftover; do',
+  '  protect_pid "$pid"',
+  '  kill -KILL "$pid" || true',
+  '  echo KILLED=$pid',
+  'done',
 ].join('\n')
 
-const START_M6_ARCHIVE = [
+const START_M6_ARCHIVE_KEEP = [
   'set -euo pipefail',
-  `rm -rf '${M6_LAB_DIR}/data'`,
   `mkdir -p '${M6_LAB_DIR}/app' '${M6_LAB_DIR}/data' '${M6_LAB_DIR}/daemon' '${M6_LAB_DIR}/wal'`,
   `cd '${M6_LAB_DIR}'`,
   `if [ -x '${M6_LAB_DIR}/runtime/bin/node' ]; then NODE='${M6_LAB_DIR}/runtime/bin/node'; else NODE=$(command -v node); fi`,
@@ -140,7 +166,7 @@ export async function deployM6G2(options?: {
   }
   const results: Array<{ domainId: string; host: string; ok: boolean; detail: string }> = []
   for (const host of g2Hosts.hosts) {
-    const ensure = await runSsh(host.sshHost, ENSURE_M6_NODE)
+    const ensure = await runSshRetry(host.sshHost, ENSURE_M6_NODE)
     if (ensure.code !== 0) {
       results.push({
         domainId: host.domainId,
@@ -153,14 +179,24 @@ export async function deployM6G2(options?: {
     const config = agentConfigFor(g2Inventory, g2Hosts, host.domainId, extras)
     const tmpConfig = `/tmp/dle-m6-${host.domainId}.json`
     await writeFile(tmpConfig, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
-    await runSsh(
-      host.sshHost,
-      `mkdir -p '${M6_LAB_DIR}/app' '${M6_LAB_DIR}/data' '${M6_LAB_DIR}/daemon' '${M6_LAB_DIR}/wal'`,
-    )
-    await runScp(bundlePath, host.sshHost, '/tmp/dle-m6-g2-runtime.tgz')
-    await runScp(tmpConfig, host.sshHost, `${M6_LAB_DIR}/config.json`)
-    await runScp(daemonProbePath, host.sshHost, REMOTE_M6_DAEMON_PROBE)
-    const unpacked = await runSsh(
+    try {
+      await runSshRetry(
+        host.sshHost,
+        `mkdir -p '${M6_LAB_DIR}/app' '${M6_LAB_DIR}/data' '${M6_LAB_DIR}/daemon' '${M6_LAB_DIR}/wal'`,
+      )
+      await runScpRetry(bundlePath, host.sshHost, '/tmp/dle-m6-g2-runtime.tgz')
+      await runScpRetry(tmpConfig, host.sshHost, `${M6_LAB_DIR}/config.json`)
+      await runScpRetry(daemonProbePath, host.sshHost, REMOTE_M6_DAEMON_PROBE)
+    } catch (error) {
+      results.push({
+        domainId: host.domainId,
+        host: host.sshHost,
+        ok: false,
+        detail: error instanceof Error ? error.message : String(error),
+      })
+      continue
+    }
+    const unpacked = await runSshRetry(
       host.sshHost,
       `rm -rf '${M6_LAB_DIR}/app' && mkdir -p '${M6_LAB_DIR}/app' && tar -xzf /tmp/dle-m6-g2-runtime.tgz -C '${M6_LAB_DIR}/app' && printf '%s\\n' '{"type":"module","private":true,"name":"@conet/dle-archive-runtime"}' > '${M6_LAB_DIR}/app/package.json'`,
     )
@@ -173,7 +209,7 @@ export async function deployM6G2(options?: {
       })
       continue
     }
-    const stopped = await runSsh(host.sshHost, STOP_M6_ONLY)
+    const stopped = await runSshRetry(host.sshHost, STOP_M6_ONLY)
     if (stopped.code !== 0) {
       results.push({
         domainId: host.domainId,
@@ -183,7 +219,7 @@ export async function deployM6G2(options?: {
       })
       continue
     }
-    const started = await runSsh(host.sshHost, START_M6_ARCHIVE)
+    const started = await runSshRetry(host.sshHost, START_M6_ARCHIVE_KEEP)
     const healthOk = started.stdout.includes('"command":"archive"')
     results.push({
       domainId: host.domainId,
@@ -199,16 +235,118 @@ export async function keepUpdateG1PlaneDirectory(): Promise<{
   ok: boolean
   results: Array<{ domainId: string; host: string; ok: boolean; detail: string }>
 }> {
+  const g1Inventory = await loadOfficialLabInventory(DEFAULT_INVENTORY_PATH)
+  const g1Hosts = await loadLabHosts(DEFAULT_HOSTS_PATH)
   const g2Inventory = await loadM6Inventory()
   const g2Hosts = await loadM6Hosts()
   return deployArchiveRuntime({
     keepData: true,
     extras: {
+      ownGroupId: DLE_LAB_GROUP_ID,
       planeDirectory: mergePlaneDirectories(
+        planeDirectoryFromHosts(DLE_LAB_GROUP_ID, g1Hosts, g1Inventory),
         planeDirectoryFromHosts(DLE_LAB_M6_GROUP_ID, g2Hosts, g2Inventory),
       ),
     },
   })
+}
+
+export async function p11JoinerKeepExtras(): Promise<AgentConfigExtras> {
+  const extra = p11JoinerPeer()
+  const g1Inventory = await loadOfficialLabInventory(DEFAULT_INVENTORY_PATH)
+  const g1Hosts = await loadLabHosts(DEFAULT_HOSTS_PATH)
+  const g2Inventory = await loadM6Inventory()
+  const g2Hosts = await loadM6Hosts()
+  return {
+    ownGroupId: DLE_LAB_GROUP_ID,
+    extraPeers: [extra],
+    planeDirectory: appendExtraPlaneWallet(
+      mergePlaneDirectories(
+        planeDirectoryFromHosts(DLE_LAB_GROUP_ID, g1Hosts, g1Inventory),
+        planeDirectoryFromHosts(DLE_LAB_M6_GROUP_ID, g2Hosts, g2Inventory),
+      ),
+      DLE_LAB_GROUP_ID,
+      {
+        domainId: extra.domainId,
+        role: extra.role,
+        url: `http://${extra.host}:${extra.port}`,
+        labOnly: true,
+      },
+    ),
+  }
+}
+
+export async function keepUpdateG1WithP11Joiner(): Promise<{
+  ok: boolean
+  results: Array<{ domainId: string; host: string; ok: boolean; detail: string }>
+}> {
+  const extra = p11JoinerPeer()
+  const result = await deployArchiveRuntime({
+    keepData: true,
+    extras: await p11JoinerKeepExtras(),
+  })
+  await mkdir(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, { recursive: true })
+  await writeFile(
+    join(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, 'p11-keep.json'),
+    `${JSON.stringify(
+      {
+        schema: 'DleLabP11KeepPeersV1',
+        labOnly: true,
+        keepData: true,
+        neverWipeOfficialSeven: true,
+        extraPeer: extra,
+        officialHostCount: 7,
+        results: result.results.map((row) => ({ domainId: row.domainId, ok: row.ok })),
+        ok: result.ok,
+        at: new Date().toISOString(),
+      },
+      null,
+      2,
+    )}\n`,
+  )
+  return result
+}
+
+export async function runP11FullOpenFromZeroJoin(): Promise<{
+  ok: boolean
+  probe: Awaited<ReturnType<typeof probeP11Joiner>>
+  keep: Awaited<ReturnType<typeof keepUpdateG1WithP11Joiner>>
+  keepers: Awaited<ReturnType<typeof waitOfficialKeepersQualified>>
+  deploy: Awaited<ReturnType<typeof deployP11FullOpenJoiner>> | null
+  accept: Awaited<ReturnType<typeof acceptP11FullOpenJoin>> | null
+}> {
+  const probe = await probeP11Joiner()
+  if (!probe.ok) {
+    return {
+      ok: false,
+      probe,
+      keep: { ok: false, results: [] },
+      keepers: { ok: false, rows: [], waitedMs: 0 },
+      deploy: null,
+      accept: null,
+    }
+  }
+  const keep = await keepUpdateG1WithP11Joiner()
+  if (!keep.ok) {
+    return {
+      ok: false,
+      probe,
+      keep,
+      keepers: { ok: false, rows: [], waitedMs: 0 },
+      deploy: null,
+      accept: null,
+    }
+  }
+  const keepers = await waitOfficialKeepersQualified({ timeoutMs: 15 * 60_000 })
+  if (!keepers.ok) {
+    return { ok: false, probe, keep, keepers, deploy: null, accept: null }
+  }
+  const deploy = await deployP11FullOpenJoiner({ extras: await p11JoinerKeepExtras() })
+  if (!deploy.ok) {
+    return { ok: false, probe, keep, keepers, deploy, accept: null }
+  }
+  const accept = await acceptP11FullOpenJoin()
+  return { ok: accept.ok, probe, keep, keepers, deploy, accept }
 }
 
 export async function deployM6Plane(): Promise<{
@@ -220,6 +358,13 @@ export async function deployM6Plane(): Promise<{
   if (!g2.ok) return { ok: false, g2, g1: { ok: false, results: [] } }
   const g1 = await keepUpdateG1PlaneDirectory()
   return { ok: g2.ok && g1.ok, g2, g1 }
+}
+
+function hopOwnGroupId(health: Record<string, unknown>): string {
+  const hop1 = health.hop1
+  if (hop1 === null || typeof hop1 !== 'object') return ''
+  const own = (hop1 as { ownGroupId?: unknown }).ownGroupId
+  return typeof own === 'string' ? own.trim().toLowerCase() : ''
 }
 
 function parseHealthJson(stdout: string): Record<string, unknown> {
@@ -333,11 +478,26 @@ export async function acceptM6Plane(): Promise<{
   const planeBlock = await rpcOnHost(g1Host.sshHost, 'eth_getBlockByHash', [unknown, false])
   const g1Ids = Array.isArray(g1Health.liveGroupIds) ? (g1Health.liveGroupIds as string[]) : []
   const g2Ids = Array.isArray(g2Health.liveGroupIds) ? (g2Health.liveGroupIds as string[]) : []
+  const registerTx = DLE_G2_GROUP_REGISTER_TX_HASH.toLowerCase()
+  const g2Aliases = new Set([
+    DLE_LAB_M6_GROUP_ID.toLowerCase(),
+    DLE_LAB_M6_GROUP_ID_LEGACY.toLowerCase(),
+    registerTx,
+  ])
+  const hasG2 = (ids: string[]) => ids.some((id) => g2Aliases.has(id.trim().toLowerCase()))
+  const hasRegisterTx = (ids: string[]) =>
+    ids.some((id) => id.trim().toLowerCase() === registerTx)
+  const g1Own = hopOwnGroupId(g1Health)
+  const g2Own = hopOwnGroupId(g2Health)
+  const g1EmitsBootstrapTx = g1Own === DLE_LAB_GROUP_ID.toLowerCase()
+  const g2EmitsRegisterTx = g2Own === registerTx
   const twoGroups =
     g1Ids.includes(DLE_LAB_GROUP_ID) &&
-    g1Ids.includes(DLE_LAB_M6_GROUP_ID) &&
+    hasG2(g1Ids) &&
+    hasRegisterTx(g1Ids) &&
     g2Ids.includes(DLE_LAB_GROUP_ID) &&
-    g2Ids.includes(DLE_LAB_M6_GROUP_ID) &&
+    hasG2(g2Ids) &&
+    hasRegisterTx(g2Ids) &&
     g1Health.liveGroupCount === 2 &&
     g2Health.liveGroupCount === 2
   const g2Marker = rpcBody(g2MarkerThisGroup) as { status?: string; locator?: { chainNftId?: string } }
@@ -366,8 +526,12 @@ export async function acceptM6Plane(): Promise<{
     labOnly: true,
     notProductionDepin: true,
     notThirtyDayQualification: true,
-    g2GroupIdIsLabHash: true,
-    g2GroupIdNotL1RegisterTx: true,
+    g2GroupIdIsLabHash: g2Own === DLE_LAB_M6_GROUP_ID_LEGACY.toLowerCase(),
+    g2GroupIdNotL1RegisterTx: !g2EmitsRegisterTx,
+    g1OwnGroupIdIsBootstrapTx: g1EmitsBootstrapTx,
+    g2OwnGroupIdIsRegisterTx: g2EmitsRegisterTx,
+    g1HopOwnGroupId: g1Own,
+    g2HopOwnGroupId: g2Own,
     g1Host: g1Host.sshHost,
     g2Host: g2Host.sshHost,
     g1LiveGroupIds: g1Ids,
@@ -389,7 +553,13 @@ export async function acceptM6Plane(): Promise<{
     'utf8',
   )
   return {
-    ok: twoGroups && planeFacts && g1Status.code === 0 && g2Status.code === 0,
+    ok:
+      twoGroups &&
+      planeFacts &&
+      g1EmitsBootstrapTx &&
+      g2EmitsRegisterTx &&
+      g1Status.code === 0 &&
+      g2Status.code === 0,
     g1Health,
     g2Health,
     evidence,

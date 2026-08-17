@@ -1,7 +1,19 @@
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { keccak256Utf8, ZERO32 } from '../src/archive/bft/bytes.js'
-import { signLabVote } from '../src/archive/bft/mac.js'
+import { createArchiveBftEngine } from '../src/archive/bft/engine.js'
+import { openArchiveStore } from '../src/archive/store.js'
+import { labSeatingAddress } from '../src/archive/syncQualification/eip712.js'
+import {
+  isHmacBftVote,
+  makeHmacLabVote,
+  makeLabBftVote,
+  recoverLabBftVoteSigner,
+  verifyEip712BftVote,
+} from '../src/archive/bft/mac.js'
 import {
   acceptVote,
   hasQuorum,
@@ -11,6 +23,10 @@ import {
 } from '../src/archive/bft/quorum.js'
 import { applyArchiveRoundInput, createEmptyRoundState } from '../src/archive/bft/tendermint.js'
 import {
+  ARCHIVE_QUORUM,
+  CERT_KIND_ARCHIVE,
+  ERR_BFT_HMAC_CUTOVER,
+  ERR_BFT_VOTE_SIG,
   ERR_WAL_DOUBLE_SIGN,
   NONE_ROUND,
   VOTE_STEP_PRECOMMIT,
@@ -33,7 +49,7 @@ function voteOf(domainId: string, step: number, valueHash = VALUE_A): ArchiveVot
     membershipRoot: membershipRootOf(ACTIVE),
     prevoteQCRef: step === VOTE_STEP_PRECOMMIT ? QC_REF : ZERO32,
   }
-  return { schema: 'DleLabVoteV1', ...unsigned, mac: signLabVote(unsigned) }
+  return makeLabBftVote(unsigned)
 }
 
 test('unlocked proposal prevotes the available value and four prevotes lock then commit', () => {
@@ -145,4 +161,129 @@ test('standby domain is not an active signer', () => {
     membershipRoot: membershipRootOf(ACTIVE),
   })
   assert.equal(accepted.ok, false)
+})
+
+test('P16 cutover rejects HMAC and unsigned BFT votes', () => {
+  const unsigned = {
+    domainId: 'fd-01',
+    height: 1,
+    round: 0,
+    step: VOTE_STEP_PREVOTE,
+    valueHash: VALUE_A,
+    membershipRoot: membershipRootOf(ACTIVE),
+    prevoteQCRef: ZERO32,
+  }
+  const hmac = makeHmacLabVote(unsigned)
+  assert.equal(isHmacBftVote(hmac), true)
+  const hmacAccepted = acceptVote({
+    vote: hmac,
+    existing: undefined,
+    activeDomainIds: ACTIVE,
+    membershipRoot: unsigned.membershipRoot,
+  })
+  assert.equal(hmacAccepted.ok, false)
+  if (!hmacAccepted.ok) assert.equal(hmacAccepted.error, ERR_BFT_HMAC_CUTOVER)
+
+  const labeledHmac = { ...makeLabBftVote(unsigned), hmacForgeable: true as const }
+  const labeled = acceptVote({
+    vote: labeledHmac,
+    existing: undefined,
+    activeDomainIds: ACTIVE,
+    membershipRoot: unsigned.membershipRoot,
+  })
+  assert.equal(labeled.ok, false)
+  if (!labeled.ok) assert.equal(labeled.error, ERR_BFT_HMAC_CUTOVER)
+})
+
+test('P16 recoverAddress binds the seating key; tampered signature fails SIG', () => {
+  const vote = voteOf('fd-02', VOTE_STEP_PREVOTE)
+  assert.equal(vote.eip712, true)
+  assert.equal(vote.hmacForgeable, false)
+  assert.equal(vote.signer, labSeatingAddress('fd-02'))
+  assert.equal(verifyEip712BftVote(vote), true)
+  assert.equal(recoverLabBftVoteSigner(vote), labSeatingAddress('fd-02'))
+  const accepted = acceptVote({
+    vote,
+    existing: undefined,
+    activeDomainIds: ACTIVE,
+    membershipRoot: membershipRootOf(ACTIVE),
+  })
+  assert.equal(accepted.ok, true)
+
+  const wrongSigner = { ...vote, signer: labSeatingAddress('fd-03') }
+  const mismatched = acceptVote({
+    vote: wrongSigner,
+    existing: undefined,
+    activeDomainIds: ACTIVE,
+    membershipRoot: membershipRootOf(ACTIVE),
+  })
+  assert.equal(mismatched.ok, false)
+  if (!mismatched.ok) assert.equal(mismatched.error, ERR_BFT_VOTE_SIG)
+
+  const tampered = {
+    ...vote,
+    signature: `0x${'11'.repeat(65)}` as typeof vote.signature,
+  }
+  const bad = acceptVote({
+    vote: tampered,
+    existing: undefined,
+    activeDomainIds: ACTIVE,
+    membershipRoot: membershipRootOf(ACTIVE),
+  })
+  assert.equal(bad.ok, false)
+  if (!bad.ok) assert.equal(bad.error, ERR_BFT_VOTE_SIG)
+})
+
+test('P16 keep-only restores a disk HMAC certificate and labels status EIP-712', async () => {
+  const dataDir = await mkdtemp(join(tmpdir(), 'dle-p16-bft-'))
+  try {
+    const store = openArchiveStore(dataDir)
+    store.persistBftState({
+      schema: 'DleLabBftStateV1',
+      votes: ACTIVE.slice(0, 4).map((domainId) =>
+        makeHmacLabVote({
+          domainId,
+          height: 1,
+          round: 0,
+          step: VOTE_STEP_PREVOTE,
+          valueHash: VALUE_A,
+          membershipRoot: membershipRootOf(ACTIVE),
+          prevoteQCRef: ZERO32,
+        }),
+      ),
+      certificate: {
+        schema: 'DleLabArchiveCertificateV1',
+        kind: CERT_KIND_ARCHIVE,
+        height: 1,
+        round: 0,
+        valueHash: VALUE_A,
+        tipStateRoot: VALUE_B,
+        prevoteQCRef: QC_REF,
+        membershipRoot: membershipRootOf(ACTIVE),
+        quorum: ARCHIVE_QUORUM,
+        signers: ACTIVE.slice(0, 4),
+        networked: true,
+        modeA: true,
+        labOnly: true,
+        note: 'legacy hmac ac',
+      },
+      prevoteQc: null,
+    })
+    const engine = createArchiveBftEngine({
+      domainId: 'fd-01',
+      role: 'active',
+      peers: [],
+      store,
+    })
+    assert.equal(engine.certificate() !== null, true)
+    const status = engine.status()
+    assert.equal(status.certificateAvailable, true)
+    assert.equal(status.eip712, true)
+    assert.equal(status.hmacForgeable, false)
+    assert.equal(status.bftEip712, true)
+    assert.equal(status.prevoteCount, 0)
+    engine.stop()
+  } finally {
+    await rm(dataDir, { recursive: true, force: true })
+  }
 })

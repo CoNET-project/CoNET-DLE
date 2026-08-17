@@ -169,14 +169,43 @@ export function foldHashIndexPath(leafHash: string, path: readonly HashIndexMerk
   return toHex(current)
 }
 
-function rootFromLeaves(leaves: readonly HashIndexLeafV1[]): string {
-  if (leaves.length === 0) return emptyHashIndexRoot()
+interface CachedHashIndexTree {
+  key: string
+  leaves: HashIndexLeafV1[]
+  layers: Uint8Array[][]
+  root: string
+}
+
+let cachedTree: CachedHashIndexTree | null = null
+
+function locatorsFingerprint(locators: readonly HashLocatorV1[]): string {
+  const n = locators.length
+  if (n === 0) return '0'
+  let mix = n >>> 0
+  for (const locator of locators) {
+    mix = Math.imul(mix ^ locator.hash.charCodeAt(10), 16777619)
+    mix = Math.imul(mix ^ locator.hash.charCodeAt(40), 16777619)
+    mix = Math.imul(mix ^ locator.kind.charCodeAt(0), 16777619)
+    mix = (mix + locator.height.length) >>> 0
+  }
+  return `${n}:${mix >>> 0}:${locators[0]!.hash}:${locators[n - 1]!.hash}:${locators[n >> 1]!.hash}`
+}
+
+function treeOf(locators: readonly HashLocatorV1[]): CachedHashIndexTree {
+  const key = locatorsFingerprint(locators)
+  if (cachedTree !== null && cachedTree.key === key) return cachedTree
+  const leaves = sortedLeaves(locators)
+  if (leaves.length === 0) {
+    cachedTree = { key, leaves, layers: [], root: emptyHashIndexRoot() }
+    return cachedTree
+  }
   const layers = buildLayers(leaves.map((leaf) => fromHex(hashIndexLeafHash(leaf), 32)))
-  return toHex(layers[layers.length - 1]![0]!)
+  cachedTree = { key, leaves, layers, root: toHex(layers[layers.length - 1]![0]!) }
+  return cachedTree
 }
 
 export function hashIndexRootOf(locators: readonly HashLocatorV1[]): string {
-  return rootFromLeaves(sortedLeaves(locators))
+  return treeOf(locators).root
 }
 
 export function hashIndexRootView(
@@ -216,8 +245,8 @@ export function proveHashIndex(
 ): HashIndexProofV1 | { ok: false; error: string } {
   const normalized = normalizeHash32(hash)
   if (normalized === null) return { ok: false, error: 'ERR_INVALID_HASH' }
-  const leaves = sortedLeaves(locators)
-  const root = rootFromLeaves(leaves)
+  const tree = treeOf(locators)
+  const { leaves, layers, root } = tree
   const common = {
     schema: 'HashIndexProofV1' as const,
     labOnly: true as const,
@@ -238,7 +267,6 @@ export function proveHashIndex(
       reason: 'This group hashIndexTree is empty; plane-wide not-found is unproven.',
     }
   }
-  const layers = buildLayers(leaves.map((leaf) => fromHex(hashIndexLeafHash(leaf), 32)))
   const found = leaves.findIndex((leaf) => leaf.hash === normalized)
   if (found >= 0) {
     return {

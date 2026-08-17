@@ -82,7 +82,7 @@ export const DEMO_EVENT_FIXTURES: DleEventRow[] = [
     domainId: 'fd-01-ionos-45',
     role: 'active',
     ok: true,
-    detail: '5 active HMAC attests · 7+2 endorsed (lab accept snapshot, not 30-day qualification)',
+    detail: '5 active attests (historical HMAC snapshot) · 7+2 endorsed (lab accept snapshot, not 30-day qualification)',
     source: 'fixture',
   },
 ]

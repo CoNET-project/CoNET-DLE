@@ -6,17 +6,21 @@
     "labOnly": true,
     "notProductionDepin": true,
     "notThirtyDayQualification": true,
-    "g2GroupIdIsLabHash": true,
-    "g2GroupIdNotL1RegisterTx": true,
+    "g2GroupIdIsLabHash": false,
+    "g2GroupIdNotL1RegisterTx": false,
+    "g1OwnGroupIdIsBootstrapTx": true,
+    "g2OwnGroupIdIsRegisterTx": true,
+    "g1HopOwnGroupId": "0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0",
+    "g2HopOwnGroupId": "0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153",
     "g1Host": "74.208.224.45",
     "g2Host": "170.205.39.135",
     "g1LiveGroupIds": [
       "0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0",
-      "0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07"
+      "0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153"
     ],
     "g2LiveGroupIds": [
       "0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0",
-      "0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07"
+      "0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153"
     ],
     "g2MarkerThisGroup": {
       "jsonrpc": "2.0",
@@ -30,7 +34,7 @@
           "chainNftId": "6000000006",
           "kind": "ac",
           "height": "0x1",
-          "groupId": "0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07",
+          "groupId": "0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153",
           "acRef": "0x7ca21e5aa612caa12bbd137aa374d30a113d42c1f60ea411fdb6998a63e2345c"
         }
       }
@@ -59,7 +63,7 @@
           "chainNftId": "6000000006",
           "kind": "ac",
           "height": "0x1",
-          "groupId": "0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07",
+          "groupId": "0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153",
           "acRef": "0x7ca21e5aa612caa12bbd137aa374d30a113d42c1f60ea411fdb6998a63e2345c"
         }
       }
@@ -100,7 +104,7 @@
         "hash": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         "groupsChecked": [
           "0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0",
-          "0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07"
+          "0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153"
         ]
       }
     },
@@ -129,8 +133,8 @@
     "role": "active",
     "agent": "dle-30d-lab",
     "isolatedFromElCl": true,
-    "uptimeMs": 107485,
-    "heartbeats": 16,
+    "uptimeMs": 155975,
+    "heartbeats": 24,
     "lastQuorumOk": true,
     "lastPeerOk": 6,
     "bftNetworked": true,
@@ -148,12 +152,15 @@
     "ondemandPoolRoot": "0x1a0895b0fb313bcf61b76b3a381d00a6ad80554ff47f2456a111ab8ca68def74",
     "newchainLabOnly": true,
     "newchainNotL1Nft": true,
-    "newchainCount": 164,
+    "newchainCount": 896,
     "newchainByClass": {
-      "asset": 53,
-      "storage": 49,
-      "trade": 62
+      "asset": 284,
+      "storage": 287,
+      "trade": 325
     },
+    "newchainValidatorQuorum": 5,
+    "newchainArchivePending": 8,
+    "newchainArchiveCertified": 162,
     "hop1": {
       "labOnly": true,
       "notProductionDepin": true,
@@ -168,7 +175,7 @@
     "liveGroupCount": 2,
     "liveGroupIds": [
       "0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0",
-      "0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07"
+      "0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153"
     ],
     "hashIndex": {
       "schema": "DleHashIndexRootV1",
@@ -177,8 +184,8 @@
       "notHotGet": true,
       "committedInAc": false,
       "groupId": "0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0",
-      "hashIndexRoot": "0xf52c9157dcb93f503a06c286405a01fd1527cc47f02191a6dc55c1aeaa8a044c",
-      "leafCount": 170
+      "hashIndexRoot": "0xa0830501e147ae3a40ac929dbf01ce0195639fa2358e4febd9134a4580f3bc5c",
+      "leafCount": 1954
     }
   },
   "g2Health": {
@@ -198,8 +205,8 @@
     "role": "active",
     "agent": "dle-30d-lab",
     "isolatedFromElCl": true,
-    "uptimeMs": 276727,
-    "heartbeats": 46,
+    "uptimeMs": 319140,
+    "heartbeats": 53,
     "lastQuorumOk": true,
     "lastPeerOk": 6,
     "bftNetworked": true,
@@ -223,12 +230,15 @@
       "storage": 0,
       "trade": 0
     },
+    "newchainValidatorQuorum": 5,
+    "newchainArchivePending": 0,
+    "newchainArchiveCertified": 0,
     "hop1": {
       "labOnly": true,
       "notProductionDepin": true,
       "l1RouteUnproven": true,
       "transport": "lab-http-27101",
-      "ownGroupId": "0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07",
+      "ownGroupId": "0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153",
       "providerCount": 7,
       "nft42ProviderCount": 7
     },
@@ -237,7 +247,7 @@
     "liveGroupCount": 2,
     "liveGroupIds": [
       "0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0",
-      "0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07"
+      "0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153"
     ],
     "hashIndex": {
       "schema": "DleHashIndexRootV1",
@@ -245,7 +255,7 @@
       "notProductionDepin": true,
       "notHotGet": true,
       "committedInAc": false,
-      "groupId": "0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07",
+      "groupId": "0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153",
       "hashIndexRoot": "0x9331fe26be0a540044d3724a05f33f126ccd8677c34e74712dafe1237126d60b",
       "leafCount": 1
     }

@@ -18,6 +18,7 @@ import {
 import {
   DLE_LAB_GROUP_ID,
   DLE_LAB_M6_GROUP_ID,
+  DLE_LAB_M6_GROUP_ID_LEGACY,
   DLE_LAB_M6_MARKER_HASH,
   DLE_LAB_M6_MARKER_NFT_ID,
   hashLookupNotFound,
@@ -241,4 +242,25 @@ test('seedLabFissionMarker indexes the G2 marker on the marker nft', () => {
     assert.equal(hit.locator.groupId, DLE_LAB_M6_GROUP_ID)
   }
   assert.equal(indexLabHashObject(store, labAcLocator(`0x${'11'.repeat(32)}`, '0x1', `0x${'11'.repeat(32)}`), { kind: 'ac' }).ok, true)
+})
+
+test('reseeding fission marker after ownGroupId cutover does not rewrite freezer', () => {
+  const store = openHashStore(join(root, 'marker-cutover'))
+  const firstTable = labRouteTableFromPeers(
+    { domainId: 'g2-a', role: 'active', url: 'http://127.0.0.1:37101' },
+    [],
+    { ownGroupId: DLE_LAB_M6_GROUP_ID_LEGACY },
+  )
+  const first = seedLabFissionMarker(store, firstTable)
+  assert.equal(first.ok, true)
+  const firstBody = store.getBody(DLE_LAB_M6_MARKER_NFT_ID, '0x1', 'ac')
+  const secondTable = labRouteTableFromPeers(
+    { domainId: 'g2-a', role: 'active', url: 'http://127.0.0.1:37101' },
+    [],
+    { ownGroupId: DLE_LAB_M6_GROUP_ID },
+  )
+  const second = seedLabFissionMarker(store, secondTable)
+  assert.equal(second.ok, true)
+  if (second.ok) assert.equal(second.hash, DLE_LAB_M6_MARKER_HASH)
+  assert.deepEqual(store.getBody(DLE_LAB_M6_MARKER_NFT_ID, '0x1', 'ac'), firstBody)
 })

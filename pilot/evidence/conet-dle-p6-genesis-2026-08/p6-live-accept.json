@@ -1,0 +1,125 @@
+{
+  "schema": "DleLabP6EvidenceV1",
+  "labOnly": true,
+  "notL1Nft": true,
+  "notThirtyDayQualification": true,
+  "acceptedAt": "2026-08-16T19:12:11.677Z",
+  "requestId": "0x6bec775648b2f8b9b27918734ac240bf9ec110a1efd5a95118012de71dd4e6a1",
+  "chainNftId": "326990096",
+  "valueHash": "0x32788cf04183a3440d1c63aecbdca58fd01997a1082a2fb2642a172ca90cc5ff",
+  "tipStateRoot": "0x1549535af4b03f378f577ea701a14bfc889c6a68cc4ba04daf39927322088065",
+  "validatorQuorum": "DleLabValidatorQuorumV1",
+  "archiveCertificate": "DleLabArchiveCertificateV1",
+  "certifiedHosts": [
+    {
+      "id": "fd-01",
+      "signers": [
+        "fd-01-ionos-45",
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ]
+    },
+    {
+      "id": "fd-02",
+      "signers": [
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ]
+    },
+    {
+      "id": "fd-03",
+      "signers": [
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ]
+    },
+    {
+      "id": "fd-04",
+      "signers": [
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ]
+    },
+    {
+      "id": "fd-05",
+      "signers": [
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ]
+    },
+    {
+      "id": "fd-06",
+      "signers": [
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ]
+    },
+    {
+      "id": "fd-07",
+      "signers": [
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2"
+      ]
+    }
+  ],
+  "tipBefore": [
+    "0x1",
+    "0x1",
+    "0x1",
+    "0x1",
+    "0x1",
+    "0x1",
+    "0x1"
+  ],
+  "tipAfter": [
+    "0x1",
+    "0x1",
+    "0x1",
+    "0x1",
+    "0x1",
+    "0x1",
+    "0x1"
+  ],
+  "liveGroupCount": [
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2
+  ],
+  "nft42CertificateAvailable": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "healthBeforeMs": [
+    294431,
+    271138,
+    252278,
+    228435,
+    204349,
+    181284,
+    158220
+  ],
+  "note": "G1 keep + G2 via lab:deploy-m6. Per-chain AC must not move NFT 42 tip. Completing P6 is not 30-day qualification."
+}

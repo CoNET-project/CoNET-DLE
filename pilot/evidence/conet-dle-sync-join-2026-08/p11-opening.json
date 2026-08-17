@@ -1,0 +1,15 @@
+{
+  "schema": "DleLabP11JoinerOpeningV1",
+  "labOnly": true,
+  "hmacForgeable": true,
+  "notProductionCg": true,
+  "notOfficialFivePlusTwo": true,
+  "domainId": "fd-08-hosthatch-hk1",
+  "ok": true,
+  "hostedChainCount": 2249,
+  "openedChainCount": 2249,
+  "policy": "all-hosted",
+  "sampleCount": 2250,
+  "detail": "opened===hosted all-hosted",
+  "at": "2026-08-17T07:52:17.883Z"
+}

@@ -1,9 +1,11 @@
 import { concatBytes, fromHex, keccak256, uintBE, utf8, ZERO32, type Hex } from './bytes.js'
-import { verifyLabVote, votesEqual } from './mac.js'
+import { isHmacBftVote, verifyEip712BftVote, votesEqual } from './mac.js'
 import {
   ARCHIVE_QUORUM,
   CERT_KIND_ARCHIVE,
   CERT_KIND_PREVOTE_QC,
+  ERR_BFT_HMAC_CUTOVER,
+  ERR_BFT_VOTE_SIG,
   ERR_INVALID_QUORUM,
   ERR_SIGNER_NOT_ACTIVE,
   ERR_WAL_DOUBLE_SIGN,
@@ -62,7 +64,8 @@ export function acceptVote(input: {
   if (input.vote.step !== VOTE_STEP_PREVOTE && input.vote.step !== VOTE_STEP_PRECOMMIT) {
     return { ok: false, error: 'ERR_INVALID_VOTE' }
   }
-  if (!verifyLabVote(input.vote)) return { ok: false, error: 'ERR_INVALID_MAC' }
+  if (isHmacBftVote(input.vote)) return { ok: false, error: ERR_BFT_HMAC_CUTOVER }
+  if (!verifyEip712BftVote(input.vote)) return { ok: false, error: ERR_BFT_VOTE_SIG }
   if (input.existing !== undefined && !votesEqual(input.existing, input.vote)) {
     return { ok: false, error: ERR_WAL_DOUBLE_SIGN }
   }
@@ -164,7 +167,7 @@ export function buildArchiveCertificate(input: {
       networked: true,
       modeA: true,
       labOnly: true,
-      note: 'Lab networked PrecommitQC. Not a frozen EIP-712 L1 wrapper or corpus SSZ object.',
+      note: 'Lab networked PrecommitQC. Votes are lab EIP-712 ArchiveBftVote; not a frozen EIP-712 L1 wrapper or corpus SSZ object.',
     },
   }
 }

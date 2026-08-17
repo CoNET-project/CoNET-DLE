@@ -1,6 +1,12 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { openHashStore, type HashStore } from './hashStore.js'
+
+function atomicWriteJson(path: string, value: unknown): void {
+  const tmp = `${path}.tmp`
+  writeFileSync(tmp, `${JSON.stringify(value)}\n`, 'utf8')
+  renameSync(tmp, path)
+}
 
 const WAL_RING_MAX = 256
 
@@ -15,6 +21,8 @@ export interface ArchiveStore {
   loadOnDemandState(): unknown | null
   persistNewChainState(state: unknown): void
   loadNewChainState(): unknown | null
+  persistSyncQualificationState(state: unknown): void
+  loadSyncQualificationState(): unknown | null
 }
 
 export function openArchiveStore(dataDir: string): ArchiveStore {
@@ -24,6 +32,7 @@ export function openArchiveStore(dataDir: string): ArchiveStore {
   const bftPath = join(dataDir, 'bft-state.json')
   const ondemandPath = join(dataDir, 'ondemand-state.json')
   const newchainPath = join(dataDir, 'newchain-state.json')
+  const syncPath = join(dataDir, 'sync-qualification.json')
   const ring: Array<Record<string, unknown>> = []
   writeFileSync(
     identityPath,
@@ -53,7 +62,7 @@ export function openArchiveStore(dataDir: string): ArchiveStore {
       return ring.slice(-take)
     },
     persistBftState(state) {
-      writeFileSync(bftPath, `${JSON.stringify(state)}\n`, 'utf8')
+      atomicWriteJson(bftPath, state)
     },
     loadBftState() {
       if (!existsSync(bftPath)) return null
@@ -64,7 +73,7 @@ export function openArchiveStore(dataDir: string): ArchiveStore {
       }
     },
     persistOnDemandState(state) {
-      writeFileSync(ondemandPath, `${JSON.stringify(state)}\n`, 'utf8')
+      atomicWriteJson(ondemandPath, state)
     },
     loadOnDemandState() {
       if (!existsSync(ondemandPath)) return null
@@ -75,12 +84,23 @@ export function openArchiveStore(dataDir: string): ArchiveStore {
       }
     },
     persistNewChainState(state) {
-      writeFileSync(newchainPath, `${JSON.stringify(state)}\n`, 'utf8')
+      atomicWriteJson(newchainPath, state)
     },
     loadNewChainState() {
       if (!existsSync(newchainPath)) return null
       try {
         return JSON.parse(readFileSync(newchainPath, 'utf8')) as unknown
+      } catch {
+        return null
+      }
+    },
+    persistSyncQualificationState(state) {
+      atomicWriteJson(syncPath, state)
+    },
+    loadSyncQualificationState() {
+      if (!existsSync(syncPath)) return null
+      try {
+        return JSON.parse(readFileSync(syncPath, 'utf8')) as unknown
       } catch {
         return null
       }

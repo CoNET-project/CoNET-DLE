@@ -5,6 +5,7 @@ import {
   fromHex,
   keccak256,
   keccak256Bytes,
+  keccak256Utf8,
   toHex,
   uintBE,
   utf8,
@@ -13,6 +14,10 @@ import {
 import {
   LAB_BEACON_DOMAIN,
   LAB_EPOCH,
+  LAB_ONDEMAND_BEACON_AFTER_FREEZE_DOMAIN,
+  LAB_ONDEMAND_FREEZE_DOMAIN,
+  LAB_ONDEMAND_HONEST_WAIT_REVEAL_DOMAIN,
+  LAB_ONDEMAND_REVEAL_AFTER_FREEZE_DOMAIN,
   LAB_SHARD_ID,
   MIN_WAIT_POOL,
   ROULETTE_DOMAIN,
@@ -62,8 +67,39 @@ export function poolRootOf(addresses: readonly string[], joinNonce = 0): Hex {
   return merkleRoot(sorted.map((address) => waitLeaf(address, joinNonce)))
 }
 
+/** Instant keccak(poolRoot). Contrast-only — not a post-freeze reveal. */
 export function labBeaconAfterFreeze(poolRoot: Hex, epoch = LAB_EPOCH, shardId = LAB_SHARD_ID): Hex {
   return keccak256(concatBytes(utf8(LAB_BEACON_DOMAIN), fromHex(poolRoot, 32), uintBE(epoch, 8), utf8(shardId)))
+}
+
+export function ondemandFreezeHex(input: {
+  poolRoot: Hex
+  epoch?: number
+  shardId?: string
+  groupId: string
+}): Hex {
+  const epoch = input.epoch ?? LAB_EPOCH
+  const shardId = input.shardId ?? LAB_SHARD_ID
+  return keccak256Utf8(`${LAB_ONDEMAND_FREEZE_DOMAIN}|${input.poolRoot}|${epoch}|${shardId}|${input.groupId}`)
+}
+
+export function ondemandHonestWaitReveal(freezeHex: Hex): Hex {
+  return keccak256Utf8(`${LAB_ONDEMAND_HONEST_WAIT_REVEAL_DOMAIN}|${freezeHex}`)
+}
+
+export function ondemandPostFreezeRevealSalt(input: {
+  domainId: string
+  freezeHex: Hex
+  frozenAt: string
+  revealMaterial: string
+}): Hex {
+  return keccak256Utf8(
+    `${LAB_ONDEMAND_REVEAL_AFTER_FREEZE_DOMAIN}|${input.domainId}|${input.freezeHex}|${input.frozenAt}|${input.revealMaterial}`,
+  )
+}
+
+export function labOnDemandBeaconAfterFreeze(freezeHex: Hex, revealSalt: Hex): Hex {
+  return keccak256Utf8(`${LAB_ONDEMAND_BEACON_AFTER_FREEZE_DOMAIN}|${freezeHex}|${revealSalt}`)
 }
 
 export function rouletteSeed(input: {
@@ -111,6 +147,7 @@ export function drawCommittee(input: {
   const shardId = input.shardId ?? LAB_SHARD_ID
   const joinNonce = input.joinNonce ?? 0
   const poolRoot = poolRootOf(miners, joinNonce)
+  // Default is contrast-only instant keccak. New engine freezes must pass a bound beacon.
   const beacon = input.beacon ?? labBeaconAfterFreeze(poolRoot, epoch, shardId)
   const roulette = rouletteSeed({ beacon, epoch, shardId, poolRoot })
   const shuffled = fisherYates(miners, roulette)

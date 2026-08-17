@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { ParticipantWallet } from '../components/ParticipantWallet'
 import { StatusPill } from '../components/StatusPill'
 import { MainPageShell } from '../components/TitleCapsule'
+import { archiveSeatingPill } from '../lib/archiveSeating'
 import { formatInteger } from '../lib/format'
 import { useExplorer } from '../providers/ExplorerProvider'
 
@@ -12,8 +13,9 @@ export function ArchivesPage() {
     <MainPageShell title="Archives">
       <p className="mb-4 text-sm leading-6 text-slate-400">
         Seven-domain lab roster (5 active + 2 standby). Each archive has a unique participant wallet on the CoNET L1
-        Global Archive Routing Registry. Health fields merge only from a trusted live archive response. This list is
-        not a 30-day qualification claim.
+        Global Archive Routing Registry. Health fields merge only from a trusted live archive response. A green seating
+        pill is shown only when <code>seatingQualified === true</code> after ArchiveStateChallengeV1. Heartbeat quorum
+        is reachability, not seating. This list is not a 30-day qualification claim.
       </p>
       <div className="space-y-3">
         {snapshot.archives.map((row) => (
@@ -30,6 +32,7 @@ export function ArchivesPage() {
                   label={row.health}
                   tone={row.health === 'live' ? 'ok' : row.health === 'unreachable' ? 'bad' : 'neutral'}
                 />
+                <StatusPill {...archiveSeatingPill(row)} />
               </div>
             </div>
             <div className="mt-3">
@@ -42,8 +45,9 @@ export function ArchivesPage() {
               {row.provider} · {row.region}
             </p>
             <p className="dle-mono mt-1 text-xs text-slate-500">
-              quorum {row.lastQuorumOk === null ? '—' : row.lastQuorumOk ? 'ok' : 'no'} · peers{' '}
+              heartbeat {row.lastQuorumOk === null ? '—' : row.lastQuorumOk ? 'ok' : 'no'} · peers{' '}
               {row.lastPeerOk === null ? '—' : formatInteger(row.lastPeerOk)}
+              {row.syncPhase ? ` · sync ${row.syncPhase}` : ''}
             </p>
           </Link>
         ))}

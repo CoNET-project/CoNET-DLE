@@ -70,7 +70,7 @@ export const LAB_SELECTION_FIXTURE: DleSelectionLogAvailable = {
   quorum: 4,
   labBeacon: true,
   labOnly: true,
-  note: 'Lab SelectionLog. Beacon is keccak after freeze, not CoNET L1 CL RANDAO. HMAC attests are forgeable. Not an Archive Certificate. Not 30-day qualification.',
+  note: 'Historical 2026-08-15 lab accept snapshot (instant keccak-after-freeze beacon). Live attests are EIP-712 ArchiveOnDemandAttest (P17). Live beacon is freeze-then-bind lab keccak (P19), not CoNET L1 CL RANDAO. Wait hooks are not intra-group gossip (P20); lab HTTP is not production DePIN gossip. Not an Archive Certificate. Not 30-day qualification.',
   acceptedAt: LAB_P3_ACCEPTED_AT,
   source: 'fixture',
 }

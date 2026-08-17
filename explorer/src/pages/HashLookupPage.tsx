@@ -75,6 +75,8 @@ export function HashLookupPage() {
         <>
           {hit ? <StatusPill label="Hit" tone="ok" /> : null}
           {kind === 'prevoteQc' ? <StatusPill label="Prevote QC" tone="purple" /> : null}
+          {kind === 'tipStateRoot' ? <StatusPill label="Tip state root" tone="ok" /> : null}
+          {kind === 'membershipRoot' ? <StatusPill label="Membership root" tone="purple" /> : null}
           {kind === 'ac' ? <StatusPill label="Archive Certificate" tone="blue" /> : null}
           {notFound ? <StatusPill label="Not found" tone="neutral" /> : null}
           {row?.status === 'unavailable' ? <StatusPill label="Unavailable" tone="warn" /> : null}
@@ -104,10 +106,10 @@ export function HashLookupPage() {
       {notFound ? (
         <p className="mb-4 text-sm leading-6 text-slate-400">
           This hash is not present in this group’s committed corpus. That is a this-group{' '}
-          <span className="text-white">not-found</span>, not a plane-wide null. Commitment fields such as{' '}
-          <span className="dle-mono text-cyan-300">tipStateRoot</span> or{' '}
-          <span className="dle-mono text-cyan-300">membershipRoot</span> stay inside the Archive Certificate until they
-          gain their own typed hash kind.
+          <span className="text-white">not-found</span>, not a plane-wide null.{' '}
+          <span className="dle-mono text-cyan-300">tipStateRoot</span> and{' '}
+          <span className="dle-mono text-cyan-300">membershipRoot</span> are first-class hash kinds; a hit returns their
+          typed object, not the Archive Certificate.
         </p>
       ) : null}
       {row?.status === 'unavailable' ? (

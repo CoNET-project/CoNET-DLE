@@ -36,6 +36,8 @@ export const ERR_TRADE_ESCROW_CUSTODY = 0x1308
 export const ERR_WAL_DOUBLE_SIGN = 'ERR_WAL_DOUBLE_SIGN'
 export const ERR_SIGNER_NOT_ACTIVE = 'ERR_SIGNER_NOT_ACTIVE'
 export const ERR_INVALID_QUORUM = 'ERR_INVALID_QUORUM'
+export const ERR_BFT_HMAC_CUTOVER = 'ERR_BFT_HMAC_CUTOVER'
+export const ERR_BFT_VOTE_SIG = 'ERR_BFT_VOTE_SIG'
 
 export const ASSET_STATE_PATHS = [
   '/state',
@@ -196,7 +198,15 @@ export interface ArchiveVote {
   valueHash: Hex
   membershipRoot: Hex
   prevoteQCRef: Hex
-  mac: Hex
+  eip712?: boolean
+  hmacForgeable?: boolean
+  labDeterministicSeatingKey?: boolean
+  notProductionOperatorKey?: boolean
+  notL1Settled?: boolean
+  signer?: string
+  signature?: Hex
+  /** Legacy HMAC only. New votes omit this; `acceptVote` rejects HMAC. */
+  mac?: Hex
 }
 
 export interface ArchivePrevoteQc {
@@ -241,6 +251,7 @@ export interface BftPeer {
 export interface BftStatus {
   schema: 'DleLabBftStatusV1'
   networked: true
+  processStarted: boolean
   modeA: true
   modeAAccepted: boolean
   role: string
@@ -254,5 +265,8 @@ export interface BftStatus {
   valueHash: Hex
   quorum: number
   labOnly: true
+  eip712: true
+  hmacForgeable: false
+  bftEip712: true
   modeAError?: number
 }

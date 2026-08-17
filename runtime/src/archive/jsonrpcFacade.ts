@@ -36,6 +36,15 @@ export interface ArchiveFacadeViews {
   certificate: DleCertificateView
   waitingPool?: DleWaitingPoolView
   selectionLog?: DleSelectionLogView
+  /** True only while ArchiveStateChallengeV1 phase is SYNCING. Not a seating claim. */
+  syncing?:
+    | false
+    | {
+        startingBlock: string
+        currentBlock: string
+        highestBlock: string
+        dleNote: 'not seating'
+      }
 }
 
 const EMPTY_LOGS_BLOOM = `0x${'0'.repeat(512)}`
@@ -226,7 +235,7 @@ export async function dispatchArchiveJsonRpc(
     case 'eth_protocolVersion':
       return jsonRpcSuccess(request.id, '0x0')
     case 'eth_syncing':
-      return jsonRpcSuccess(request.id, false)
+      return jsonRpcSuccess(request.id, views.syncing ?? false)
     case 'eth_accounts':
       return jsonRpcSuccess(request.id, [])
     case 'eth_getBlockByNumber':

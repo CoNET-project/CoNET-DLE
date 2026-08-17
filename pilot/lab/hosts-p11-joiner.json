@@ -1,0 +1,14 @@
+{
+  "schema": "PilotLabP11JoinerV1",
+  "pilotId": "conet-dle-30d-lab-2026-08",
+  "notOfficialFivePlusTwo": true,
+  "role": "standby",
+  "joiner": {
+    "domainId": "fd-08-hosthatch-hk1",
+    "sshHost": "167.104.98.104",
+    "class": "greenfield-lab",
+    "leftoverElCl": false,
+    "doNotStartValidator": true,
+    "notes": "P11 extra standby joiner. HostHatch HK1 167.104.98.104. Empty datadir only. Never official 5+2. Never wipe fd-01..07."
+  }
+}

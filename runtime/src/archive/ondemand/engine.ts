@@ -1,15 +1,24 @@
 import {
   ARCHIVE_ATTEST_QUORUM,
+  ERR_ONDEMAND_HOOK_NOT_GOSSIP,
   LAB_EPOCH,
   LAB_GROUP_ID,
+  LAB_HOOK_QUEUED_NOTE,
   LAB_MINERS,
   LAB_SELECTION_NOTE,
   LAB_SHARD_ID,
   MIN_WAIT_POOL,
   drawCommittee,
+  labBeaconAfterFreeze,
+  labOnDemandBeaconAfterFreeze,
   normalizeAddress,
+  ondemandFreezeHex,
+  ondemandHonestWaitReveal,
+  ondemandPostFreezeRevealSalt,
+  poolRootOf,
   sameHexList,
   type DrawResult,
+  type OnDemandBeaconSource,
   type SelectionLog,
   type SelectionView,
   type WaitMiner,
@@ -17,8 +26,18 @@ import {
 } from '../../shared/ondemand/index.js'
 import { canonicalGroupId, sameGroupId } from '../../shared/hashLookup.js'
 import type { Hex } from '../../shared/bytes.js'
+import { probeFinalizedClRandomness, type ClBeaconProbeResult } from '../syncQualification/clBeacon.js'
 import type { ArchiveStore } from '../store.js'
-import { signLabPoolAttest, verifyLabPoolAttest, type PoolAttest } from './mac.js'
+import {
+  ERR_ONDEMAND_ATTEST_SIG,
+  ERR_ONDEMAND_HMAC_CUTOVER,
+  isHmacOnDemandAttest,
+  makeLabPoolAttest,
+  parseAttest,
+  verifyEip712LabPoolAttest,
+  verifyLabPoolAttestForRestore,
+  type PoolAttest,
+} from './mac.js'
 
 const GOSSIP_MS = 1_000
 const GOSSIP_AFTER_ENDORSED_MS = 5_000
@@ -42,6 +61,8 @@ export interface OnDemandOptions {
   autoSeedLabMiners?: boolean
   autoFreeze?: boolean
   beacon?: Hex
+  clBeaconProbe?: () => ClBeaconProbeResult
+  postFreezeRevealMaterial?: () => string
   fetchImpl?: typeof fetch
 }
 
@@ -53,6 +74,17 @@ export interface OnDemandHealth {
   ondemandAttestCount: number
   ondemandEndorsed: boolean
   ondemandPoolRoot: Hex
+  eip712: true
+  hmacForgeable: false
+  ondemandEip712: true
+  ondemandFreezeBeforeBeacon: true
+  ondemandLabBeaconAfterFreeze: true
+  ondemandNotProductionBeacon: true
+  ondemandPublicrpcNotClRandao: true
+  ondemandBeaconSource: OnDemandBeaconSource | 'unbound'
+  ondemandHookNotGossip: true
+  ondemandMustFanoutToEveryActiveArchive: true
+  ondemandNotProductionDepinGossip: true
 }
 
 export interface OnDemandEngine {
@@ -76,28 +108,13 @@ interface PersistedOnDemand {
   freezeAt: string | null
   attests: PoolAttest[]
   selection: SelectionLog | null
+  freezeHex?: Hex | null
+  revealSalt?: Hex | null
+  beaconSource?: OnDemandBeaconSource | null
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
-
-function parseAttest(value: unknown): PoolAttest | null {
-  if (!isRecord(value) || value.schema !== 'DleLabPoolAttestV1') return null
-  if (typeof value.domainId !== 'string') return null
-  if (typeof value.epoch !== 'number' || typeof value.shardId !== 'string') return null
-  if (typeof value.poolRoot !== 'string' || typeof value.roulette !== 'string' || typeof value.mac !== 'string') {
-    return null
-  }
-  return {
-    schema: 'DleLabPoolAttestV1',
-    domainId: value.domainId,
-    poolRoot: value.poolRoot as Hex,
-    epoch: value.epoch,
-    shardId: value.shardId,
-    roulette: value.roulette as Hex,
-    mac: value.mac as Hex,
-  }
 }
 
 function parseSelection(value: unknown): SelectionLog | null {
@@ -115,7 +132,7 @@ function parseSelection(value: unknown): SelectionLog | null {
   if (!Array.isArray(value.committee) || !value.committee.every((item) => typeof item === 'string')) return null
   if (!Array.isArray(value.standbys) || !value.standbys.every((item) => typeof item === 'string')) return null
   if (!Array.isArray(value.attestors) || !value.attestors.every((item) => typeof item === 'string')) return null
-  return {
+  const next: SelectionLog = {
     schema: 'DleLabSelectionLogV1',
     available: true,
     endorsed: value.endorsed === true,
@@ -131,8 +148,38 @@ function parseSelection(value: unknown): SelectionLog | null {
     quorum: ARCHIVE_ATTEST_QUORUM,
     labBeacon: true,
     labOnly: true,
+    eip712: true,
+    hmacForgeable: false,
+    ondemandEip712: true,
+    freezeBeforeBeacon: true,
+    notProductionBeacon: true,
     note: typeof value.note === 'string' ? value.note : LAB_SELECTION_NOTE,
   }
+  if (typeof value.ondemandLabBeaconAfterFreeze === 'boolean') {
+    next.ondemandLabBeaconAfterFreeze = value.ondemandLabBeaconAfterFreeze
+  }
+  if (isBeaconSource(value.ondemandBeaconSource)) next.ondemandBeaconSource = value.ondemandBeaconSource
+  return next
+}
+
+function isBeaconSource(value: unknown): value is OnDemandBeaconSource {
+  return (
+    value === 'lab-after-freeze' ||
+    value === 'injected-cl-view' ||
+    value === 'options-beacon' ||
+    value === 'legacy-instant'
+  )
+}
+
+function inferLegacyBeaconSource(selection: SelectionLog): OnDemandBeaconSource {
+  try {
+    if (selection.beacon === labBeaconAfterFreeze(selection.poolRoot, selection.epoch, selection.shardId)) {
+      return 'legacy-instant'
+    }
+  } catch {
+    /* keep-only unknown disk beacon is still not production */
+  }
+  return 'legacy-instant'
 }
 
 export function createOnDemandEngine(options: OnDemandOptions): OnDemandEngine {
@@ -147,6 +194,11 @@ export function createOnDemandEngine(options: OnDemandOptions): OnDemandEngine {
   let freezeAt: string | null = null
   let draw: DrawResult | null = null
   let selection: SelectionLog | null = null
+  let freezeHex: Hex | null = null
+  let revealSalt: Hex | null = null
+  let boundBeacon: Hex | null = null
+  let beaconSource: OnDemandBeaconSource | null = null
+  let frozenPoolRoot: Hex | null = null
   let stopped = false
   let timer: ReturnType<typeof setTimeout> | undefined
 
@@ -157,15 +209,24 @@ export function createOnDemandEngine(options: OnDemandOptions): OnDemandEngine {
     }
     frozen = persisted.frozen
     freezeAt = persisted.freezeAt
+    if (typeof persisted.freezeHex === 'string') freezeHex = persisted.freezeHex
+    if (typeof persisted.revealSalt === 'string') revealSalt = persisted.revealSalt
+    if (isBeaconSource(persisted.beaconSource)) beaconSource = persisted.beaconSource
     for (const raw of persisted.attests) {
       const attest = parseAttest(raw)
-      if (attest !== null && verifyLabPoolAttest(attest)) attests.set(attest.domainId, attest)
+      if (attest !== null && verifyLabPoolAttestForRestore(attest)) attests.set(attest.domainId, attest)
     }
     if (persisted.selection !== null) {
       const loaded = parseSelection(persisted.selection)
-      if (loaded !== null) selection = loaded
+      if (loaded !== null) {
+        selection = loaded
+        boundBeacon = loaded.beacon
+        frozenPoolRoot = loaded.poolRoot
+        if (beaconSource === null) beaconSource = inferLegacyBeaconSource(loaded)
+      }
     }
     if (frozen && miners.size >= MIN_WAIT_POOL) {
+      if (boundBeacon === null) bindBeacon()
       draw = computeDraw()
     }
   }
@@ -180,8 +241,44 @@ export function createOnDemandEngine(options: OnDemandOptions): OnDemandEngine {
       epoch,
       shardId,
     }
-    if (options.beacon !== undefined) input.beacon = options.beacon
+    if (boundBeacon !== null) input.beacon = boundBeacon
+    else if (options.beacon !== undefined) input.beacon = options.beacon
+    else if (selection?.beacon !== undefined) input.beacon = selection.beacon
     return drawCommittee(input)
+  }
+
+  function freezeSnapshot(): Hex {
+    const poolRoot = poolRootOf(minerList())
+    frozenPoolRoot = poolRoot
+    freezeHex = ondemandFreezeHex({ poolRoot, epoch, shardId, groupId })
+    return poolRoot
+  }
+
+  function bindBeacon(): void {
+    if (freezeHex === null) freezeSnapshot()
+    const probe = options.clBeaconProbe?.() ?? probeFinalizedClRandomness()
+    if (options.beacon !== undefined) {
+      boundBeacon = options.beacon
+      beaconSource = 'options-beacon'
+      return
+    }
+    if (probe.available) {
+      boundBeacon = probe.randomness
+      beaconSource = 'injected-cl-view'
+      return
+    }
+    if (options.postFreezeRevealMaterial !== undefined) {
+      revealSalt = ondemandPostFreezeRevealSalt({
+        domainId: options.domainId,
+        freezeHex: freezeHex!,
+        frozenAt: freezeAt ?? new Date().toISOString(),
+        revealMaterial: options.postFreezeRevealMaterial(),
+      })
+    } else {
+      revealSalt = ondemandHonestWaitReveal(freezeHex!)
+    }
+    boundBeacon = labOnDemandBeaconAfterFreeze(freezeHex!, revealSalt)
+    beaconSource = 'lab-after-freeze'
   }
 
   function persist(): void {
@@ -190,6 +287,9 @@ export function createOnDemandEngine(options: OnDemandOptions): OnDemandEngine {
       miners: [...miners.values()].sort((left, right) => left.address.localeCompare(right.address)),
       frozen,
       freezeAt,
+      freezeHex,
+      revealSalt,
+      beaconSource,
       attests: [...attests.values()],
       selection,
     })
@@ -204,7 +304,7 @@ export function createOnDemandEngine(options: OnDemandOptions): OnDemandEngine {
           row.roulette === draw!.roulette &&
           row.epoch === epoch &&
           row.shardId === shardId &&
-          verifyLabPoolAttest(row),
+          verifyLabPoolAttestForRestore(row),
       )
       .map((row) => row.domainId)
       .sort()
@@ -229,8 +329,15 @@ export function createOnDemandEngine(options: OnDemandOptions): OnDemandEngine {
       quorum: ARCHIVE_ATTEST_QUORUM,
       labBeacon: true,
       labOnly: true,
+      eip712: true,
+      hmacForgeable: false,
+      ondemandEip712: true,
+      freezeBeforeBeacon: true,
+      notProductionBeacon: true,
+      ondemandLabBeaconAfterFreeze: beaconSource === 'lab-after-freeze',
       note: LAB_SELECTION_NOTE,
     }
+    if (beaconSource !== null) next.ondemandBeaconSource = beaconSource
     selection = next
     persist()
   }
@@ -244,7 +351,7 @@ export function createOnDemandEngine(options: OnDemandOptions): OnDemandEngine {
       shardId,
       roulette: draw.roulette,
     }
-    const attest: PoolAttest = { schema: 'DleLabPoolAttestV1', ...unsigned, mac: signLabPoolAttest(unsigned) }
+    const attest = makeLabPoolAttest(unsigned)
     attests.set(attest.domainId, attest)
     options.store.appendWal({ type: 'ondemand-attest', domainId: attest.domainId, poolRoot: attest.poolRoot })
     rebuildSelection()
@@ -255,8 +362,11 @@ export function createOnDemandEngine(options: OnDemandOptions): OnDemandEngine {
     if (miners.size < MIN_WAIT_POOL) return 'ERR_POOL_TOO_SMALL'
     frozen = true
     freezeAt = new Date().toISOString()
+    const poolRoot = freezeSnapshot()
+    persist()
+    bindBeacon()
     draw = computeDraw()
-    options.store.appendWal({ type: 'ondemand-freeze', poolRoot: draw.poolRoot, minerCount: miners.size })
+    options.store.appendWal({ type: 'ondemand-freeze', poolRoot, minerCount: miners.size })
     addOwnAttest()
     persist()
     return undefined
@@ -295,6 +405,9 @@ export function createOnDemandEngine(options: OnDemandOptions): OnDemandEngine {
           status: 'frozen',
           miner,
           groupId,
+          notGossiped: true,
+          mustFanoutToEveryActiveArchive: true,
+          notProductionDepinGossip: true,
           pool: pool(),
           selection: selectionView(),
         },
@@ -309,7 +422,10 @@ export function createOnDemandEngine(options: OnDemandOptions): OnDemandEngine {
           status: 'rejected',
           miner,
           groupId,
-          note: 'One in-flight wait hook per (miner, groupId). Duplicate hooks are rejected (anti-hoard).',
+          notGossiped: true,
+          mustFanoutToEveryActiveArchive: true,
+          notProductionDepinGossip: true,
+          note: 'One in-flight wait hook per (miner, groupId). Duplicate hooks are rejected (anti-hoard). Hooks are not intra-group gossip.',
         },
       }
     }
@@ -324,7 +440,10 @@ export function createOnDemandEngine(options: OnDemandOptions): OnDemandEngine {
         miner,
         groupId,
         slot: minerList().indexOf(miner),
-        note: 'Wait hook queued. Freeze poolRoot before drawing 7+2.',
+        notGossiped: true,
+        mustFanoutToEveryActiveArchive: true,
+        notProductionDepinGossip: true,
+        note: LAB_HOOK_QUEUED_NOTE,
       },
     }
   }
@@ -338,7 +457,8 @@ export function createOnDemandEngine(options: OnDemandOptions): OnDemandEngine {
   function adoptAttest(raw: unknown): string | undefined {
     const attest = parseAttest(raw)
     if (attest === null) return 'ERR_INVALID_ATTEST'
-    if (!verifyLabPoolAttest(attest)) return 'ERR_INVALID_MAC'
+    if (isHmacOnDemandAttest(attest)) return ERR_ONDEMAND_HMAC_CUTOVER
+    if (!verifyEip712LabPoolAttest(attest)) return ERR_ONDEMAND_ATTEST_SIG
     if (draw !== null && (attest.poolRoot !== draw.poolRoot || attest.roulette !== draw.roulette)) {
       return 'ERR_ATTEST_MISMATCH'
     }
@@ -350,6 +470,9 @@ export function createOnDemandEngine(options: OnDemandOptions): OnDemandEngine {
   function ingest(body: unknown): { ok: boolean; error?: string } {
     if (!isRecord(body) || body.schema !== 'DleLabOnDemandMessageV1') {
       return { ok: false, error: 'ERR_INVALID_MESSAGE' }
+    }
+    if (Array.isArray(body.miners) || Array.isArray(body.hooks) || body.hook !== undefined) {
+      return { ok: false, error: ERR_ONDEMAND_HOOK_NOT_GOSSIP }
     }
     let error: string | undefined
     if (Array.isArray(body.attests)) {
@@ -422,8 +545,12 @@ export function createOnDemandEngine(options: OnDemandOptions): OnDemandEngine {
       shardId,
       frozen,
       miners: minerList(),
-      poolRoot: draw?.poolRoot ?? null,
+      poolRoot: draw?.poolRoot ?? frozenPoolRoot,
+      freezeHex,
       minerCount: miners.size,
+      hookNotGossip: true,
+      mustFanoutToEveryActiveArchive: true,
+      notProductionDepinGossip: true,
     }
   }
 
@@ -442,12 +569,24 @@ export function createOnDemandEngine(options: OnDemandOptions): OnDemandEngine {
       ondemandStandbyCount: draw?.standbys.length ?? 0,
       ondemandAttestCount: matchingAttestors().length,
       ondemandEndorsed: selection?.endorsed === true,
-      ondemandPoolRoot: draw?.poolRoot ?? (`0x${'00'.repeat(32)}` as Hex),
+      ondemandPoolRoot: draw?.poolRoot ?? frozenPoolRoot ?? (`0x${'00'.repeat(32)}` as Hex),
+      eip712: true,
+      hmacForgeable: false,
+      ondemandEip712: true,
+      ondemandFreezeBeforeBeacon: true,
+      ondemandLabBeaconAfterFreeze: true,
+      ondemandNotProductionBeacon: true,
+      ondemandPublicrpcNotClRandao: true,
+      ondemandBeaconSource: beaconSource ?? 'unbound',
+      ondemandHookNotGossip: true,
+      ondemandMustFanoutToEveryActiveArchive: true,
+      ondemandNotProductionDepinGossip: true,
     }
   }
 
   return {
     async start() {
+      stopped = false
       if (options.autoSeedLabMiners === true && miners.size === 0) seedLabMiners()
       if (options.autoFreeze === true) applyFreeze()
       if (frozen && draw !== null && role === 'active' && !attests.has(options.domainId)) addOwnAttest()

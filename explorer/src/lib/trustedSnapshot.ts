@@ -16,6 +16,7 @@ import {
   parseWaitingPool,
 } from './archiveClient'
 import { sortEventsNewestFirst } from './events'
+import { parseArchiveSyncPhase } from './archiveSeating'
 import { isRecord } from './jsonrpc'
 
 const SNAPSHOT_KEY = 'dle-explorer:trusted-snapshot:v1'
@@ -38,6 +39,8 @@ function hydrateArchiveWallets(rows: unknown): LabArchiveRow[] {
       ...row,
       domainId: row.domainId,
       participantWallet: wallet,
+      syncPhase: parseArchiveSyncPhase(row.syncPhase) ?? fixture?.syncPhase ?? null,
+      seatingQualified: row.seatingQualified === true,
     } as LabArchiveRow
   }).filter((row): row is LabArchiveRow => row !== null)
 }

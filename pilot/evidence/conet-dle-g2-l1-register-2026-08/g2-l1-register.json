@@ -1,0 +1,71 @@
+{
+  "schema": "conet-dle-g2-l1-register-v1",
+  "acceptedAt": "2026-08-16T19:22:25.996Z",
+  "notThirtyDayQualification": true,
+  "notProductionDepin": true,
+  "proxy": "0x8B261eAECdFfeE9e7aC9fFe73386B0d6C9E76AfB",
+  "groupId": 2,
+  "registerTxHash": "0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153",
+  "registerBlock": 868793,
+  "groupKeyHash": "0x919bb34216cc058fa1365f009c8a43e12add93cd2c2b919d6c8d83c131d2c0ff",
+  "membershipRoot": "0xd74ccaae42cbdd25f4823810efee68508c01ab9ce35d731a5224ed3021e4ff07",
+  "standbyRoot": "0x01a97e31d4033c1abbe232f83c27f98c979bb01a5003575510956717fcd85d9a",
+  "liveGroupIds": [
+    "1",
+    "2"
+  ],
+  "archivesOf2": [
+    "0xd67437B6c13f2FC3f929050cadaBf2eBA1c1b394",
+    "0xCc6A279F7b22D6ebfF20Be89b631eC699D2feb07",
+    "0x06Ccec85fb8aF48135947f23aec272869667a5a6",
+    "0x8bEE1097614c78D2ebbF5CF4D0c92827c7D6B090",
+    "0x7d3DE56898b751984B41474353E2EBDC97592CFF",
+    "0xD3Bb911632CeF5b46A949bCD4e91d7C53ED05B73",
+    "0x58096C8f9CaD6D1133B902AD7e696cAc1651ef39"
+  ],
+  "roster": [
+    {
+      "index": 0,
+      "domainId": "fd-g2-01-tokyo4",
+      "role": "active",
+      "participantWallet": "0xd67437B6c13f2FC3f929050cadaBf2eBA1c1b394"
+    },
+    {
+      "index": 1,
+      "domainId": "fd-g2-02-tokyo3",
+      "role": "active",
+      "participantWallet": "0xCc6A279F7b22D6ebfF20Be89b631eC699D2feb07"
+    },
+    {
+      "index": 2,
+      "domainId": "fd-g2-03-tokyo9",
+      "role": "active",
+      "participantWallet": "0x06Ccec85fb8aF48135947f23aec272869667a5a6"
+    },
+    {
+      "index": 3,
+      "domainId": "fd-g2-04-tokyo8",
+      "role": "active",
+      "participantWallet": "0x8bEE1097614c78D2ebbF5CF4D0c92827c7D6B090"
+    },
+    {
+      "index": 4,
+      "domainId": "fd-g2-05-tokyo7",
+      "role": "active",
+      "participantWallet": "0x7d3DE56898b751984B41474353E2EBDC97592CFF"
+    },
+    {
+      "index": 5,
+      "domainId": "fd-g2-06-tokyo6",
+      "role": "standby",
+      "participantWallet": "0xD3Bb911632CeF5b46A949bCD4e91d7C53ED05B73"
+    },
+    {
+      "index": 6,
+      "domainId": "fd-g2-07-tokyo5",
+      "role": "standby",
+      "participantWallet": "0x58096C8f9CaD6D1133B902AD7e696cAc1651ef39"
+    }
+  ],
+  "explorerTx": "https://mainnet.conet.network/tx/0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153"
+}

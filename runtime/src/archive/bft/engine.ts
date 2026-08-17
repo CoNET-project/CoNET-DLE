@@ -1,6 +1,6 @@
 import { ZERO32, type Hex } from './bytes.js'
 import { labGenesisDepositBundle } from './labCandidate.js'
-import { signLabVote } from './mac.js'
+import { makeLabBftVote, parseArchiveVote } from './mac.js'
 import { replayDepositBundle } from './modeA.js'
 import {
   acceptVote,
@@ -28,16 +28,17 @@ import {
   type DepositBundle,
   type ModeAResult,
 } from './types.js'
-import { indexLabHashObject, labAcLocator, labPrevoteLocator } from '../hashPipe.js'
+import { indexLabCertificateRoots, indexLabHashObject, labAcLocator, labPrevoteLocator } from '../hashPipe.js'
 import { syntheticTipBlock } from '../jsonrpcFacade.js'
 import type { ArchiveStore } from '../store.js'
-import { normalizeHash32 } from '../../shared/hashLookup.js'
+import { DLE_LAB_CHAIN_NFT_ID, DLE_LAB_GROUP_ID, normalizeHash32 } from '../../shared/hashLookup.js'
 import type { DleCertificateView, DleTipView } from '../../shared/protocol.js'
 
 const GOSSIP_MS = 1_000
 const GOSSIP_AFTER_AC_MS = 5_000
 const REQUEST_TIMEOUT_MS = 2_000
-const LAB_AC_NOTE = 'Lab networked PrecommitQC. Not a frozen EIP-712 L1 wrapper or corpus SSZ object.'
+const LAB_AC_NOTE =
+  'Lab networked PrecommitQC. Votes are lab EIP-712 ArchiveBftVote; not a frozen EIP-712 L1 wrapper or corpus SSZ object.'
 
 export interface ArchiveBftOptions {
   domainId: string
@@ -69,31 +70,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function parseVote(value: unknown): ArchiveVote | null {
-  if (!isRecord(value)) return null
-  if (value.schema !== 'DleLabVoteV1') return null
-  if (typeof value.domainId !== 'string') return null
-  if (typeof value.height !== 'number' || typeof value.round !== 'number' || typeof value.step !== 'number') {
-    return null
-  }
-  if (
-    typeof value.valueHash !== 'string' ||
-    typeof value.membershipRoot !== 'string' ||
-    typeof value.prevoteQCRef !== 'string' ||
-    typeof value.mac !== 'string'
-  ) {
-    return null
-  }
-  return {
-    schema: 'DleLabVoteV1',
-    domainId: value.domainId,
-    height: value.height,
-    round: value.round,
-    step: value.step,
-    valueHash: value.valueHash as Hex,
-    membershipRoot: value.membershipRoot as Hex,
-    prevoteQCRef: value.prevoteQCRef as Hex,
-    mac: value.mac as Hex,
-  }
+  return parseArchiveVote(value)
 }
 
 function parseCertificate(value: unknown): ArchiveCertificate | null {
@@ -173,6 +150,7 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
   let prevoteQc: ArchivePrevoteQc | null = null
   let roundState: ArchiveRoundState = createEmptyRoundState(1, 0)
   let stopped = false
+  let processStarted = false
   let timer: ReturnType<typeof setTimeout> | undefined
   const fetchImpl = options.fetchImpl ?? fetch
 
@@ -271,6 +249,14 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
         block: syntheticTipBlock(false, tip),
       },
     )
+    indexLabCertificateRoots(options.store.hash, {
+      tipStateRoot: next.tipStateRoot,
+      membershipRoot: next.membershipRoot,
+      chainNftId: DLE_LAB_CHAIN_NFT_ID,
+      height,
+      acRef: next.valueHash,
+      groupId: DLE_LAB_GROUP_ID,
+    })
   }
 
   function indexPrevoteQc(next: ArchivePrevoteQc): void {
@@ -399,7 +385,7 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
       membershipRoot,
       prevoteQCRef,
     }
-    const vote: ArchiveVote = { schema: 'DleLabVoteV1', ...unsigned, mac: signLabVote(unsigned) }
+    const vote = makeLabBftVote(unsigned)
     const existing = votes.get(voteSlotKey(vote))
     const accepted = acceptVote({ vote, existing, activeDomainIds, membershipRoot })
     if (!accepted.ok) return
@@ -478,6 +464,7 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
     const row: BftStatus = {
       schema: 'DleLabBftStatusV1',
       networked: true,
+      processStarted,
       modeA: true,
       modeAAccepted: replay.ok,
       role,
@@ -491,6 +478,9 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
       valueHash: valueHash(),
       quorum: ARCHIVE_QUORUM,
       labOnly: true,
+      eip712: true,
+      hmacForgeable: false,
+      bftEip712: true,
     }
     if (!replay.ok) row.modeAError = replay.code
     return row
@@ -537,6 +527,8 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
 
   return {
     async start() {
+      stopped = false
+      processStarted = true
       if (certificate !== null) {
         scheduleGossip(GOSSIP_MS)
         return
@@ -562,6 +554,7 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
     },
     stop() {
       stopped = true
+      processStarted = false
       if (timer !== undefined) clearTimeout(timer)
       timer = undefined
     },

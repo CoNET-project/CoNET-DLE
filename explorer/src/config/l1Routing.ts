@@ -17,6 +17,13 @@ export const BOOTSTRAP_GROUP_ID = 1
 export const BOOTSTRAP_GROUP_REGISTER_TX_HASH =
   '0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0'
 
+/** L1 registry storage key for the second live group. Not the user-visible Group ID. */
+export const G2_GROUP_ID = 2
+
+/** User-visible G2 Group ID = this L1 register tx. Not the laboratory keccak placeholder. */
+export const G2_GROUP_REGISTER_TX_HASH =
+  '0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153'
+
 export const ARCHIVE_ROSTER_DOMAIN_IDS = [
   'fd-01-ionos-45',
   'fd-02-ionos-189',

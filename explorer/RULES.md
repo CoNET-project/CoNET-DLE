@@ -14,7 +14,7 @@ The first metric row is:
 |---|---|---|---|
 | 1 | Chain ID | `0x44c45` | **CoNET-DLE Testnet** EIP-155 `eth_chainId`. Hint = `CoNET-DLE Testnet`. **No** “Decimal 281,669. Not CoNET L1 224422.” Under the value: **Group ID** capsule = bootstrap L1 `registerTxHash` `0x3076a806…6f2ad0`. Click opens CoNET L1 Blockscout `/tx/{hash}` via `openExternalUrl`. Not `tip.hash`. |
 | 2 | **Clusters** | `liveGroupCount` | Live archive groups \(G_e\). Genesis is **1**. After lab M6 fission = **2**. |
-| 3 | Archives | roster length · 5+2 | Node count, not cluster fission. |
+| 3 | Archives | roster length · 5+2 | Official voting roster only. P11 extra standby `fd-08-hosthatch-hk1` is **not** an 8th Home Archives node. |
 | 4 | Archive Certificate | Available / Empty | Tip finality object. |
 
 **Removed:** Home `Tip height` MetricCard. Archive Certificate height on NFT 42 is written to `0x1` after AC and does not grow. Showing it as a dashboard number is misleading.
@@ -32,7 +32,7 @@ The first metric row is:
 
 - **Clusters = \(G_e\)** = distinct live `groupId`s on the lab route table (including the genesis group).
 - **No fission ⇒ 1.** Creating asset / storage / trade lab chains copies NFT 42’s Group ID (bootstrap register tx hash) and **must not** increment this number.
-- A later fission that introduces a **new** Group ID increments \(G_e\) by 1. Production Group ID is that group’s L1 register tx hash. **Lab M6 (2026-08-16)** uses a laboratory hash `0x7b3b8eb959dcc0f75a309fcc16e7f840efe76dc27f2ef0d4eca8b8617f9b1a07` = `keccak256(utf8("dle.lab.group.m6.g2.v1"))` because L1 `registerLiveGroup` is still pending. Show that hash under Clusters **without** a Blockscout `/tx/` link. The Chain ID Group ID capsule stays the first-group bootstrap tx only.
+- A later fission that introduces a **new** Group ID increments \(G_e\) by 1. Production Group ID is that group’s L1 register tx hash. **Lab M6 + G2 L1 register + host cutover (2026-08-16):** hosts emit `0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153` as `hop1.ownGroupId` / `liveGroupIds`. `canonicalGroupId` still maps leftover laboratory keccak / `2` / `0x2` onto that tx. Show the canonical hash under Clusters **with** a Blockscout `/tx/` link. The Chain ID Group ID capsule stays the first-group bootstrap tx only.
 
 Trusted fields (Explorer must not `../..` import runtime):
 
@@ -52,6 +52,48 @@ Home hint copy (English):
 
 Implementation: `HomePage.tsx` MetricCard `Clusters`; `useArchiveFeed.ts` + `parseClusterCount` / `parseLiveGroupIds`; default `GENESIS_CLUSTER_COUNT = 1`.
 
+## Hash lookup (2026-08-16 M7)
+
+`/hash/:hash` pills must distinguish first-class kinds. A hit on `tipStateRoot` / `membershipRoot` shows **Tip state root** / **Membership root**, not Archive Certificate.
+
+| `locator.kind` | Pill |
+|---|---|
+| `ac` | Archive Certificate |
+| `prevoteQc` | Prevote QC |
+| `tipStateRoot` | Tip state root |
+| `membershipRoot` | Membership root |
+
+Not-found copy: these roots are first-class kinds; a hit returns the typed object, not the AC. Do **not** `../..` import runtime kinds — copy the English labels in `HashLookupPage.tsx`.
+
+## Certificates (2026-08-16 P6)
+
+Certificates page may show laboratory **new-chain** counts from trusted `/health`:
+
+| Field | Meaning |
+|---|---|
+| `newchainCount` | Accepted Mode A lab chains |
+| `newchainArchivePending` | \(Q_V\) passed, per-chain AC not yet formed |
+| `newchainArchiveCertified` | Per-`chainNftId` 4-of-5 AC present |
+| `newchainValidatorQuorum` | Lab \(Q_V\) size (`5`) |
+| `newchainValidatorQuorumEip712` | Lab \(Q_V\) uses EIP-712 `ArchiveValidatorQuorumAttest` (**P18**); **not** production |
+| `newchainHmacForgeable` | `false` after P18 cutover; disk HMAC \(Q_V\) keep-only |
+
+Home **Clusters** stays \(G_e\). A new-chain AC **must not** change NFT 42 tip / `eth_blockNumber`. New-chain AC is **not** an L1 birth certificate and **not** 30-day qualification. Failed health keeps last trusted snapshot. SelectionLog attests on this page are lab EIP-712 `ArchiveOnDemandAttest` (**P17**); do **not** paint them as HMAC or as 30-day qualification. The on-demand lab beacon is freeze-then-bind lab keccak (**P19**), **not** production CL RANDAO. Do **not** paint `ondemandLabBeaconAfterFreeze` as live RANDAO. Wait hooks are **not** intra-group gossip (**P20**); lab HTTP is **not** production DePIN gossip. Do **not** paint `ondemandHookNotGossip` as production gossip. New-chain \(Q_V\) on this page is lab EIP-712 `ArchiveValidatorQuorumAttest` (**P18**); do **not** paint `newchainValidatorQuorumEip712` as production.
+
+## Seating vs reachability (2026-08-16)
+
+Whitepaper §5.2.0f / runtime `RULES.md` §ArchiveSyncQualificationV1.
+
+`GET /health` alive, `lastQuorumOk`, `lastPeerOk`, and heartbeats prove **reachability only**. Explorer **MUST NOT** label a host as seating-qualified / `SyncQualified` / “caught up” from those fields.
+
+Laboratory `ArchiveStateChallengeV1` **is implemented**. Merge `health.syncQualification` + `health.syncRoster`. A **green** seating pill is allowed **only** when `seatingQualified === true`. Sync phase labels use `SYNCING` / `CLAIMED_SYNC` / `STATE_CHALLENGE` / `QUALIFIED` / `REJECTED`. Home **Seating** gauge uses that same boolean; **Quorum** remains heartbeat / BFT AC reachability. Do **not** call HTTP liveness “archive qualification”. Prefer `GET /liveness` for process-up; full `/health` includes `sync.health()` and must not be the deploy probe. Green pills on a **split** `hashIndexRoot` / `lastACRef` are not a seated group — compare the four roots before treating the row as wipe-safe. Lab **P9 landed (2026-08-17):** every hosted `chainNftId` (`health.labCgOpening === 'all-hosted'`; unique opening **2103**). That is **not** the production 30-day \(C_G\) open. Do **not** scrape `/sync/opening` or rebuild challenges from Explorer. This is **not** the 30-day `PilotQualificationGate`.
+
+**P8c landed:** `/health` no longer rebuilds `pendingChallenge`. Explorer still scrapes `/health` for `syncQualification.phase` / `seatingQualified` + `syncRoster` only — do **not** add a second seating poll or read `pendingChallenge` from health. Green pills on a **split** `hashIndexRoot` / `lastACRef` are not wipe-safe. **P8d landed:** random wipe fd-05+fd-06; join-window leaf stayed 5194; no `ERR_SYNC_CHALLENGE_STALE`. **P10 landed:** `/health` may also expose `hasUnseatedActive` / `alignedQualifiedCount` (read-only). Do **not** scrape `/sync/opening` for P10. A `REJECTED` **active** is unseated — do not paint it green. Do **not** treat a voter-missing reject as a candidate fault. **P11 landed:** extra joiner `fd-08` is outside official 5+2 — Home Archives stays 7. Do not paint an 8th voting seat. Live accept `2026-08-17T07:52:17Z`: joiner `QUALIFIED`, official seven still `QUALIFIED`. **P12 landed:** seating votes are lab EIP-712; do **not** paint `seatingEip712` as production. Green pills stay `seatingQualified === true` only. **P13 landed:** challenge freeze-then-bind is lab-labeled (`labBeaconAfterFreeze` / `notProductionBeacon`). Do **not** paint those flags as production CL RANDAO. **P14 landed:** lab freezer hosted-set / `labCgOpening` is **not** production \(C_G\). Do **not** paint `productionCgAvailable` or an injected L1 small-set as a live L1 full scan. **P15 landed:** challenge / opening are lab EIP-712 (`challengeEip712`). Do **not** paint `challengeEip712` as production. **P16 landed:** BFT AC votes are lab EIP-712 `ArchiveBftVote` (`bftEip712`). Do **not** paint `bftEip712` as a frozen L1 wrapper or corpus SSZ. **P17 landed:** on-demand attests are lab EIP-712 `ArchiveOnDemandAttest` (`ondemandEip712`). Do **not** paint `ondemandEip712` / `endorsed` as 30-day qualification or a production beacon. The on-demand lab beacon was keccak after freeze at P17. **P18 landed:** new-chain \(Q_V\) is lab EIP-712 `ArchiveValidatorQuorumAttest` (`newchainValidatorQuorumEip712`). Do **not** paint `newchainValidatorQuorumEip712` as production secp256k1 or 30-day qualification. **P19 landed:** on-demand beacon is freeze-then-bind lab keccak (`ondemandLabBeaconAfterFreeze`). Do **not** paint it as live CL RANDAO. **P20 landed:** wait hooks are not intra-group gossip (`ondemandHookNotGossip`). Do **not** paint lab HTTP hook as production DePIN gossip. Green pills stay `seatingQualified === true` only.
+
+## After P11 (Home display)
+
+Official Home **Archives** stays the 7-domain roster. Extra joiner `fd-08` is not an 8th Archives node. **P12 landed:** seating votes are lab EIP-712. Green seating pill remains `seatingQualified === true` only. Do **not** paint `seatingEip712` / `notL1Settled` as production OperatorDomain or L1 settle. **P13 landed:** freeze-then-bind lab beacon is honest-labeled. Do **not** paint `labBeaconAfterFreeze` / `notProductionBeacon` as live CL RANDAO. **P15 landed:** challenge / opening are lab EIP-712. Do **not** paint `challengeEip712` as production. **P16 landed:** BFT AC votes are lab EIP-712 `ArchiveBftVote`. Do **not** paint `bftEip712` as a frozen L1 wrapper or corpus SSZ. **P17 landed:** on-demand attests are lab EIP-712 `ArchiveOnDemandAttest` (`ondemandEip712`). Do **not** paint `ondemandEip712` / `endorsed` as 30-day qualification or a production beacon. The on-demand lab beacon was keccak after freeze at P17. **P18 landed:** new-chain \(Q_V\) is lab EIP-712 `ArchiveValidatorQuorumAttest` (`newchainValidatorQuorumEip712`). Do **not** paint `newchainValidatorQuorumEip712` as production secp256k1 or 30-day qualification. **P19 landed:** on-demand beacon is freeze-then-bind lab keccak. Do **not** paint `ondemandLabBeaconAfterFreeze` as live CL RANDAO. **P20 landed:** wait hooks are not intra-group gossip. Do **not** paint `ondemandHookNotGossip` as production DePIN gossip. **P14 landed:** do **not** paint lab 2249 / `labCgOpening` / `productionCgAvailable` / an injected small-set as production \(C_G\). Completing those gates **MUST NOT** be shown as 30-day qualification.
+
 ## Other Explorer invariants
 
 - No top navigation bar. Main pages: title capsule. Detail: circular back button. Tabs in the footer.
@@ -63,6 +105,6 @@ Implementation: `HomePage.tsx` MetricCard `Clusters`; `useArchiveFeed.ts` + `par
 
 ## Related
 
-- Archive API: `../runtime/RULES.md` §Archive (`liveGroupCount`)
+- Archive API: `../runtime/RULES.md` §Archive (`liveGroupCount`) and §ArchiveSyncQualificationV1（`/health` ≠ seating）
 - Client: `../runtime/src/daemon/RULES.md`
 - On-demand (not Clusters): `../runtime/src/shared/ondemand/RULES.md`

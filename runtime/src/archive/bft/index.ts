@@ -11,7 +11,15 @@ export {
   topicQcRef,
   uniqueActiveSigners,
 } from './quorum.js'
-export { signLabVote, verifyLabVote } from './mac.js'
+export {
+  isHmacBftVote,
+  makeHmacLabVote,
+  makeLabBftVote,
+  parseArchiveVote,
+  signLabVote,
+  verifyEip712BftVote,
+  verifyLabVote,
+} from './mac.js'
 export {
   applyArchiveRoundInput,
   createEmptyRoundState,
@@ -25,6 +33,8 @@ export {
   ERR_TRADE_ESCROW_CUSTODY,
   ERR_TRADE_L1_NOT_FOUND,
   ERR_TRADE_SELLER_ORDER_MISMATCH,
+  ERR_BFT_HMAC_CUTOVER,
+  ERR_BFT_VOTE_SIG,
   ERR_WAL_DOUBLE_SIGN,
   NONE_ROUND,
   VOTE_STEP_PRECOMMIT,

@@ -113,6 +113,23 @@ test('inclusion and sorted-range non-inclusion verify; leaf has no body', () => 
   }
 })
 
+test('proveHashIndex reuses one merkle tree for the same locator set', () => {
+  const locators = store.listLocators()
+  const firstProof = proveHashIndex(locators, first)
+  const secondProof = proveHashIndex(locators, second)
+  const miss = proveHashIndex(locators, between)
+  assert.equal('ok' in firstProof, false)
+  assert.equal('ok' in secondProof, false)
+  assert.equal('ok' in miss, false)
+  if ('ok' in firstProof || 'ok' in secondProof || 'ok' in miss) return
+  assert.equal(firstProof.hashIndexRoot, secondProof.hashIndexRoot)
+  assert.equal(firstProof.hashIndexRoot, miss.hashIndexRoot)
+  assert.equal(firstProof.hashIndexRoot, hashIndexRootOf(locators))
+  assert.equal(verifyHashIndexProof(firstProof), true)
+  assert.equal(verifyHashIndexProof(secondProof), true)
+  assert.equal(verifyHashIndexProof(miss), true)
+})
+
 test('hot locate stays on KV and does not open the tree', async () => {
   const located = lookup.locate(first)
   assert.equal(located.status, 'hit')

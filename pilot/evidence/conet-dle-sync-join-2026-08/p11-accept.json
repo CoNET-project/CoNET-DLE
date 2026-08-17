@@ -1,0 +1,179 @@
+{
+  "schema": "DleLabP11FullOpenJoinAcceptV1",
+  "labOnly": true,
+  "hmacForgeable": true,
+  "notClRandao": true,
+  "notThirtyDayQualification": true,
+  "notOfficialFivePlusTwo": true,
+  "neverWipeOfficialSeven": true,
+  "neverWipeFd05": true,
+  "lastQuorumOkIsNotSeating": true,
+  "quorum": 4,
+  "joinerDomainId": "fd-08-hosthatch-hk1",
+  "joinerRole": "standby",
+  "keeperDomainIds": [
+    "fd-01-ionos-45",
+    "fd-02-ionos-189",
+    "fd-03-ionos-98",
+    "fd-04-hosthatch-tokyo1"
+  ],
+  "joiner": {
+    "domainId": "fd-08-hosthatch-hk1",
+    "phase": "QUALIFIED",
+    "seatingQualified": true,
+    "leafCount": 5673,
+    "rejectReason": null,
+    "inventoryFrozen": false,
+    "hostedChainSetRoot": "0xbf4dd887ecb23936ad4b7453aa04a843721761baa1ebea80f8cdb37bc766301d",
+    "lastACRef": "0xd21accb0c3cd1f4afd511af4d564d752ac9dd8c0658e1a8eec5f044ced295908",
+    "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+    "hashIndexRoot": "0xbc699e5f343c08657c18f154cb656ce80155f907a67a76a8c101985032ecc418"
+  },
+  "keepers": [
+    {
+      "domainId": "fd-01-ionos-45",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "leafCount": 5674,
+      "rejectReason": null,
+      "inventoryFrozen": false,
+      "hostedChainSetRoot": "0xd9a9db6b53c333269af5b31f1bd646addc148aab70432711f9f1288797e5e301",
+      "lastACRef": "0x63dd0fe129e27b6a317f199a46d744af73ca3a85ed783872b13e7c677e56d4b5",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "hashIndexRoot": "0xe98674736ca4ac5d34d9a702a21608147f45f20c0d829da8c84358f198adcb31"
+    },
+    {
+      "domainId": "fd-02-ionos-189",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "leafCount": 5674,
+      "rejectReason": null,
+      "inventoryFrozen": false,
+      "hostedChainSetRoot": "0xd9a9db6b53c333269af5b31f1bd646addc148aab70432711f9f1288797e5e301",
+      "lastACRef": "0x63dd0fe129e27b6a317f199a46d744af73ca3a85ed783872b13e7c677e56d4b5",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "hashIndexRoot": "0xe98674736ca4ac5d34d9a702a21608147f45f20c0d829da8c84358f198adcb31"
+    },
+    {
+      "domainId": "fd-03-ionos-98",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "leafCount": 5674,
+      "rejectReason": null,
+      "inventoryFrozen": false,
+      "hostedChainSetRoot": "0xd9a9db6b53c333269af5b31f1bd646addc148aab70432711f9f1288797e5e301",
+      "lastACRef": "0x63dd0fe129e27b6a317f199a46d744af73ca3a85ed783872b13e7c677e56d4b5",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "hashIndexRoot": "0xe98674736ca4ac5d34d9a702a21608147f45f20c0d829da8c84358f198adcb31"
+    },
+    {
+      "domainId": "fd-04-hosthatch-tokyo1",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "leafCount": 5674,
+      "rejectReason": null,
+      "inventoryFrozen": false,
+      "hostedChainSetRoot": "0xd9a9db6b53c333269af5b31f1bd646addc148aab70432711f9f1288797e5e301",
+      "lastACRef": "0x63dd0fe129e27b6a317f199a46d744af73ca3a85ed783872b13e7c677e56d4b5",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "hashIndexRoot": "0xe98674736ca4ac5d34d9a702a21608147f45f20c0d829da8c84358f198adcb31"
+    }
+  ],
+  "official": [
+    {
+      "domainId": "fd-01-ionos-45",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "leafCount": 5674,
+      "rejectReason": null,
+      "inventoryFrozen": false,
+      "hostedChainSetRoot": "0xd9a9db6b53c333269af5b31f1bd646addc148aab70432711f9f1288797e5e301",
+      "lastACRef": "0x63dd0fe129e27b6a317f199a46d744af73ca3a85ed783872b13e7c677e56d4b5",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "hashIndexRoot": "0xe98674736ca4ac5d34d9a702a21608147f45f20c0d829da8c84358f198adcb31"
+    },
+    {
+      "domainId": "fd-02-ionos-189",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "leafCount": 5674,
+      "rejectReason": null,
+      "inventoryFrozen": false,
+      "hostedChainSetRoot": "0xd9a9db6b53c333269af5b31f1bd646addc148aab70432711f9f1288797e5e301",
+      "lastACRef": "0x63dd0fe129e27b6a317f199a46d744af73ca3a85ed783872b13e7c677e56d4b5",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "hashIndexRoot": "0xe98674736ca4ac5d34d9a702a21608147f45f20c0d829da8c84358f198adcb31"
+    },
+    {
+      "domainId": "fd-03-ionos-98",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "leafCount": 5674,
+      "rejectReason": null,
+      "inventoryFrozen": false,
+      "hostedChainSetRoot": "0xd9a9db6b53c333269af5b31f1bd646addc148aab70432711f9f1288797e5e301",
+      "lastACRef": "0x63dd0fe129e27b6a317f199a46d744af73ca3a85ed783872b13e7c677e56d4b5",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "hashIndexRoot": "0xe98674736ca4ac5d34d9a702a21608147f45f20c0d829da8c84358f198adcb31"
+    },
+    {
+      "domainId": "fd-04-hosthatch-tokyo1",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "leafCount": 5674,
+      "rejectReason": null,
+      "inventoryFrozen": false,
+      "hostedChainSetRoot": "0xd9a9db6b53c333269af5b31f1bd646addc148aab70432711f9f1288797e5e301",
+      "lastACRef": "0x63dd0fe129e27b6a317f199a46d744af73ca3a85ed783872b13e7c677e56d4b5",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "hashIndexRoot": "0xe98674736ca4ac5d34d9a702a21608147f45f20c0d829da8c84358f198adcb31"
+    },
+    {
+      "domainId": "fd-05-hosthatch-tokyo2",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "leafCount": 5674,
+      "rejectReason": null,
+      "inventoryFrozen": false,
+      "hostedChainSetRoot": "0xd9a9db6b53c333269af5b31f1bd646addc148aab70432711f9f1288797e5e301",
+      "lastACRef": "0x63dd0fe129e27b6a317f199a46d744af73ca3a85ed783872b13e7c677e56d4b5",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "hashIndexRoot": "0xe98674736ca4ac5d34d9a702a21608147f45f20c0d829da8c84358f198adcb31"
+    },
+    {
+      "domainId": "fd-06-ionos-174",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "leafCount": 5674,
+      "rejectReason": null,
+      "inventoryFrozen": false,
+      "hostedChainSetRoot": "0xd9a9db6b53c333269af5b31f1bd646addc148aab70432711f9f1288797e5e301",
+      "lastACRef": "0x63dd0fe129e27b6a317f199a46d744af73ca3a85ed783872b13e7c677e56d4b5",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "hashIndexRoot": "0xe98674736ca4ac5d34d9a702a21608147f45f20c0d829da8c84358f198adcb31"
+    },
+    {
+      "domainId": "fd-07-ionos-207",
+      "phase": "QUALIFIED",
+      "seatingQualified": true,
+      "leafCount": 5674,
+      "rejectReason": null,
+      "inventoryFrozen": false,
+      "hostedChainSetRoot": "0xd9a9db6b53c333269af5b31f1bd646addc148aab70432711f9f1288797e5e301",
+      "lastACRef": "0x63dd0fe129e27b6a317f199a46d744af73ca3a85ed783872b13e7c677e56d4b5",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "hashIndexRoot": "0xe98674736ca4ac5d34d9a702a21608147f45f20c0d829da8c84358f198adcb31"
+    }
+  ],
+  "opening": {
+    "ok": true,
+    "hostedChainCount": 2249,
+    "openedChainCount": 2249,
+    "policy": "all-hosted",
+    "sampleCount": 2250,
+    "detail": "opened===hosted all-hosted"
+  },
+  "waitedMs": 333121,
+  "ok": true,
+  "at": "2026-08-17T07:52:17.884Z"
+}

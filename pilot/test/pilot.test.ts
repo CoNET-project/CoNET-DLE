@@ -10,7 +10,21 @@ import { preflightOperatorDomains } from '../src/inventory.js'
 import type { OperatorDomainV1, PilotInventoryV1 } from '../src/model.js'
 import { defaultDryRunScenarios, SimulationOnlyScenarioRunner } from '../src/scenarios.js'
 import { SerialPilotScheduler } from '../src/scheduler.js'
-import { labCorrelationReport, loadOfficialLabInventory } from '../src/lab.js'
+import {
+  G1_SYNC_JOIN_KEEPER_DOMAIN_IDS,
+  G1_SYNC_JOIN_REQUIRED_ACTIVE_WIPE,
+  P11_JOINER_DOMAIN_ID,
+  P11_JOINER_SSH_HOST,
+  agentConfigFor,
+  agentConfigForJoiner,
+  labCorrelationReport,
+  loadLabHosts,
+  loadOfficialLabInventory,
+  p11JoinerHost,
+  p11JoinerPeer,
+  pickRandomWipeJoiners,
+  resolveWipeJoinDomainIds,
+} from '../src/lab.js'
 import { runDryRunSimulation } from '../src/simulation.js'
 
 function domains(): OperatorDomainV1[] {
@@ -169,6 +183,76 @@ test('public evidence requires the allowlisted schema, redacts, verifies, and de
   const failurePath = join(result.bundleDir, 'failures.ndjson')
   await writeFile(failurePath, `${await readFile(failurePath, 'utf8')}{"tampered":true}\n`, 'utf8')
   await assert.rejects(verifyPublicEvidenceBundle(result.bundleDir), /integrity mismatch/u)
+})
+
+test('P11 extra joiner stays outside official 5+2 and extraPeers merge', async () => {
+  const inventory = await loadOfficialLabInventory()
+  const hosts = await loadLabHosts()
+  assert.equal(inventory.domains.length, 7)
+  assert.equal(hosts.hosts.length, 7)
+  assert.equal(
+    inventory.domains.some((domain) => domain.domainId === P11_JOINER_DOMAIN_ID),
+    false,
+  )
+  assert.equal(
+    hosts.hosts.some((host) => host.sshHost === P11_JOINER_SSH_HOST),
+    false,
+  )
+  const extra = p11JoinerPeer()
+  const keeperConfig = agentConfigFor(inventory, hosts, 'fd-01-ionos-45', { extraPeers: [extra] })
+  const keeperPeers = keeperConfig.peers as Array<{ domainId: string }>
+  assert.equal(
+    keeperPeers.some((peer) => peer.domainId === P11_JOINER_DOMAIN_ID),
+    true,
+  )
+  assert.equal(
+    keeperPeers.some((peer) => peer.domainId === 'fd-01-ionos-45'),
+    false,
+  )
+  const joinerConfig = agentConfigForJoiner(inventory, hosts, p11JoinerHost())
+  assert.equal(joinerConfig.domainId, P11_JOINER_DOMAIN_ID)
+  assert.equal(joinerConfig.role, 'standby')
+  const joinerPeers = joinerConfig.peers as Array<{ domainId: string }>
+  assert.equal(joinerPeers.length, 7)
+  assert.equal(
+    joinerPeers.some((peer) => peer.domainId === P11_JOINER_DOMAIN_ID),
+    false,
+  )
+})
+
+test('P8d wipe path still refuses keepers and the P11 extra joiner', () => {
+  const previous = process.env.LAB_SYNC_JOIN_WIPE_DOMAIN_IDS
+  try {
+    process.env.LAB_SYNC_JOIN_WIPE_DOMAIN_IDS = 'fd-01-ionos-45'
+    assert.throws(() => resolveWipeJoinDomainIds(), /keeper/u)
+    process.env.LAB_SYNC_JOIN_WIPE_DOMAIN_IDS = P11_JOINER_DOMAIN_ID
+    assert.throws(() => resolveWipeJoinDomainIds(), /not wipe-safe/u)
+    process.env.LAB_SYNC_JOIN_WIPE_DOMAIN_IDS = 'fd-06-ionos-174'
+    assert.throws(() => resolveWipeJoinDomainIds(), /fd-05/u)
+  } finally {
+    if (previous === undefined) delete process.env.LAB_SYNC_JOIN_WIPE_DOMAIN_IDS
+    else process.env.LAB_SYNC_JOIN_WIPE_DOMAIN_IDS = previous
+  }
+})
+
+test('P8d random wipe pick always includes fd-05 and never keepers', () => {
+  const seen = new Set<string>()
+  for (let i = 0; i < 8; i += 1) {
+    const picked = pickRandomWipeJoiners({
+      count: 2,
+      randomInt: (maxExclusive) => i % maxExclusive,
+    })
+    assert.equal(picked.includes(G1_SYNC_JOIN_REQUIRED_ACTIVE_WIPE), true)
+    assert.equal(picked.length, 2)
+    assert.equal(
+      picked.some((id) => (G1_SYNC_JOIN_KEEPER_DOMAIN_IDS as readonly string[]).includes(id)),
+      false,
+    )
+    seen.add(picked.join(','))
+  }
+  const live = pickRandomWipeJoiners()
+  assert.equal(live.includes(G1_SYNC_JOIN_REQUIRED_ACTIVE_WIPE), true)
+  assert.equal(live.length, 2)
 })
 
 test('full dry-run produces a verified public bundle without infrastructure access', async () => {

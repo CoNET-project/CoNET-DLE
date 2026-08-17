@@ -35,7 +35,17 @@
     "lab:deploy-ondemand-http-clients": "npm run runtime:build && npm --prefix pilot run lab:deploy-ondemand-http-clients",
     "lab:deploy-newchain-user": "npm run runtime:build && npm --prefix pilot run lab:deploy-newchain-user",
     "lab:deploy-m6": "npm run runtime:build && npm --prefix pilot run lab:deploy-m6",
-    "lab:accept-m6": "npm --prefix pilot run lab:accept-m6"
+    "lab:deploy-g1-keep": "npm run runtime:build && npm --prefix pilot run lab:deploy-g1-keep",
+    "lab:accept-m6": "npm --prefix pilot run lab:accept-m6",
+    "lab:wipe-sync-join": "npm run runtime:build && npm --prefix pilot run lab:wipe-sync-join",
+    "lab:accept-sync-join": "npm run runtime:build && npm --prefix pilot run lab:accept-sync-join",
+    "lab:smoke-cg-open": "npm --prefix pilot run lab:smoke-cg-open",
+    "lab:smoke-rejected-safety": "npm --prefix pilot run lab:smoke-rejected-safety",
+    "lab:probe-p11-joiner": "npm --prefix pilot run lab:probe-p11-joiner",
+    "lab:keep-p11-peers": "npm run runtime:build && npm --prefix pilot run lab:keep-p11-peers",
+    "lab:deploy-p11-joiner": "npm run runtime:build && npm --prefix pilot run lab:deploy-p11-joiner",
+    "lab:accept-p11-join": "npm --prefix pilot run lab:accept-p11-join",
+    "lab:p11-full-open-join": "npm run runtime:build && npm --prefix pilot run lab:p11-full-open-join"
   },
   "dependencies": {
     "ethers": "^6.15.0"

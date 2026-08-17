@@ -1,3 +1,4 @@
+import { ZERO32 } from '../shared/bytes.js'
 import {
   DLE_LAB_CHAIN_NFT_ID,
   DLE_LAB_GROUP_ID,
@@ -13,6 +14,7 @@ import {
   type HashLookupHint,
   type HashLookupResult,
   type HashLocatorV1,
+  type HashObjectKind,
 } from '../shared/hashLookup.js'
 import {
   archivesOf,
@@ -36,6 +38,7 @@ import {
 } from '../shared/hashIndexTree.js'
 import { getObjectLocal, hop1GetByLocator, hopMiss, type DleHashObjectResult, type Hop1Fetch } from './hop1.js'
 import { projectHashObject, type HashStore } from './hashStore.js'
+import { ERR_INVENTORY_FROZEN, inventoryCatalogFrozen } from './inventoryFreeze.js'
 
 const CONFLICT_REASON = 'Hash maps to a conflicting chainNftId; lookup failed closed.'
 const PLANE_LOCATE_TIMEOUT_MS = 2_500
@@ -214,6 +217,9 @@ export function indexLabHashObject(
   locator: HashLocatorV1,
   body: unknown,
 ): { ok: true } | { ok: false; error: string } {
+  if (inventoryCatalogFrozen() && store.getLocator(locator.hash) === null) {
+    return { ok: false, error: ERR_INVENTORY_FROZEN }
+  }
   const put = store.putLocator(locator)
   if (!put.ok) return put
   return store.putBody(locator.chainNftId, locator.height, body, locator.kind)
@@ -227,6 +233,12 @@ export function seedLabFissionMarker(
   const hash = labFissionMarkerHash(groupId)
   if (!registerLabChainNft(table, DLE_LAB_M6_MARKER_NFT_ID)) {
     return { ok: false, error: 'ERR_ROUTE_REGISTER' }
+  }
+  const existing = store.getLocator(hash)
+  if (existing !== null && existing.chainNftId === DLE_LAB_M6_MARKER_NFT_ID) {
+    // Hash is derived from the lab keccak seed, not the user-visible Group ID.
+    // Keep-deploy after G2 register-tx cutover must not rewrite the freezer body.
+    return { ok: true, hash }
   }
   const put = indexLabHashObject(
     store,
@@ -273,5 +285,165 @@ export function labPrevoteLocator(hash: string, height: string, acRef: string): 
     height,
     groupId: DLE_LAB_GROUP_ID,
     acRef,
+  }
+}
+
+/** Per-chain locator. Do not use labAcLocator (NFT 42) for new-chain objects. */
+export function labChainObjectLocator(
+  kind: HashObjectKind,
+  hash: string,
+  chainNftId: string,
+  height: string,
+  acRef: string,
+  groupId?: string,
+): HashLocatorV1 {
+  return {
+    schema: 'HashLocatorV1',
+    hash,
+    chainNftId,
+    kind,
+    height,
+    ...(groupId !== undefined ? { groupId } : {}),
+    acRef,
+  }
+}
+
+export type LabTypedRootKind = 'tipStateRoot' | 'membershipRoot'
+
+export interface DleLabTipStateRootV1 {
+  schema: 'DleLabTipStateRootV1'
+  kind: 'tipStateRoot'
+  tipStateRoot: string
+  chainNftId: string
+  height: string
+  acRef: string
+  labOnly: true
+  notAcFieldAlias: true
+  note: string
+}
+
+export interface DleLabMembershipRootV1 {
+  schema: 'DleLabMembershipRootV1'
+  kind: 'membershipRoot'
+  membershipRoot: string
+  chainNftId: string
+  height: string
+  acRef: string
+  labOnly: true
+  notAcFieldAlias: true
+  note: string
+}
+
+const TYPED_ROOT_NOTE = 'Lab M7 typed hash object. Not an Archive Certificate field alias.'
+
+export function labTypedRootLocator(
+  kind: LabTypedRootKind,
+  hash: string,
+  chainNftId: string,
+  height: string,
+  acRef: string,
+  groupId?: string,
+): HashLocatorV1 {
+  return {
+    schema: 'HashLocatorV1',
+    hash,
+    chainNftId,
+    kind,
+    height,
+    ...(groupId !== undefined ? { groupId } : {}),
+    acRef,
+  }
+}
+
+function typedRootObject(
+  kind: LabTypedRootKind,
+  hash: string,
+  chainNftId: string,
+  height: string,
+  acRef: string,
+): DleLabTipStateRootV1 | DleLabMembershipRootV1 {
+  if (kind === 'tipStateRoot') {
+    return {
+      schema: 'DleLabTipStateRootV1',
+      kind,
+      tipStateRoot: hash,
+      chainNftId,
+      height,
+      acRef,
+      labOnly: true,
+      notAcFieldAlias: true,
+      note: TYPED_ROOT_NOTE,
+    }
+  }
+  return {
+    schema: 'DleLabMembershipRootV1',
+    kind,
+    membershipRoot: hash,
+    chainNftId,
+    height,
+    acRef,
+    labOnly: true,
+    notAcFieldAlias: true,
+    note: TYPED_ROOT_NOTE,
+  }
+}
+
+export function indexLabTypedRoot(
+  store: HashStore,
+  kind: LabTypedRootKind,
+  hash: string,
+  chainNftId: string,
+  height: string,
+  acRef: string,
+  groupId?: string,
+): { ok: true; skipped?: string } | { ok: false; error: string } {
+  const normalized = normalizeHash32(hash)
+  if (normalized === null) return { ok: true, skipped: 'invalid' }
+  if (normalized === ZERO32) return { ok: true, skipped: 'zero' }
+  const nft = normalizeChainNftId(chainNftId)
+  if (nft === null) return { ok: true, skipped: 'invalid' }
+  const existing = store.getLocator(normalized)
+  if (existing !== null) {
+    if (existing.kind === kind && existing.chainNftId === nft) {
+      return { ok: true, skipped: 'first-write-wins' }
+    }
+    return { ok: true, skipped: 'conflict' }
+  }
+  const locator = labTypedRootLocator(kind, normalized, nft, height, acRef, groupId)
+  return indexLabHashObject(store, locator, typedRootObject(kind, normalized, nft, locator.height, acRef))
+}
+
+export function indexLabCertificateRoots(
+  store: HashStore,
+  input: {
+    tipStateRoot?: string
+    membershipRoot?: string
+    chainNftId: string
+    height: string
+    acRef: string
+    groupId?: string
+  },
+): void {
+  if (input.tipStateRoot !== undefined) {
+    indexLabTypedRoot(
+      store,
+      'tipStateRoot',
+      input.tipStateRoot,
+      input.chainNftId,
+      input.height,
+      input.acRef,
+      input.groupId,
+    )
+  }
+  if (input.membershipRoot !== undefined) {
+    indexLabTypedRoot(
+      store,
+      'membershipRoot',
+      input.membershipRoot,
+      input.chainNftId,
+      input.height,
+      input.acRef,
+      input.groupId,
+    )
   }
 }

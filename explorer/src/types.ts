@@ -114,6 +114,13 @@ export interface DleEventRow {
   source: 'live' | 'fixture'
 }
 
+export type ArchiveSyncPhase =
+  | 'SYNCING'
+  | 'CLAIMED_SYNC'
+  | 'STATE_CHALLENGE'
+  | 'QUALIFIED'
+  | 'REJECTED'
+
 export interface LabArchiveRow {
   domainId: string
   operatorDomainId: string
@@ -125,6 +132,8 @@ export interface LabArchiveRow {
   lastQuorumOk: boolean | null
   lastPeerOk: number | null
   heartbeats: number | null
+  syncPhase: ArchiveSyncPhase | null
+  seatingQualified: boolean
   participantWallet: string
   source: 'live' | 'fixture'
 }
