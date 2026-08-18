@@ -32,6 +32,8 @@ import {
   officialStandbysReadyPill,
   parseHashIndexCommittedInAc,
   parseOfficialStandbysReady,
+  parsePilotRunning,
+  pilotClockPill,
 } from '../lib/labOverlays'
 import { useExplorer } from '../providers/ExplorerProvider'
 
@@ -58,6 +60,7 @@ export function HomePage() {
   const hashIndexPill = hashIndexCommittedInAcPill(
     parseHashIndexCommittedInAc(snapshot.health, snapshot.certificate),
   )
+  const clockPill = pilotClockPill(parsePilotRunning(snapshot.health))
 
   const onSearch = (event: FormEvent) => {
     event.preventDefault()
@@ -116,6 +119,7 @@ export function HomePage() {
         />
         {officialReadyPill ? <StatusPill label={officialReadyPill.label} tone={officialReadyPill.tone} /> : null}
         {hashIndexPill ? <StatusPill label={hashIndexPill.label} tone={hashIndexPill.tone} /> : null}
+        {clockPill ? <StatusPill label={clockPill.label} tone={clockPill.tone} /> : null}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

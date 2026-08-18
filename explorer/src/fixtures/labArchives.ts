@@ -89,8 +89,8 @@ export const LAB_ARCHIVE_FIXTURES: LabArchiveRow[] = [
   },
   {
     domainId: 'fd-06-ionos-174',
-    operatorDomainId: 'op-ionos-lease-216-225-193-174',
-    hostId: 'host-ionos-216-225-193-174',
+    operatorDomainId: 'op-lab-lease-70-35-205-77',
+    hostId: 'host-lab-70-35-205-77',
     provider: 'IONOS Inc.',
     region: 'us-east-ny',
     role: 'standby',

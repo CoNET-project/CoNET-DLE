@@ -2,7 +2,7 @@
   "schema": "PilotGateSnapshotV1",
   "epoch": 1,
   "warmupStartedAt": "2026-08-14T17:10:16.786Z",
-  "pilotStartedAt": null,
+  "pilotStartedAt": "2026-08-18T09:53:58.092Z",
   "lastSafetyFailureAt": null,
   "resetCount": 0,
   "counters": {

@@ -24,8 +24,13 @@ import {
   deployP11FullOpenJoiner,
   FD01_DOMAIN_ID,
   FD03_DOMAIN_ID,
+  FD06_DOMAIN_ID,
+  keepFreezeLabInventory,
+  keepStartLabPilotClock,
   probeP11Joiner,
+  REMAP_KEEP_FD06_DOMAIN_IDS,
   REMAP_KEEP_L2_DOMAIN_IDS,
+  REMAP_PEER_REFRESH_AFTER_FD06_DOMAIN_IDS,
   REMAP_PEER_REFRESH_DOMAIN_IDS,
   smokeLabCgOpening,
   smokeLabRejectedSafety,
@@ -246,6 +251,58 @@ async function main(): Promise<void> {
       if (!result.ok) process.exitCode = 2
       return
     }
+    case 'lab-keep-remap-fd06': {
+      const extras = await p11JoinerKeepExtras()
+      const started = await deployArchiveRuntime({
+        keepData: true,
+        extras,
+        onlyDomainIds: [...REMAP_KEEP_FD06_DOMAIN_IDS],
+      })
+      const result = {
+        ok: started.ok,
+        started,
+        seats: [FD06_DOMAIN_ID],
+      }
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
+    case 'lab-keep-refresh-fd06-peers': {
+      const extras = await p11JoinerKeepExtras()
+      const refreshed = await deployArchiveRuntime({
+        keepData: true,
+        extras,
+        onlyDomainIds: [...REMAP_PEER_REFRESH_AFTER_FD06_DOMAIN_IDS],
+      })
+      const standbys = refreshed.ok
+        ? await deployArchiveRuntime({
+            keepData: true,
+            extras,
+            onlyDomainIds: [...REMAP_KEEP_FD06_DOMAIN_IDS],
+          })
+        : { ok: false, results: [] }
+      const result = {
+        ok: refreshed.ok && standbys.ok,
+        refreshed,
+        standbys,
+        seats: [...REMAP_PEER_REFRESH_AFTER_FD06_DOMAIN_IDS, FD06_DOMAIN_ID],
+      }
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
+    case 'lab-keep-freeze-inventory': {
+      const result = await keepFreezeLabInventory({ extras: await p11JoinerKeepExtras() })
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
+    case 'lab-start-pilot-clock': {
+      const result = await keepStartLabPilotClock({ extras: await p11JoinerKeepExtras() })
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
     case 'lab-keep-p11-joiner': {
       const result = await deployP11FullOpenJoiner({ keepData: true, extras: await p11JoinerKeepExtras() })
       process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
@@ -272,7 +329,7 @@ async function main(): Promise<void> {
     }
     default:
       throw new Error(
-        'usage: cli preflight --inventory FILE | dry-run [--output DIR] | bundle --source DIR --output DIR --pilot-id ID --gate FILE [--simulation-only true] [--redaction-salt SALT] | verify --bundle DIR | lab-preflight [--inventory FILE] | lab-deploy | lab-deploy-archive | lab-deploy-archive-keep | lab-accept-archive | lab-accept-ondemand | lab-deploy-ondemand-http-clients | lab-deploy-newchain-user | lab-deploy-m6 | lab-deploy-g1-keep | lab-accept-m6 | lab-wipe-sync-join | lab-accept-sync-join | lab-smoke-cg-open | lab-smoke-rejected-safety | lab-probe-p11-joiner | lab-keep-p11-peers | lab-keep-remap-l2 | lab-keep-p11-joiner | lab-deploy-p11-joiner | lab-accept-p11-join | lab-p11-full-open-join | lab-status | lab-warmup [--evidence DIR] | lab-inject-crash --domain ID',
+        'usage: cli preflight --inventory FILE | dry-run [--output DIR] | bundle --source DIR --output DIR --pilot-id ID --gate FILE [--simulation-only true] [--redaction-salt SALT] | verify --bundle DIR | lab-preflight [--inventory FILE] | lab-deploy | lab-deploy-archive | lab-deploy-archive-keep | lab-accept-archive | lab-accept-ondemand | lab-deploy-ondemand-http-clients | lab-deploy-newchain-user | lab-deploy-m6 | lab-deploy-g1-keep | lab-accept-m6 | lab-wipe-sync-join | lab-accept-sync-join | lab-smoke-cg-open | lab-smoke-rejected-safety | lab-probe-p11-joiner | lab-keep-p11-peers | lab-keep-remap-l2 | lab-keep-remap-fd06 | lab-keep-refresh-fd06-peers | lab-keep-freeze-inventory | lab-start-pilot-clock | lab-keep-p11-joiner | lab-deploy-p11-joiner | lab-accept-p11-join | lab-p11-full-open-join | lab-status | lab-warmup [--evidence DIR] | lab-inject-crash --domain ID',
       )
   }
 }

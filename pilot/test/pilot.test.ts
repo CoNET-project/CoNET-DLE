@@ -15,6 +15,19 @@ import {
   FD01_SSH_HOST,
   FD03_DOMAIN_ID,
   FD03_SSH_HOST,
+  FD06_DOMAIN_ID,
+  FD06_SSH_HOST,
+  FD07_DOMAIN_ID,
+  FD07_SSH_HOST,
+  OFFICIAL_SEVEN_DOMAIN_IDS,
+  OPERATOR_INVENTORY_FREEZE_SCHEMA,
+  OPERATOR_PILOT_CLOCK_SCHEMA,
+  openOfficialPilotClock,
+  operatorInventoryFreezeRemoteDocument,
+  operatorPilotClockRemoteDocument,
+  startOfficialWarmup,
+  REMAP_KEEP_FD06_DOMAIN_IDS,
+  REMAP_PEER_REFRESH_AFTER_FD06_DOMAIN_IDS,
   G1_SYNC_JOIN_KEEPER_DOMAIN_IDS,
   assertMvpSshHostAllowed,
   G1_SYNC_JOIN_REQUIRED_ACTIVE_WIPE,
@@ -153,6 +166,76 @@ test('scheduler rejects a topology that only appears to be 5+2', () => {
   )
 })
 
+const LIVE_WARMUP = '2026-08-14T17:10:16.786Z'
+const LIVE_PILOT_MS = Date.parse('2026-08-18T09:00:00.000Z')
+
+function cleanGateSnapshot(pilotStartedAt: string | null = null) {
+  return {
+    schema: 'PilotGateSnapshotV1' as const,
+    epoch: 1,
+    warmupStartedAt: LIVE_WARMUP,
+    pilotStartedAt,
+    lastSafetyFailureAt: null,
+    resetCount: 0,
+    counters: { rotations: 0, rehomes: 0, takeovers: 0 },
+  }
+}
+
+test('fromSnapshot startPilotClock stamps after warmup and does not overwrite', () => {
+  const first = PilotQualificationGate.fromSnapshot(cleanGateSnapshot()).startPilotClock(LIVE_PILOT_MS)
+  assert.equal(first.warmupStartedAt, LIVE_WARMUP)
+  assert.equal(first.pilotStartedAt, new Date(LIVE_PILOT_MS).toISOString())
+  const again = PilotQualificationGate.fromSnapshot(first).startPilotClock(LIVE_PILOT_MS + 60_000)
+  assert.equal(again.pilotStartedAt, first.pilotStartedAt)
+  assert.deepEqual(again.counters, { rotations: 0, rehomes: 0, takeovers: 0 })
+})
+
+test('startPilotClock refuses an incomplete warmup', () => {
+  const gate = new PilotQualificationGate(0)
+  assert.throws(() => gate.startPilotClock(WARMUP_WINDOW_MS - 1), /warmup window is not complete/u)
+})
+
+test('startOfficialWarmup refuses to reset a clean existing gate', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'pilot-warmup-'))
+  await writeFile(join(root, 'gate.json'), `${JSON.stringify(cleanGateSnapshot(), null, 2)}\n`)
+  await assert.rejects(startOfficialWarmup(root), /already recorded/u)
+  const kept = JSON.parse(await readFile(join(root, 'gate.json'), 'utf8')) as { warmupStartedAt: string }
+  assert.equal(kept.warmupStartedAt, LIVE_WARMUP)
+})
+
+test('operator pilot clock document is not qualification', () => {
+  const document = JSON.parse(
+    operatorPilotClockRemoteDocument({
+      warmupStartedAt: LIVE_WARMUP,
+      pilotStartedAt: '2026-08-18T09:00:00.000Z',
+      epoch: 1,
+      resetCount: 0,
+      counters: { rotations: 0, rehomes: 0, takeovers: 0 },
+    }),
+  ) as {
+    schema: string
+    clockIsNotQualification: boolean
+    notThirtyDayQualification: boolean
+    pilotStartedAt: string
+  }
+  assert.equal(document.schema, OPERATOR_PILOT_CLOCK_SCHEMA)
+  assert.equal(document.clockIsNotQualification, true)
+  assert.equal(document.notThirtyDayQualification, true)
+  assert.equal(document.pilotStartedAt, '2026-08-18T09:00:00.000Z')
+})
+
+test('openOfficialPilotClock stamps a temp gate and is idempotent', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'pilot-clock-'))
+  await writeFile(join(root, 'gate.json'), `${JSON.stringify(cleanGateSnapshot(), null, 2)}\n`)
+  const first = await openOfficialPilotClock({ evidenceDir: root, atMs: LIVE_PILOT_MS })
+  assert.equal(first.stamp.warmupStartedAt, LIVE_WARMUP)
+  assert.equal(first.stamp.pilotStartedAt, new Date(LIVE_PILOT_MS).toISOString())
+  const second = await openOfficialPilotClock({ evidenceDir: root, atMs: LIVE_PILOT_MS + 1_000 })
+  assert.equal(second.stamp.pilotStartedAt, first.stamp.pilotStartedAt)
+  const persisted = JSON.parse(await readFile(join(root, 'gate.json'), 'utf8')) as { pilotStartedAt: string }
+  assert.equal(persisted.pilotStartedAt, first.stamp.pilotStartedAt)
+})
+
 test('72h warmup, 30-day window, counters, and safety reset are strict', () => {
   const gate = new PilotQualificationGate(0)
   assert.equal(gate.evaluate(WARMUP_WINDOW_MS - 1).pilotRunning, false)
@@ -193,37 +276,61 @@ test('public evidence requires the allowlisted schema, redacts, verifies, and de
   await assert.rejects(verifyPublicEvidenceBundle(result.bundleDir), /integrity mismatch/u)
 })
 
-test('MVP official seven remap fd-01 and fd-03 and exclude old IONOS IPs', async () => {
+test('MVP official seven remap fd-01, fd-03, and fd-06 and exclude leftover IPs', async () => {
   const inventory = await loadOfficialLabInventory()
   const hosts = await loadLabHosts()
   const fd01 = hosts.hosts.find((host) => host.domainId === FD01_DOMAIN_ID)
   const fd03 = hosts.hosts.find((host) => host.domainId === FD03_DOMAIN_ID)
+  const fd06 = hosts.hosts.find((host) => host.domainId === FD06_DOMAIN_ID)
   assert.notEqual(fd01?.retired, true)
   assert.equal(fd01?.sshHost, FD01_SSH_HOST)
   assert.notEqual(fd03?.retired, true)
   assert.equal(fd03?.sshHost, FD03_SSH_HOST)
+  assert.notEqual(fd06?.retired, true)
+  assert.equal(fd06?.sshHost, FD06_SSH_HOST)
+  assert.equal(fd06?.leftoverElCl, false)
   assert.equal(
-    hosts.hosts.some((host) => host.sshHost === '74.208.224.45' || host.sshHost === '198.251.77.98'),
+    hosts.hosts.some(
+      (host) =>
+        host.sshHost === '74.208.224.45' ||
+        host.sshHost === '198.251.77.98' ||
+        host.sshHost === '216.225.193.174',
+    ),
     false,
   )
   assert.equal(
     inventory.domains.some((domain) =>
-      /74\.208\.224\.45|74-208-224-45|198\.251\.77\.98|198-251-77-98/u.test(JSON.stringify(domain)),
+      /74\.208\.224\.45|74-208-224-45|198\.251\.77\.98|198-251-77-98|216\.225\.193\.174|216-225-193-174/u.test(
+        JSON.stringify(domain),
+      ),
     ),
     false,
   )
   assert.equal(/RETIRED/i.test(inventory.domains.find((domain) => domain.domainId === FD01_DOMAIN_ID)?.operatorLegalName ?? ''), false)
   assert.equal(/RETIRED/i.test(inventory.domains.find((domain) => domain.domainId === FD03_DOMAIN_ID)?.operatorLegalName ?? ''), false)
+  assert.equal(/RETIRED/i.test(inventory.domains.find((domain) => domain.domainId === FD06_DOMAIN_ID)?.operatorLegalName ?? ''), false)
+  assert.equal(inventory.domains.find((domain) => domain.domainId === FD06_DOMAIN_ID)?.hostId.includes('70-35-205-77'), true)
+  assert.match(
+    JSON.stringify(inventory.domains.find((domain) => domain.domainId === FD06_DOMAIN_ID)),
+    /0xb25932EBB7460B40741aA9431798b0f18331fE7a/u,
+  )
   assert.throws(() => assertMvpSshHostAllowed('74.208.224.45'), /excludes retired SSH host/u)
   assert.doesNotThrow(() => assertMvpSshHostAllowed(FD01_SSH_HOST))
   assert.throws(() => assertMvpSshHostAllowed('198.251.77.98'), /excludes retired SSH host/u)
   assert.doesNotThrow(() => assertMvpSshHostAllowed(FD03_SSH_HOST))
+  assert.throws(() => assertMvpSshHostAllowed('216.225.193.174'), /excludes retired SSH host/u)
+  assert.doesNotThrow(() => assertMvpSshHostAllowed(FD06_SSH_HOST))
   const fd01Config = agentConfigFor(inventory, hosts, FD01_DOMAIN_ID)
   const fd01Peers = fd01Config.peers as Array<{ host: string }>
   assert.equal(fd01Peers.some((peer) => peer.host === '74.208.224.45'), false)
   const fd03Config = agentConfigFor(inventory, hosts, FD03_DOMAIN_ID)
   const fd03Peers = fd03Config.peers as Array<{ host: string }>
   assert.equal(fd03Peers.some((peer) => peer.host === '198.251.77.98'), false)
+  const fd06Config = agentConfigFor(inventory, hosts, FD06_DOMAIN_ID)
+  const fd06Peers = fd06Config.peers as Array<{ domainId: string; host: string }>
+  assert.equal(fd06Config.domainId, FD06_DOMAIN_ID)
+  assert.equal(fd06Config.role, 'standby')
+  assert.equal(fd06Peers.some((peer) => peer.host === '216.225.193.174'), false)
   const fd02Config = agentConfigFor(inventory, hosts, 'fd-02-ionos-189')
   const fd02Peers = fd02Config.peers as Array<{ domainId: string; host: string }>
   assert.equal(
@@ -234,14 +341,43 @@ test('MVP official seven remap fd-01 and fd-03 and exclude old IONOS IPs', async
     fd02Peers.some((peer) => peer.domainId === FD03_DOMAIN_ID && peer.host === FD03_SSH_HOST),
     true,
   )
+  assert.equal(
+    fd02Peers.some((peer) => peer.domainId === FD06_DOMAIN_ID && peer.host === FD06_SSH_HOST),
+    true,
+  )
   const remapOnly = selectLabKeepHosts(hosts, REMAP_KEEP_L2_DOMAIN_IDS)
   assert.deepEqual(
     remapOnly.map((host) => host.sshHost),
     [FD01_SSH_HOST, FD03_SSH_HOST],
   )
+  const remapFd06 = selectLabKeepHosts(hosts, REMAP_KEEP_FD06_DOMAIN_IDS)
+  assert.deepEqual(
+    remapFd06.map((host) => host.sshHost),
+    [FD06_SSH_HOST],
+  )
   const peerRefresh = selectLabKeepHosts(hosts, REMAP_PEER_REFRESH_DOMAIN_IDS)
   assert.equal(
     peerRefresh.some((host) => host.sshHost === '216.225.193.174' || host.sshHost === '212.227.242.207'),
+    false,
+  )
+  const peerRefreshAfterFd06 = selectLabKeepHosts(hosts, REMAP_PEER_REFRESH_AFTER_FD06_DOMAIN_IDS)
+  assert.deepEqual(
+    peerRefreshAfterFd06.map((host) => host.domainId),
+    [
+      FD01_DOMAIN_ID,
+      'fd-02-ionos-189',
+      FD03_DOMAIN_ID,
+      'fd-04-hosthatch-tokyo1',
+      'fd-05-hosthatch-tokyo2',
+      FD07_DOMAIN_ID,
+    ],
+  )
+  assert.equal(
+    peerRefreshAfterFd06.some((host) => host.sshHost === FD07_SSH_HOST),
+    true,
+  )
+  assert.equal(
+    peerRefreshAfterFd06.some((host) => host.sshHost === '216.225.193.174' || host.domainId === FD06_DOMAIN_ID),
     false,
   )
   assert.throws(() => selectLabKeepHosts(hosts, ['no-such-seat']), /not in official hosts/u)
@@ -268,6 +404,42 @@ test('MVP official seven remap fd-01 and fd-03 and exclude old IONOS IPs', async
     }),
   )
   await assert.rejects(loadLabHosts(badFd03Path), /must point|excludes retired/u)
+  const badFd06Path = join(root, 'hosts-fd06.json')
+  await writeFile(
+    badFd06Path,
+    JSON.stringify({
+      ...hosts,
+      hosts: hosts.hosts.map((host) =>
+        host.domainId === FD06_DOMAIN_ID ? { ...host, sshHost: '216.225.193.174' } : host,
+      ),
+    }),
+  )
+  await assert.rejects(loadLabHosts(badFd06Path), /must point|excludes retired/u)
+})
+
+test('operator inventory freeze covers official seven plus extras and never leftover .174', async () => {
+  const hosts = await loadLabHosts()
+  assert.equal(OFFICIAL_SEVEN_DOMAIN_IDS.length, 7)
+  assert.equal(
+    (OFFICIAL_SEVEN_DOMAIN_IDS as readonly string[]).includes(P11_JOINER_DOMAIN_ID),
+    false,
+  )
+  const official = selectLabKeepHosts(hosts, OFFICIAL_SEVEN_DOMAIN_IDS)
+  assert.equal(official.length, 7)
+  assert.equal(
+    official.some((host) => host.sshHost === '216.225.193.174' || host.domainId === P11_JOINER_DOMAIN_ID),
+    false,
+  )
+  const fd06 = official.find((host) => host.domainId === FD06_DOMAIN_ID)
+  assert.equal(fd06?.sshHost, FD06_SSH_HOST)
+  const document = JSON.parse(operatorInventoryFreezeRemoteDocument()) as {
+    schema: string
+    frozen: boolean
+    reason: string
+  }
+  assert.equal(document.schema, OPERATOR_INVENTORY_FREEZE_SCHEMA)
+  assert.equal(document.frozen, true)
+  assert.equal(document.reason, 'operator')
 })
 
 test('P11 extra joiner stays outside official 5+2 and extraPeers merge', async () => {

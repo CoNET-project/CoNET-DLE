@@ -1,0 +1,76 @@
+{
+  "schema": "DleLabFd06HostDecisionV1",
+  "labOnly": true,
+  "notP26": true,
+  "mustNotStartPilotStartedAt": true,
+  "at": "2026-08-18T00:35:08.893Z",
+  "decision": "need_one_greenfield_vps_for_fd06_seat",
+  "reason": "Official 7/7 LIVE_OK and durable officialStandbysReady=true are blocked by fd-06 HTTP starve on leftover/Plesk box 216.225.193.174. Same-class fd-07 (2c/3.8Gi, leftover L1 down) serves /liveness. Capacity is enough; host class is not 30-day-safe.",
+  "scrape": {
+    "fd-01": "LIVE_OK",
+    "fd-02": "LIVE_OK",
+    "fd-03": "LIVE_OK",
+    "fd-04": "LIVE_OK",
+    "fd-05": "LIVE_OK",
+    "fd-06": "TIMEOUT",
+    "fd-07": "LIVE_OK",
+    "fd01Health": {
+      "officialStandbyReadyCount": 1,
+      "officialStandbysReady": false,
+      "phase": "QUALIFIED",
+      "pilotStartedAt": null
+    }
+  },
+  "fd06SshReadOnly": {
+    "sshHost": "216.225.193.174",
+    "domainId": "fd-06-ionos-174",
+    "role": "official-standby",
+    "cpu": "2",
+    "memGi": "3.8",
+    "memAvailGi": "2.7",
+    "leftoverGethBeaconValidator": "not_running",
+    "hostnameHint": "plesk.page",
+    "dlePid": 652654,
+    "dleCpuPct": 101,
+    "listen27101RecvQ": 115,
+    "localLiveness": "timeout",
+    "syncPhase": "QUALIFIED",
+    "heartbeats": 415,
+    "lastPeerOk": 5,
+    "lastQuorumOk": true
+  },
+  "fd07Contrast": {
+    "sshHost": "212.227.242.207",
+    "cpu": "2",
+    "memGi": "3.8",
+    "leftoverGethBeaconValidator": "not_running",
+    "dleCpuPct": 28.8,
+    "localLiveness": "200"
+  },
+  "requiredHost": {
+    "count": 1,
+    "seat": "fd-06-ionos-174",
+    "keepDomainIdAndWallet": true,
+    "class": "greenfield-lab",
+    "minVcpu": 2,
+    "minRamGi": 4,
+    "minDiskGi": 20,
+    "sshUser": "peter",
+    "labDir": "~/dle-30d-lab",
+    "labPort": 27101,
+    "noPlesk": true,
+    "noLeftoverElCl": true,
+    "notFd08": true,
+    "notG2Steal": true,
+    "notExplorerNginxUpstream": true
+  },
+  "forbidden": [
+    "pilotStartedAt",
+    "committedInAc=true as production",
+    "fd-08 as official standby",
+    "restart leftover geth/beacon/validator",
+    "lab:deploy-g1-keep just to refresh fd-06",
+    "wipe keepers",
+    "invent P26"
+  ]
+}

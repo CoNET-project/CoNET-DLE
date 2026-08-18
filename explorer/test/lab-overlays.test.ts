@@ -7,11 +7,17 @@ import {
   hashIndexCommittedInAcFromRoot,
   hashIndexCommittedInAcPill,
   officialStandbysReadyPill,
+  parseClockIsNotQualification,
   parseExtraStandbyReadyDoesNotCount,
   parseHashIndexCommittedInAc,
   parseOfficialStandbyReadyCount,
   parseOfficialStandbysReady,
+  parsePilotQualified,
+  parsePilotRunning,
+  parsePilotStartedAt,
   parseStandbyReadyEip712,
+  parseWarmupStartedAt,
+  pilotClockPill,
 } from '../src/lib/labOverlays.ts'
 import type { LabArchiveRow } from '../src/types.ts'
 
@@ -118,6 +124,43 @@ describe('P25 lab overlays', () => {
     })
     assert.notEqual(officialStandbysReadyPill(true)?.tone, 'ok')
     assert.notEqual(hashIndexCommittedInAcPill(true)?.tone, 'ok')
+  })
+
+  it('reads the 30-day clock from top-level then nested health, never as qualification', () => {
+    const live = '2026-08-18T09:53:58.092Z'
+    const warmup = '2026-08-14T17:10:16.786Z'
+    assert.equal(parsePilotRunning(null), null)
+    assert.equal(parsePilotRunning({}), null)
+    assert.equal(parsePilotRunning({ officialStandbysReady: true }), null)
+    assert.equal(parsePilotRunning({ pilotRunning: true }), true)
+    assert.equal(parsePilotRunning({ pilotRunning: false, pilotStartedAt: live }), false)
+    assert.equal(parsePilotRunning({ syncQualification: { pilotRunning: true } }), true)
+    assert.equal(parsePilotRunning({ pilotStartedAt: live }), true)
+    assert.equal(parsePilotRunning({ syncQualification: { pilotStartedAt: live } }), true)
+    assert.equal(parsePilotRunning({ pilotStartedAt: null }), false)
+    assert.equal(parsePilotRunning({ pilotStartedAt: 'not-an-iso' }), null)
+    assert.equal(parsePilotStartedAt({ pilotStartedAt: live }), live)
+    assert.equal(parseWarmupStartedAt({ warmupStartedAt: warmup }), warmup)
+    assert.equal(parseClockIsNotQualification({ clockIsNotQualification: true }), true)
+    assert.equal(parsePilotQualified({}), null)
+    assert.equal(parsePilotQualified({ pilotRunning: true, pilotQualified: true }), false)
+    assert.equal(parsePilotQualified({ clockIsNotQualification: true, pilotQualified: true }), false)
+  })
+
+  it('never paints the clock pill green or as 30-day qualified', () => {
+    assert.equal(pilotClockPill(null), null)
+    assert.deepEqual(pilotClockPill(true), {
+      label: '30-day clock running (not qualified)',
+      tone: 'warn',
+    })
+    assert.deepEqual(pilotClockPill(false), {
+      label: '30-day clock not started',
+      tone: 'neutral',
+    })
+    assert.notEqual(pilotClockPill(true)?.tone, 'ok')
+    assert.notEqual(pilotClockPill(false)?.tone, 'ok')
+    assert.match(pilotClockPill(true)?.label ?? '', /not qualified/)
+    assert.doesNotMatch(pilotClockPill(true)?.label ?? '', /30-day qualified/)
   })
 
   it('keeps green seating pills on seatingQualified === true only', () => {

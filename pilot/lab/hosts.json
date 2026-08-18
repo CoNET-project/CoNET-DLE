@@ -55,11 +55,11 @@
     },
     {
       "domainId": "fd-06-ionos-174",
-      "sshHost": "216.225.193.174",
-      "class": "deprecated-l1-leftover-running",
-      "leftoverElCl": true,
+      "sshHost": "70.35.205.77",
+      "class": "greenfield-lab",
+      "leftoverElCl": false,
       "doNotStartValidator": true,
-      "notes": "DEPRECATED leftover geth+beacon may stay running. Never start-with-va. Never restart EL/CL."
+      "notes": "Switched 2026-08-18 from leftover 216.225.193.174. Official standby keep-data on 70.35.205.77 in ~/dle-30d-lab :27101. Seat stays live (domainId + wallet). This host already runs Explorer nginx, dle-ondemand-clients, and dle-newchain-user — do not stop those, do not add 70.35.205.77:27101 to Explorer nginx upstream (standby is not an upstream). Do not SSH / keep leftover 216.225.193.174. Do not count fd-08. Do not wipe. Do not auto-promote standby. Clock starts only via lab:start-pilot-clock after freeze+ready. Live stamp 2026-08-18T09:53:58.092Z. Clock is not 30-day qualification."
     },
     {
       "domainId": "fd-07-ionos-207",

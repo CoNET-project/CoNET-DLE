@@ -65,14 +65,14 @@
     },
     {
       "domainId": "fd-06-ionos-174",
-      "operatorDomainId": "op-ionos-lease-216-225-193-174",
-      "operatorLegalName": "CoNET Labs IONOS VPS Linux M lease 216.225.193.174",
-      "hostId": "host-ionos-216-225-193-174",
+      "operatorDomainId": "op-lab-lease-70-35-205-77",
+      "operatorLegalName": "CoNET Labs lease 70.35.205.77 (explorer/ondemand/newchain host; DLE isolated in dle-30d-lab)",
+      "hostId": "host-lab-70-35-205-77",
       "provider": "IONOS Inc.",
       "region": "us-east-ny",
       "networkAsn": "AS8560",
       "role": "standby",
-      "billingRef": "usd-4-unmetered-host-ionos-216-225-193-174",
+      "billingRef": "usd-4-unmetered-host-lab-70-35-205-77",
       "participantWallet": "0xb25932EBB7460B40741aA9431798b0f18331fE7a"
     },
     {

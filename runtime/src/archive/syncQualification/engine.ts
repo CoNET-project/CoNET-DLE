@@ -511,26 +511,27 @@ export function createSyncQualificationEngine(options: SyncEngineOptions): SyncQ
     if (!isOfficialStandbyRole(options.domainId, options.role)) return
     const inventory = inventoryNow()
     const existing = standbyReady[options.domainId]
-    if (
+    const reusable =
       existing !== undefined &&
       !isHmacStandbyReady(existing) &&
       verifyEip712StandbyReady(existing).ok &&
       existing.ready === true &&
       standbyRootsMatch(existing, inventory)
-    ) {
-      return
+    const envelope = reusable
+      ? existing
+      : makeArchiveStandbyReadiness({
+          domainId: options.domainId,
+          groupId: inventory.groupId,
+          hostedChainSetRoot: inventory.hostedChainSetRoot,
+          lastACRef: inventory.lastACRef,
+          membershipRoot: inventory.membershipRoot,
+          hashIndexRoot: inventory.hashIndexRoot,
+          ready: true,
+        })
+    if (!reusable) {
+      standbyReady[options.domainId] = envelope
+      persist()
     }
-    const envelope = makeArchiveStandbyReadiness({
-      domainId: options.domainId,
-      groupId: inventory.groupId,
-      hostedChainSetRoot: inventory.hostedChainSetRoot,
-      lastACRef: inventory.lastACRef,
-      membershipRoot: inventory.membershipRoot,
-      hashIndexRoot: inventory.hashIndexRoot,
-      ready: true,
-    })
-    standbyReady[options.domainId] = envelope
-    persist()
     await Promise.all(
       options.peers.map((peer) =>
         postJson(`${peer.url.replace(/\/$/, '')}/sync/standby-ready`, envelope),

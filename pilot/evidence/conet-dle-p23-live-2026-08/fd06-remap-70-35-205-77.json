@@ -1,0 +1,414 @@
+{
+  "schema": "DleLabFd06RemapEvidenceV1",
+  "labOnly": true,
+  "notP26": true,
+  "mustNotStartPilotStartedAt": true,
+  "at": "2026-08-18T00:52:40.000Z",
+  "decision": "fd06_keep_data_remapped_to_70_35_205_77",
+  "authorizedHost": "70.35.205.77",
+  "seat": {
+    "domainId": "fd-06-ionos-174",
+    "role": "official-standby",
+    "participantWallet": "0xb25932EBB7460B40741aA9431798b0f18331fE7a",
+    "walletUnchanged": true
+  },
+  "fromHost": {
+    "sshHost": "216.225.193.174",
+    "class": "leftover-plesk",
+    "nowMvpExcluded": true,
+    "labStopped": true,
+    "publicLivenessAfterStop": "timeout"
+  },
+  "toHost": {
+    "sshHost": "70.35.205.77",
+    "hostname": "4D92287",
+    "class": "greenfield-lab",
+    "leftoverElCl": false,
+    "labDir": "/home/peter/dle-30d-lab",
+    "labPort": 27101,
+    "pid": 207255,
+    "keepDataCopied": true,
+    "keepTarballSha256": "94e16d13d93b2536bf73929f5d8cadb53c7708c987180d83dc68fdae44c125c1",
+    "identity": {
+      "command": "archive",
+      "runtime": "nodejs",
+      "producesBlocks": false,
+      "openedAt": "2026-08-18T00:50:27.711Z"
+    },
+    "coexistenceAfterStart": {
+      "nginx": 9,
+      "dleNewchainUser": 3,
+      "dleOndemandClients": 33,
+      "dle30dLab": 3,
+      "listen80": true,
+      "listen443": true,
+      "listen27101": true
+    }
+  },
+  "command": {
+    "npm": "lab:keep-remap-fd06",
+    "ok": true,
+    "detail": "STARTED=207255 LIVE_OK",
+    "didNotRun": [
+      "lab:deploy-g1-keep",
+      "lab:keep-remap-l2",
+      "wipe",
+      "restart leftover EL/CL/validator"
+    ]
+  },
+  "scrape": {
+    "honestLiveOk": "7/7",
+    "fd-08Counted": false,
+    "fd-01": "LIVE_OK",
+    "fd-02": "LIVE_OK",
+    "fd-03": "LIVE_OK",
+    "fd-04": "LIVE_OK",
+    "fd-05": "LIVE_OK",
+    "fd-06": "LIVE_OK",
+    "fd-07": "LIVE_OK",
+    "fd-06-old-216-225-193-174": "TIMEOUT"
+  },
+  "fd01Health": {
+    "http": 200,
+    "phase": "QUALIFIED",
+    "seatingQualified": true,
+    "officialStandbyReadyCount": 1,
+    "officialStandbysReady": false,
+    "pilotStartedAt": null,
+    "fourRootsMatchFd06": true,
+    "groupId": "0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0",
+    "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+    "lastACRef": "0xa834d3493e6261125d50dc9d48a6ae8af48cc945daffb6c59874f2e075295af6",
+    "hashIndexRoot": "0xa4a8f31f0ae50e77a4c96159e00846f2f8bf33c8616d923fa84436f13a51e24e",
+    "leafCount": 9141
+  },
+  "fd06Health": {
+    "http": 200,
+    "command": "archive",
+    "domainId": "fd-06-ionos-174",
+    "role": "standby",
+    "runtime": "nodejs",
+    "producesBlocks": false,
+    "phase": "QUALIFIED",
+    "seatingQualified": true,
+    "officialStandbyReadyCount": 1,
+    "officialStandbysReady": false,
+    "standbyReadyEip712": true,
+    "extraStandbyReadyDoesNotCount": true,
+    "pilotStartedAt": null,
+    "publicLiveness": {
+      "url": "http://70.35.205.77:27101/liveness",
+      "http": 200,
+      "ok": true
+    }
+  },
+  "note": "Honest 7/7 GET :27101/liveness is not durable officialStandbysReady. Ready is not sticky; count=1 after remap is expected until both official standbys post aligned ArchiveStandbyReadiness. 7/7 + ready=true still does not start the 30-day clock.",
+  "forbidden": [
+    "pilotStartedAt",
+    "committedInAc=true as production",
+    "fd-08 as official standby",
+    "restart leftover geth/beacon/validator",
+    "lab:deploy-g1-keep just to refresh fd-06",
+    "wipe keepers",
+    "add 70.35.205.77:27101 to Explorer nginx upstream",
+    "stop nginx / dle-ondemand-clients / dle-newchain-user on .77",
+    "invent P26"
+  ],
+  "followUp": {
+    "notP26": true,
+    "mustNotStartPilotStartedAt": true,
+    "fanOutPostedAt": "2026-08-18T00:57:00Z",
+    "flickerAt": "2026-08-18T00:57:49Z",
+    "droppedAt": "2026-08-18T00:59:38Z",
+    "scrapeAt": "2026-08-18T01:03:03Z",
+    "honestLiveOk": "7/7 after fd-02 /liveness retry (first pass timed out; /sync/status 200)",
+    "fd-08Counted": false,
+    "pilotStartedAt": null,
+    "readyAt0103": {
+      "fd-01": {
+        "officialStandbysReady": true,
+        "count": 2,
+        "leafCount": 9149
+      },
+      "fd-02": {
+        "officialStandbysReady": false,
+        "count": 0,
+        "leafCount": 9150
+      },
+      "fd-03": {
+        "officialStandbysReady": true,
+        "count": 2,
+        "leafCount": 9149
+      },
+      "fd-04": {
+        "officialStandbysReady": false,
+        "count": 0,
+        "leafCount": 9150
+      },
+      "fd-05": {
+        "officialStandbysReady": false,
+        "count": 0,
+        "leafCount": 9150
+      },
+      "fd-06": {
+        "officialStandbysReady": false,
+        "count": 1,
+        "leafCount": 9149
+      },
+      "fd-07": {
+        "officialStandbysReady": false,
+        "count": 0,
+        "leafCount": 9150
+      }
+    },
+    "laterRootsAt0104": {
+      "fd-01": {
+        "ready": true,
+        "count": 2,
+        "leafCount": 9150,
+        "lastACRefPrefix": "0x9d36c2d42f9e9776",
+        "hashIndexRootPrefix": "0xcd9d8438cc8ecb62"
+      },
+      "fd-06": {
+        "ready": false,
+        "count": 1,
+        "leafCount": 9150
+      }
+    },
+    "stalePeerUrl": {
+      "reason": "lab:keep-remap-fd06 started only fd-06; other official seats still gossip to leftover .174",
+      "fd-01": "http://216.225.193.174:27101",
+      "fd-07": "http://216.225.193.174:27101",
+      "fd-06": "http://70.35.205.77:27101"
+    },
+    "fd06DiskEnvelopes": {
+      "fd-06-ionos-174": "ready=true matches current four roots (lastACRef 0x9d36… / hashIndexRoot 0xcd9d…)",
+      "fd-07-ionos-207": "ready=true but stale lastACRef 0xa834… / hashIndexRoot 0xa4a8… from 00:52 remap"
+    },
+    "engineFanOutLocal": "gossipOwnStandbyReady now POSTs even when the local envelope already matches; runtime:test 155/155. Live binaries still early-return.",
+    "nextAuthorized": "parked / review only. Ready is not sticky while inventory is unfrozen. Do not start pilotStartedAt. Do not invent P26. Do not run lab:deploy-g1-keep just to chase ready=true.",
+    "note": "Peer URLs are now .77. A 7/7 ready flicker at 01:12:01Z is not the 30-day gate.",
+    "peerRefreshAt": "2026-08-18T01:10:00Z",
+    "peerRefreshCommand": {
+      "npm": "lab:keep-refresh-fd06-peers",
+      "ok": true,
+      "refreshed": [
+        "fd-01-ionos-45",
+        "fd-02-ionos-189",
+        "fd-03-ionos-98",
+        "fd-04-hosthatch-tokyo1",
+        "fd-05-hosthatch-tokyo2",
+        "fd-07-ionos-207"
+      ],
+      "standbys": [
+        "fd-06-ionos-174"
+      ],
+      "fd06Started": 208858,
+      "didNotRun": [
+        "lab:deploy-g1-keep",
+        "wipe",
+        "restart leftover EL/CL/validator",
+        "stop nginx / dle-ondemand-clients / dle-newchain-user on .77"
+      ]
+    },
+    "peerUrlAfterRefresh": {
+      "stale174": 0,
+      "fd06Url": "http://70.35.205.77:27101",
+      "allOfficialSeats": true
+    },
+    "scrapeAt0111": {
+      "at": "2026-08-18T01:11:16Z",
+      "honestLiveOk": "7/7",
+      "readyTrue": 4,
+      "pilotStartedAt": null,
+      "lastACRefPrefix": "0x9c103b138e39dc54",
+      "hashIndexRootPrefix": "0x7b8d65930549ef3b",
+      "ready": {
+        "fd-01": {
+          "ready": true,
+          "count": 2
+        },
+        "fd-02": {
+          "ready": false,
+          "count": 1
+        },
+        "fd-03": {
+          "ready": false,
+          "count": 0
+        },
+        "fd-04": {
+          "ready": true,
+          "count": 2
+        },
+        "fd-05": {
+          "ready": false,
+          "count": 1
+        },
+        "fd-06": {
+          "ready": true,
+          "count": 2
+        },
+        "fd-07": {
+          "ready": true,
+          "count": 2
+        }
+      }
+    },
+    "flickerAt0112": {
+      "at": "2026-08-18T01:12:01Z",
+      "honestLiveOk": "6/7 this pass (fd-05 /liveness timeout; /sync/status 200)",
+      "readyTrue": 7,
+      "count": 2,
+      "lastACRefPrefix": "0x57a38d82c7853732",
+      "hashIndexRootPrefix": "0xaf661b912d145821",
+      "pilotStartedAt": null
+    },
+    "droppedAt0112": {
+      "at": "2026-08-18T01:12:24Z",
+      "honestLiveOk": "7/7",
+      "readyTrue": 2,
+      "pilotStartedAt": null,
+      "note": "fd-03 and fd-06 still ready=true on old roots 0x57a38d…; others already 0x77ae8a… / 0x907446…"
+    },
+    "coexistenceAfterRefresh": {
+      "nginx": 9,
+      "listen80": true,
+      "listen443": true,
+      "listen27101": true,
+      "labPid": 208858
+    },
+    "leftoverElClCheck": {
+      "stopLabOnly": true,
+      "dot189GethBeaconValidatorSeen": false,
+      "dot174GethBeaconValidatorSeen": false,
+      "didNotStartLeftoverL1": true
+    },
+    "splitAt0705": {
+      "at": "2026-08-18T07:05:09Z",
+      "honestLiveOk": "7/7",
+      "readyTrue": 0,
+      "pilotStartedAt": null,
+      "note": "Two official standbys on different four roots; envelope POST cannot make count=2.",
+      "campA": {
+        "leaf": 9640,
+        "lastACRefPrefix": "0x570ba0ebe62a8265",
+        "hashIndexRootPrefix": "0x02319953f4459bf4",
+        "hostedChainSetRootPrefix": "0xcaa61fab6ed66c29",
+        "seats": ["fd-01", "fd-03", "fd-06"]
+      },
+      "campB": {
+        "leaf": 9641,
+        "lastACRefPrefix": "0x11cd0a604c7c489b",
+        "hashIndexRootPrefix": "0x734518d1c70b5577",
+        "hostedChainSetRootPrefix": "0x27c6cfe2bbe6feea",
+        "seats": ["fd-02", "fd-04", "fd-05", "fd-07"]
+      }
+    },
+    "splitAt0708": {
+      "at": "2026-08-18T07:08:27Z",
+      "honestLiveOk": "7/7",
+      "readyTrue": 0,
+      "pilotStartedAt": null,
+      "note": "Same two-camp split after QUALIFIED 30s catch-up window; leaf +5 on both camps (9640/9641 → 9645/9646).",
+      "campA": {
+        "leaf": 9645,
+        "lastACRefPrefix": "0xc1a5c79258b6a14c",
+        "hashIndexRootPrefix": "0x680eb4548b76fc60",
+        "hostedChainSetRootPrefix": "0x5840c4114440311f",
+        "seats": ["fd-01", "fd-03", "fd-06"]
+      },
+      "campB": {
+        "leaf": 9646,
+        "lastACRefPrefix": "0x965a7664b342fdd9",
+        "hashIndexRootPrefix": "0xbc9b5e5270af66c1",
+        "hostedChainSetRootPrefix": "0x5bf2ff30d05db6d6",
+        "seats": ["fd-02", "fd-04", "fd-05", "fd-07"]
+      }
+    },
+    "splitAt0722": {
+      "at": "2026-08-18T07:22:37Z",
+      "honestLiveOk": "6/7 this pass (fd-05 /liveness timeout; /sync/status 200)",
+      "readyTrue": 2,
+      "note": "fd-04 and fd-06 /health ready=true count=2 on camp A; fd-01/02/03/07 false. Two-camp +1 leaf race continues (9662 vs 9663). fd-04 had joined camp A vs 07:08 camp B.",
+      "campA": {
+        "leaf": 9662,
+        "lastACRefPrefix": "0x9b96830c99261a04",
+        "seats": ["fd-01", "fd-03", "fd-04", "fd-06"]
+      },
+      "campB": {
+        "leaf": 9663,
+        "lastACRefPrefix": "0x9f31e88eac112c9c",
+        "seats": ["fd-02", "fd-05", "fd-07"]
+      },
+      "pilotStartedAt": null
+    },
+    "splitAt0723": {
+      "at": "2026-08-18T07:23:31Z",
+      "honestLiveOk": "7/7",
+      "readyTrue": 1,
+      "note": "Only fd-03 still officialStandbysReady=true count=2; fd-06 count=1 camp A; fd-07 count=1 camp B. fd-04 /sync/status timeout. Same +1 leaf race (9664 vs 9665).",
+      "campA": {
+        "leaf": 9664,
+        "lastACRefPrefix": "0xf86d42d16b1befc4",
+        "hashIndexRootPrefix": "0xfe55a9fa57fb2998",
+        "hostedChainSetRootPrefix": "0x51716fa5d3fe3ba9",
+        "seats": ["fd-01", "fd-03", "fd-06"]
+      },
+      "campB": {
+        "leaf": 9665,
+        "lastACRefPrefix": "0x9675d2ea14c3a086",
+        "hashIndexRootPrefix": "0x05cad516fe6f00d8",
+        "hostedChainSetRootPrefix": "0xbfcecff40f2818b7",
+        "seats": ["fd-02", "fd-05", "fd-07"]
+      },
+      "fd04": "LIVE_OK; /sync/status timeout this pass",
+      "pilotStartedAt": null
+    },
+    "splitAt0800": {
+      "at": "2026-08-18T08:00:12Z",
+      "honestLiveOk": "7/7",
+      "readyTrue": 1,
+      "note": "Majority on leaf 9710 including fd-07; fd-06 lagging 9709 with local ready=true count=2; fd-05 leading 9711. Three-camp +1 race. inventoryFrozen=false.",
+      "campMajority": {
+        "leaf": 9710,
+        "lastACRefPrefix": "0xf29145221a92c178",
+        "seats": ["fd-01", "fd-02", "fd-03", "fd-04", "fd-07"]
+      },
+      "fd06": { "leaf": 9709, "ready": true, "count": 2 },
+      "fd05": { "leaf": 9711 },
+      "pilotStartedAt": null
+    },
+    "flickerAt0801": {
+      "at": "2026-08-18T08:01:32Z",
+      "honestLiveOk": "7/7",
+      "readyTrue": 6,
+      "count": 2,
+      "note": "Both official standbys on the same four roots (leaf 9712). fd-01 still 9711. fd-03 count=1. BFT already started on several seats. inventoryFrozen=false. This is not a stable 7/7 gate.",
+      "camp9712": {
+        "lastACRefPrefix": "0xb0b5c65429829924",
+        "hashIndexRootPrefix": "0x7c40fe682219161e",
+        "hostedChainSetRootPrefix": "0x81367bc96f91f941",
+        "seats": ["fd-02", "fd-03", "fd-04", "fd-05", "fd-06", "fd-07"]
+      },
+      "pilotStartedAt": null
+    },
+    "droppedAt0801": {
+      "at": "2026-08-18T08:01:53Z",
+      "honestLiveOk": "7/7 this pass (fd-04 /sync/status timeout; /liveness OK)",
+      "readyTrue": 2,
+      "note": "21s after flicker: fd-07 already on leaf 9713 camp B; fd-06 still 9712 camp A. Same +1 race. Do not keep-restart. Freeze needs separate authorization.",
+      "campA": {
+        "leaf": 9712,
+        "lastACRefPrefix": "0xb0b5c65429829924",
+        "seats": ["fd-01", "fd-03", "fd-06"]
+      },
+      "campB": {
+        "leaf": 9713,
+        "lastACRefPrefix": "0xb46eb9e43a292000",
+        "seats": ["fd-02", "fd-05", "fd-07"]
+      },
+      "pilotStartedAt": null
+    },
+    "nextAuthorized": "parked / review only. Freeze inventory (or stop lab BFT+cataloguing) needs separate operator authorization. Do not keep-restart. Do not POST stale envelopes. Do not start pilotStartedAt. Do not invent P26."
+  }
+}

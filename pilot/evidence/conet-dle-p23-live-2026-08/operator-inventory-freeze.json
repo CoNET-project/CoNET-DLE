@@ -1,0 +1,305 @@
+{
+  "schema": "DleLabOperatorInventoryFreezeLiveV1",
+  "labOnly": true,
+  "notThirtyDayQualification": true,
+  "readyIsNotTheClock": true,
+  "neverWipe": true,
+  "neverRestartLeftoverL1": true,
+  "neverInventP26": true,
+  "officialSeven": [
+    "fd-01-ionos-45",
+    "fd-02-ionos-189",
+    "fd-03-ionos-98",
+    "fd-04-hosthatch-tokyo1",
+    "fd-05-hosthatch-tokyo2",
+    "fd-06-ionos-174",
+    "fd-07-ionos-207"
+  ],
+  "extraJoiner": "fd-08-hosthatch-hk1",
+  "extrasRequired": true,
+  "stopAllFirst": true,
+  "keepData": true,
+  "http": "POST /sync/inventory-freeze",
+  "persist": "/home/peter/dle-30d-lab/data/operator-inventory-freeze.json",
+  "explorerNginxMustNotExposePost": true,
+  "ok": true,
+  "officialLiveOk": 7,
+  "officialFrozen": 7,
+  "officialStandbysReady": true,
+  "officialStandbyReadyCount": 2,
+  "pilotStartedAt": null,
+  "stops": [
+    {
+      "domainId": "fd-01-ionos-45",
+      "host": "45.132.74.220",
+      "ok": true,
+      "detail": "STOPPED=4183"
+    },
+    {
+      "domainId": "fd-02-ionos-189",
+      "host": "216.225.197.189",
+      "ok": true,
+      "detail": "STOPPED=247428"
+    },
+    {
+      "domainId": "fd-03-ionos-98",
+      "host": "45.132.74.221",
+      "ok": true,
+      "detail": "STOPPED=3662"
+    },
+    {
+      "domainId": "fd-04-hosthatch-tokyo1",
+      "host": "167.254.243.38",
+      "ok": true,
+      "detail": "STOPPED=53181"
+    },
+    {
+      "domainId": "fd-05-hosthatch-tokyo2",
+      "host": "170.205.39.67",
+      "ok": true,
+      "detail": "STOPPED=119280"
+    },
+    {
+      "domainId": "fd-06-ionos-174",
+      "host": "70.35.205.77",
+      "ok": true,
+      "detail": "STOPPED=208858"
+    },
+    {
+      "domainId": "fd-07-ionos-207",
+      "host": "212.227.242.207",
+      "ok": true,
+      "detail": "STOPPED=846510"
+    },
+    {
+      "domainId": "fd-08-hosthatch-hk1",
+      "host": "167.104.98.104",
+      "ok": true,
+      "detail": "STOPPED=6421"
+    }
+  ],
+  "officialDeploy": {
+    "ok": true,
+    "results": [
+      {
+        "domainId": "fd-01-ionos-45",
+        "ok": true
+      },
+      {
+        "domainId": "fd-02-ionos-189",
+        "ok": true
+      },
+      {
+        "domainId": "fd-03-ionos-98",
+        "ok": true
+      },
+      {
+        "domainId": "fd-04-hosthatch-tokyo1",
+        "ok": true
+      },
+      {
+        "domainId": "fd-05-hosthatch-tokyo2",
+        "ok": true
+      },
+      {
+        "domainId": "fd-06-ionos-174",
+        "ok": true
+      },
+      {
+        "domainId": "fd-07-ionos-207",
+        "ok": true
+      }
+    ]
+  },
+  "joinerDeploy": {
+    "ok": true,
+    "results": [
+      {
+        "domainId": "fd-08-hosthatch-hk1",
+        "ok": true
+      }
+    ]
+  },
+  "posts": [
+    {
+      "domainId": "fd-01-ionos-45",
+      "ok": true,
+      "status": 200
+    },
+    {
+      "domainId": "fd-02-ionos-189",
+      "ok": true,
+      "status": 200
+    },
+    {
+      "domainId": "fd-03-ionos-98",
+      "ok": true,
+      "status": 200
+    },
+    {
+      "domainId": "fd-04-hosthatch-tokyo1",
+      "ok": true,
+      "status": 200
+    },
+    {
+      "domainId": "fd-05-hosthatch-tokyo2",
+      "ok": true,
+      "status": 200
+    },
+    {
+      "domainId": "fd-06-ionos-174",
+      "ok": true,
+      "status": 200
+    },
+    {
+      "domainId": "fd-07-ionos-207",
+      "ok": true,
+      "status": 200
+    },
+    {
+      "domainId": "fd-08-hosthatch-hk1",
+      "ok": true,
+      "status": 200
+    }
+  ],
+  "scrape": [
+    {
+      "domainId": "fd-01-ionos-45",
+      "sshHost": "45.132.74.220",
+      "liveOk": true,
+      "inventoryFrozen": true,
+      "inventoryOperatorFrozen": true,
+      "inventoryFreezeReason": "operator",
+      "bftProcessStarted": false,
+      "officialStandbysReady": true,
+      "officialStandbyReadyCount": 2,
+      "leafCount": 9750,
+      "lastACRef": "0xbc4d0655cf7856a0b93763504fcd7510d2fab01f418050ca1f0afca8925a5830",
+      "hashIndexRoot": "0x060ec3075dce7c51e041076edf554590dcba0891e5bd4acfb578fa9b24651d19",
+      "hostedChainSetRoot": "0x2b776eab1292778b70264068df44fe5d5fb151110796035380304ca679a1a786",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "pilotStartedAt": null
+    },
+    {
+      "domainId": "fd-02-ionos-189",
+      "sshHost": "216.225.197.189",
+      "liveOk": true,
+      "inventoryFrozen": true,
+      "inventoryOperatorFrozen": true,
+      "inventoryFreezeReason": "operator",
+      "bftProcessStarted": false,
+      "officialStandbysReady": true,
+      "officialStandbyReadyCount": 2,
+      "leafCount": 9750,
+      "lastACRef": "0xbc4d0655cf7856a0b93763504fcd7510d2fab01f418050ca1f0afca8925a5830",
+      "hashIndexRoot": "0x060ec3075dce7c51e041076edf554590dcba0891e5bd4acfb578fa9b24651d19",
+      "hostedChainSetRoot": "0x2b776eab1292778b70264068df44fe5d5fb151110796035380304ca679a1a786",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "pilotStartedAt": null
+    },
+    {
+      "domainId": "fd-03-ionos-98",
+      "sshHost": "45.132.74.221",
+      "liveOk": true,
+      "inventoryFrozen": true,
+      "inventoryOperatorFrozen": true,
+      "inventoryFreezeReason": "operator",
+      "bftProcessStarted": false,
+      "officialStandbysReady": true,
+      "officialStandbyReadyCount": 2,
+      "leafCount": 9750,
+      "lastACRef": "0xbc4d0655cf7856a0b93763504fcd7510d2fab01f418050ca1f0afca8925a5830",
+      "hashIndexRoot": "0x060ec3075dce7c51e041076edf554590dcba0891e5bd4acfb578fa9b24651d19",
+      "hostedChainSetRoot": "0x2b776eab1292778b70264068df44fe5d5fb151110796035380304ca679a1a786",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "pilotStartedAt": null
+    },
+    {
+      "domainId": "fd-04-hosthatch-tokyo1",
+      "sshHost": "167.254.243.38",
+      "liveOk": true,
+      "inventoryFrozen": true,
+      "inventoryOperatorFrozen": true,
+      "inventoryFreezeReason": "operator",
+      "bftProcessStarted": false,
+      "officialStandbysReady": true,
+      "officialStandbyReadyCount": 2,
+      "leafCount": null,
+      "lastACRef": null,
+      "hashIndexRoot": null,
+      "hostedChainSetRoot": null,
+      "membershipRoot": null,
+      "pilotStartedAt": null
+    },
+    {
+      "domainId": "fd-05-hosthatch-tokyo2",
+      "sshHost": "170.205.39.67",
+      "liveOk": true,
+      "inventoryFrozen": true,
+      "inventoryOperatorFrozen": true,
+      "inventoryFreezeReason": "operator",
+      "bftProcessStarted": false,
+      "officialStandbysReady": true,
+      "officialStandbyReadyCount": 2,
+      "leafCount": 9750,
+      "lastACRef": "0xbc4d0655cf7856a0b93763504fcd7510d2fab01f418050ca1f0afca8925a5830",
+      "hashIndexRoot": "0x060ec3075dce7c51e041076edf554590dcba0891e5bd4acfb578fa9b24651d19",
+      "hostedChainSetRoot": "0x2b776eab1292778b70264068df44fe5d5fb151110796035380304ca679a1a786",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "pilotStartedAt": null
+    },
+    {
+      "domainId": "fd-06-ionos-174",
+      "sshHost": "70.35.205.77",
+      "liveOk": true,
+      "inventoryFrozen": true,
+      "inventoryOperatorFrozen": true,
+      "inventoryFreezeReason": "operator",
+      "bftProcessStarted": false,
+      "officialStandbysReady": true,
+      "officialStandbyReadyCount": 2,
+      "leafCount": 9750,
+      "lastACRef": "0xbc4d0655cf7856a0b93763504fcd7510d2fab01f418050ca1f0afca8925a5830",
+      "hashIndexRoot": "0x060ec3075dce7c51e041076edf554590dcba0891e5bd4acfb578fa9b24651d19",
+      "hostedChainSetRoot": "0x2b776eab1292778b70264068df44fe5d5fb151110796035380304ca679a1a786",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "pilotStartedAt": null
+    },
+    {
+      "domainId": "fd-07-ionos-207",
+      "sshHost": "212.227.242.207",
+      "liveOk": true,
+      "inventoryFrozen": true,
+      "inventoryOperatorFrozen": true,
+      "inventoryFreezeReason": "operator",
+      "bftProcessStarted": false,
+      "officialStandbysReady": true,
+      "officialStandbyReadyCount": 2,
+      "leafCount": 9750,
+      "lastACRef": "0xbc4d0655cf7856a0b93763504fcd7510d2fab01f418050ca1f0afca8925a5830",
+      "hashIndexRoot": "0x060ec3075dce7c51e041076edf554590dcba0891e5bd4acfb578fa9b24651d19",
+      "hostedChainSetRoot": "0x2b776eab1292778b70264068df44fe5d5fb151110796035380304ca679a1a786",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "pilotStartedAt": null
+    },
+    {
+      "domainId": "fd-08-hosthatch-hk1",
+      "sshHost": "167.104.98.104",
+      "liveOk": true,
+      "inventoryFrozen": true,
+      "inventoryOperatorFrozen": true,
+      "inventoryFreezeReason": "operator",
+      "bftProcessStarted": false,
+      "officialStandbysReady": true,
+      "officialStandbyReadyCount": 2,
+      "leafCount": 9750,
+      "lastACRef": "0xbc4d0655cf7856a0b93763504fcd7510d2fab01f418050ca1f0afca8925a5830",
+      "hashIndexRoot": "0x060ec3075dce7c51e041076edf554590dcba0891e5bd4acfb578fa9b24651d19",
+      "hostedChainSetRoot": "0x2b776eab1292778b70264068df44fe5d5fb151110796035380304ca679a1a786",
+      "membershipRoot": "0xdeb200a9c35eacd1709fa8c2976e307e27dd32458b666277aad52ecf79e22241",
+      "pilotStartedAt": null
+    }
+  ],
+  "waitedMs": 53028,
+  "at": "2026-08-18T08:35:30.123Z"
+}

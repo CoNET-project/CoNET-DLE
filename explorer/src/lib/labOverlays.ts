@@ -1,6 +1,8 @@
 /**
- * P25 lab-only Explorer overlays. Copied locally — do not import runtime.
+ * P25 lab-only Explorer overlays + 2026-08-18 clock chip (same honesty track, not P26).
+ * Copied locally — do not import runtime.
  * Green seating pills stay in archiveSeating.ts (`seatingQualified === true` only).
+ * Clock pills are never tone `ok` and never 30-day qualification.
  */
 
 export const ZERO32 = `0x${'00'.repeat(32)}`
@@ -108,4 +110,64 @@ export function hashIndexCommittedInAcPill(committed: boolean | null): {
   if (committed === null) return null
   if (committed === true) return { label: 'Hash index bound in AC (lab overlay)', tone: 'purple' }
   return { label: 'Hash index not bound in AC', tone: 'neutral' }
+}
+
+function readIso(value: unknown): string | null {
+  return typeof value === 'string' && Number.isFinite(Date.parse(value)) ? value : null
+}
+
+/**
+ * Operator 30-day clock (not qualification). Prefer `pilotRunning`, else derive from `pilotStartedAt`.
+ * Missing both → null (omit chip). `pilotQualified: true` is ignored.
+ */
+export function parsePilotRunning(health: Record<string, unknown> | null): boolean | null {
+  if (health === null) return null
+  const top = readBoolean(health.pilotRunning)
+  if (top !== null) return top
+  const nested = readBoolean(syncQualification(health)?.pilotRunning)
+  if (nested !== null) return nested
+  const raw = health.pilotStartedAt === undefined ? syncQualification(health)?.pilotStartedAt : health.pilotStartedAt
+  if (raw === undefined) return null
+  if (raw === null) return false
+  return parsePilotStartedAt(health) !== null ? true : null
+}
+
+export function parsePilotStartedAt(health: Record<string, unknown> | null): string | null {
+  if (health === null) return null
+  const top = readIso(health.pilotStartedAt)
+  if (top !== null) return top
+  return readIso(syncQualification(health)?.pilotStartedAt)
+}
+
+export function parseWarmupStartedAt(health: Record<string, unknown> | null): string | null {
+  if (health === null) return null
+  const top = readIso(health.warmupStartedAt)
+  if (top !== null) return top
+  return readIso(syncQualification(health)?.warmupStartedAt)
+}
+
+export function parseClockIsNotQualification(health: Record<string, unknown> | null): boolean | null {
+  if (health === null) return null
+  const top = readBoolean(health.clockIsNotQualification)
+  if (top !== null) return top
+  const nested = readBoolean(syncQualification(health)?.clockIsNotQualification)
+  if (nested !== null) return nested
+  return readBoolean(health.notThirtyDayQualification)
+}
+
+/** Always false for UI when any clock field is present. Never paint qualification. */
+export function parsePilotQualified(health: Record<string, unknown> | null): false | null {
+  if (health === null) return null
+  if (parsePilotRunning(health) === null && parseClockIsNotQualification(health) === null) return null
+  return false
+}
+
+/** Never tone `ok` — green is reserved for seatingQualified. Clock ≠ 30-day qualification. */
+export function pilotClockPill(running: boolean | null): {
+  label: string
+  tone: 'warn' | 'neutral'
+} | null {
+  if (running === null) return null
+  if (running === true) return { label: '30-day clock running (not qualified)', tone: 'warn' }
+  return { label: '30-day clock not started', tone: 'neutral' }
 }

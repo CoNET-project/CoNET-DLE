@@ -31,6 +31,32 @@ export class PilotQualificationGate {
     this.#lastObservedAtMs = startedAtMs
   }
 
+  static fromSnapshot(snapshot: PilotGateSnapshotV1): PilotQualificationGate {
+    const parsed = parsePilotGateSnapshot(snapshot)
+    const warmupMs = Date.parse(parsed.warmupStartedAt)
+    const gate = new PilotQualificationGate(warmupMs)
+    gate.#epoch = parsed.epoch
+    gate.#resetCount = parsed.resetCount
+    gate.#counters = { ...parsed.counters }
+    gate.#pilotStartedAtMs = parsed.pilotStartedAt === null ? null : Date.parse(parsed.pilotStartedAt)
+    gate.#lastSafetyFailureAtMs =
+      parsed.lastSafetyFailureAt === null ? null : Date.parse(parsed.lastSafetyFailureAt)
+    const observed = [warmupMs]
+    if (gate.#pilotStartedAtMs !== null) observed.push(gate.#pilotStartedAtMs)
+    if (gate.#lastSafetyFailureAtMs !== null) observed.push(gate.#lastSafetyFailureAtMs)
+    gate.#lastObservedAtMs = Math.max(...observed)
+    return gate
+  }
+
+  startPilotClock(atMs: number = Date.now()): PilotGateSnapshotV1 {
+    this.#observe(atMs)
+    if (atMs - this.#warmupStartedAtMs < WARMUP_WINDOW_MS) {
+      throw new Error('warmup window is not complete')
+    }
+    if (this.#pilotStartedAtMs === null) this.#pilotStartedAtMs = atMs
+    return this.snapshot()
+  }
+
   evaluate(atMs: number = Date.now()): GateEvaluation {
     this.#observe(atMs)
     const warmupComplete = atMs - this.#warmupStartedAtMs >= WARMUP_WINDOW_MS
@@ -92,5 +118,45 @@ export class PilotQualificationGate {
       throw new Error('gate observation time must be monotonic')
     }
     this.#lastObservedAtMs = atMs
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function requiredIsoTime(value: unknown, field: string): string {
+  if (typeof value !== 'string' || !Number.isFinite(Date.parse(value))) {
+    throw new Error(`${field} must be a valid ISO time`)
+  }
+  return value
+}
+
+function requiredInteger(value: unknown, field: string, minimum = 0): number {
+  if (!Number.isInteger(value) || (value as number) < minimum) {
+    throw new Error(`${field} must be an integer >= ${minimum}`)
+  }
+  return value as number
+}
+
+export function parsePilotGateSnapshot(raw: unknown): PilotGateSnapshotV1 {
+  if (!isRecord(raw)) throw new Error('gate snapshot must be an object')
+  if (raw.schema !== 'PilotGateSnapshotV1') throw new Error('gate snapshot schema is invalid')
+  const countersRaw = raw.counters
+  if (!isRecord(countersRaw)) throw new Error('gate snapshot counters must be an object')
+  const counters = {
+    rotations: requiredInteger(countersRaw.rotations, 'counters.rotations'),
+    rehomes: requiredInteger(countersRaw.rehomes, 'counters.rehomes'),
+    takeovers: requiredInteger(countersRaw.takeovers, 'counters.takeovers'),
+  }
+  return {
+    schema: 'PilotGateSnapshotV1',
+    epoch: requiredInteger(raw.epoch, 'epoch', 1),
+    warmupStartedAt: requiredIsoTime(raw.warmupStartedAt, 'warmupStartedAt'),
+    pilotStartedAt: raw.pilotStartedAt === null ? null : requiredIsoTime(raw.pilotStartedAt, 'pilotStartedAt'),
+    lastSafetyFailureAt:
+      raw.lastSafetyFailureAt === null ? null : requiredIsoTime(raw.lastSafetyFailureAt, 'lastSafetyFailureAt'),
+    resetCount: requiredInteger(raw.resetCount, 'resetCount'),
+    counters,
   }
 }

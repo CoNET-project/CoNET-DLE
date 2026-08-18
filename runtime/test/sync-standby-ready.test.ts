@@ -310,3 +310,43 @@ test('official standby auto-signs after QUALIFIED and gossips; extra fd-08 does 
   extraRestored.stop()
   receiver.engine.stop()
 })
+
+test('official standby with a matching local envelope still fan-outs to peers', async () => {
+  const peers = roster()
+  const nodes = new Map<string, { engine: SyncQualificationEngine; store: ArchiveStore }>()
+  const fetchImpl = fakeFetch(nodes)
+  const receiver = await makeNode('a1', peers, true, fetchImpl)
+  const official = await makeNode('fd-06', peers, true, fetchImpl, 'standby')
+  const inventory = inventoryOf(official.store, 'fd-06')
+  official.store.persistSyncQualificationState({
+    schema: 'DleLabSyncQualificationStateV1',
+    phase: 'QUALIFIED',
+    nonce: 0,
+    rejectReason: null,
+    certificate: { candidate: 'fd-06' },
+    pendingChallenge: null,
+    pendingFreeze: null,
+    holdClaimed: false,
+    standbyReady: { 'fd-06': readyFrom('fd-06', inventory) },
+  })
+  const restored = createSyncQualificationEngine({
+    domainId: 'fd-06',
+    role: 'standby',
+    peers: peers.filter((peer) => peer.domainId !== 'fd-06'),
+    store: official.store,
+    table: tableFor('fd-06', peers, 'standby'),
+    fetchImpl,
+    tickMs: 10_000,
+  })
+  nodes.set('a1', receiver)
+  nodes.set('fd-06', { engine: restored, store: official.store })
+  assert.equal(restored.phase(), 'QUALIFIED')
+  assert.equal(restored.officialStandbyReadyCount(), 1)
+  assert.equal(receiver.engine.officialStandbyReadyCount(), 0)
+  await restored.tick()
+  assert.equal(receiver.engine.officialStandbyReadyCount(), 1)
+  assert.equal(receiver.engine.officialStandbysReady(), false)
+  official.engine.stop()
+  restored.stop()
+  receiver.engine.stop()
+})

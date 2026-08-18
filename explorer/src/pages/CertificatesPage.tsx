@@ -6,13 +6,19 @@ import { MainPageShell } from '../components/TitleCapsule'
 import {
   hashIndexCommittedInAcPill,
   officialStandbysReadyPill,
+  parseClockIsNotQualification,
   parseExtraStandbyReadyDoesNotCount,
   parseHashIndexCommittedInAc,
   parseNewchainOfficialStandbysReady,
   parseNewchainStandbyReadyEip712,
   parseOfficialStandbyReadyCount,
   parseOfficialStandbysReady,
+  parsePilotQualified,
+  parsePilotRunning,
+  parsePilotStartedAt,
   parseStandbyReadyEip712,
+  parseWarmupStartedAt,
+  pilotClockPill,
 } from '../lib/labOverlays'
 import { useExplorer } from '../providers/ExplorerProvider'
 
@@ -44,6 +50,11 @@ export function CertificatesPage() {
   const hashIndexCommittedInAc = parseHashIndexCommittedInAc(snapshot.health, cert)
   const officialReadyPill = officialStandbysReadyPill(officialStandbysReady)
   const hashIndexPill = hashIndexCommittedInAcPill(hashIndexCommittedInAc)
+  const clockPill = pilotClockPill(parsePilotRunning(snapshot.health))
+  const warmupStartedAt = parseWarmupStartedAt(snapshot.health)
+  const pilotStartedAt = parsePilotStartedAt(snapshot.health)
+  const clockIsNotQualification = parseClockIsNotQualification(snapshot.health)
+  const pilotQualified = parsePilotQualified(snapshot.health)
 
   return (
     <MainPageShell title="Certificates">
@@ -65,14 +76,15 @@ export function CertificatesPage() {
         ) : null}
         {officialReadyPill ? <StatusPill label={officialReadyPill.label} tone={officialReadyPill.tone} /> : null}
         {hashIndexPill ? <StatusPill label={hashIndexPill.label} tone={hashIndexPill.tone} /> : null}
+        {clockPill ? <StatusPill label={clockPill.label} tone={clockPill.tone} /> : null}
       </div>
 
       <section className="mb-6">
         <h2 className="text-sm font-semibold text-white">Archive Certificate</h2>
         <p className="mb-4 mt-2 text-sm leading-6 text-slate-400">
           {cert?.available
-            ? 'This is a lab networked Archive Certificate (PrecommitQC) on TCP 27101. Votes are lab EIP-712 ArchiveBftVote. It is not a frozen EIP-712 L1 wrapper or corpus SSZ object, and it does not claim 30-day qualification. P25 hash-index and official-standby pills are read-only lab overlays — not seating and not production AC commitment.'
-            : 'DLE tip finality is an Archive Certificate (PrecommitQC), not an L1 block. The empty state is honest until a lab networked AC is available. P25 overlays stay hidden when /health and the certificate omit those fields.'}
+            ? 'This is a lab networked Archive Certificate (PrecommitQC) on TCP 27101. Votes are lab EIP-712 ArchiveBftVote. It is not a frozen EIP-712 L1 wrapper or corpus SSZ object, and it does not claim 30-day qualification. Hash-index, official-standby, and clock pills are read-only lab overlays — not seating, not production AC commitment, and not 30-day qualification.'
+            : 'DLE tip finality is an Archive Certificate (PrecommitQC), not an L1 block. The empty state is honest until a lab networked AC is available. Overlay chips stay hidden when /health and the certificate omit those fields.'}
         </p>
         {typeof cert?.hash === 'string' && cert.hash.startsWith('0x') ? (
           <div className="mb-3">
@@ -117,6 +129,10 @@ export function CertificatesPage() {
               extraStandbyReadyDoesNotCount,
               hashIndexCommittedInAc,
               hashIndexRoot: cert?.hashIndexRoot ?? null,
+              warmupStartedAt,
+              pilotStartedAt,
+              clockIsNotQualification,
+              pilotQualified,
             }}
           />
         </div>

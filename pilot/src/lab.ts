@@ -1,12 +1,13 @@
 import { spawn } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { randomInt, randomUUID } from 'node:crypto'
 import { AppendOnlyNdjsonWriter, PublicEvidenceRedactor } from './evidence.js'
-import { PilotQualificationGate } from './gate.js'
+import { parsePilotGateSnapshot, PilotQualificationGate } from './gate.js'
 import { assertOperatorDomainPreflight, preflightOperatorDomains } from './inventory.js'
-import type { MeterSampleV1, PilotInventoryV1 } from './model.js'
+import type { MeterSampleV1, PilotGateSnapshotV1, PilotInventoryV1 } from './model.js'
 const DLE_LAB_GROUP_ID = '0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0'
 const DLE_LAB_GROUP_ID_LEGACY = 'dle.lab.group.v1'
 
@@ -111,21 +112,36 @@ export const DEFAULT_HOSTS_PATH = resolve(here, '../../lab/hosts.json')
 export const DEFAULT_AGENT_PATH = resolve(here, '../../lab/agent.mjs')
 export const DEFAULT_EVIDENCE_DIR = resolve(here, '../../evidence/conet-dle-30d-lab-2026-08')
 export const DEFAULT_SYNC_JOIN_EVIDENCE_DIR = resolve(here, '../../evidence/conet-dle-sync-join-2026-08')
+export const DEFAULT_P23_EVIDENCE_DIR = resolve(here, '../../evidence/conet-dle-p23-live-2026-08')
+export const OPERATOR_INVENTORY_FREEZE_FILENAME = 'operator-inventory-freeze.json'
+export const OPERATOR_INVENTORY_FREEZE_SCHEMA = 'DleLabOperatorInventoryFreezeV1'
+export const OPERATOR_PILOT_CLOCK_FILENAME = 'operator-pilot-clock.json'
+export const OPERATOR_PILOT_CLOCK_SCHEMA = 'DleLabOperatorPilotClockV1'
+
+export interface OperatorPilotClockStamp {
+  warmupStartedAt: string
+  pilotStartedAt: string
+  epoch?: number
+  resetCount?: number
+  counters?: { rotations: number; rehomes: number; takeovers: number }
+}
 export const G1_SYNC_JOIN_KEEPER_DOMAIN_IDS = [
   'fd-01-ionos-45',
   'fd-02-ionos-189',
   'fd-03-ionos-98',
   'fd-04-hosthatch-tokyo1',
 ] as const
-/** Old IONOS IPs retired from DLE TypeScript MVP. Seats stay live on remapped hosts. */
-export const MVP_EXCLUDED_SSH_HOSTS = ['74.208.224.45', '198.251.77.98'] as const
+/** Old IONOS / leftover IPs retired from DLE TypeScript MVP. Seats stay live on remapped hosts. */
+export const MVP_EXCLUDED_SSH_HOSTS = ['74.208.224.45', '198.251.77.98', '216.225.193.174'] as const
 export const MVP_EXCLUDED_INVENTORY_MARKS = [
   '74.208.224.45',
   '74-208-224-45',
   '198.251.77.98',
   '198-251-77-98',
+  '216.225.193.174',
+  '216-225-193-174',
 ] as const
-/** No official seat is retired; only the two old IONOS IPs are excluded. */
+/** No official seat is retired; only leftover IPs are excluded. */
 export const MVP_RETIRED_DOMAIN_IDS = [] as const
 /** Seat stays live; only old IONOS 74.208.224.45 is excluded. */
 export const FD01_DOMAIN_ID = 'fd-01-ionos-45'
@@ -133,6 +149,12 @@ export const FD01_SSH_HOST = '45.132.74.220'
 /** Seat stays live; only old IONOS 198.251.77.98 is excluded. */
 export const FD03_DOMAIN_ID = 'fd-03-ionos-98'
 export const FD03_SSH_HOST = '45.132.74.221'
+/** Official standby seat stays live; leftover 216.225.193.174 is excluded. */
+export const FD06_DOMAIN_ID = 'fd-06-ionos-174'
+export const FD06_SSH_HOST = '70.35.205.77'
+/** Official standby seat; leftover EL/CL on this host must never restart. */
+export const FD07_DOMAIN_ID = 'fd-07-ionos-207'
+export const FD07_SSH_HOST = '212.227.242.207'
 
 export function isRetiredLabDomain(domainId: string): boolean {
   return (MVP_RETIRED_DOMAIN_IDS as readonly string[]).includes(domainId)
@@ -155,6 +177,88 @@ export const REMAP_PEER_REFRESH_DOMAIN_IDS = [
   'fd-04-hosthatch-tokyo1',
   'fd-05-hosthatch-tokyo2',
 ] as const
+
+/** Keep-data only the official fd-06 standby seat. Never official-seven keep. */
+export const REMAP_KEEP_FD06_DOMAIN_IDS = [FD06_DOMAIN_ID] as const
+
+/**
+ * After fd-06 remap: keep-refresh official seats that still gossip to leftover `.174`.
+ * Includes official standby fd-07. Never leftover `.174`. Never `lab:deploy-g1-keep`.
+ */
+export const REMAP_PEER_REFRESH_AFTER_FD06_DOMAIN_IDS = [
+  FD01_DOMAIN_ID,
+  'fd-02-ionos-189',
+  FD03_DOMAIN_ID,
+  'fd-04-hosthatch-tokyo1',
+  'fd-05-hosthatch-tokyo2',
+  FD07_DOMAIN_ID,
+] as const
+
+/** Official 5+2 only. Extra fd-08 is frozen separately and does not count. */
+export const OFFICIAL_SEVEN_DOMAIN_IDS = [
+  FD01_DOMAIN_ID,
+  'fd-02-ionos-189',
+  FD03_DOMAIN_ID,
+  'fd-04-hosthatch-tokyo1',
+  'fd-05-hosthatch-tokyo2',
+  FD06_DOMAIN_ID,
+  FD07_DOMAIN_ID,
+] as const
+
+export function operatorInventoryFreezeRemoteDocument(at = new Date().toISOString()): string {
+  return `${JSON.stringify(
+    {
+      schema: OPERATOR_INVENTORY_FREEZE_SCHEMA,
+      frozen: true,
+      reason: 'operator',
+      labOnly: true,
+      notThirtyDayQualification: true,
+      at,
+    },
+    null,
+    2,
+  )}\n`
+}
+
+async function writeRemoteOperatorInventoryFreeze(sshHost: string): Promise<void> {
+  const prepared = await runSshRetry(sshHost, `mkdir -p '${LAB_DIR}/data'`)
+  if (prepared.code !== 0) {
+    throw new Error(prepared.stderr || prepared.stdout || `mkdir data failed on ${sshHost}`)
+  }
+  const tmp = '/tmp/dle-operator-inventory-freeze.json'
+  await writeFile(tmp, operatorInventoryFreezeRemoteDocument(), 'utf8')
+  await runScpRetry(tmp, sshHost, `${LAB_DIR}/data/${OPERATOR_INVENTORY_FREEZE_FILENAME}`)
+}
+
+export function operatorPilotClockRemoteDocument(stamp: OperatorPilotClockStamp): string {
+  if (stamp.pilotStartedAt === '') throw new Error('operator pilot clock requires stamped pilotStartedAt')
+  return `${JSON.stringify(
+    {
+      schema: OPERATOR_PILOT_CLOCK_SCHEMA,
+      warmupStartedAt: stamp.warmupStartedAt,
+      pilotStartedAt: stamp.pilotStartedAt,
+      epoch: stamp.epoch ?? 1,
+      resetCount: stamp.resetCount ?? 0,
+      counters: stamp.counters ?? { rotations: 0, rehomes: 0, takeovers: 0 },
+      labOnly: true,
+      notThirtyDayQualification: true,
+      clockIsNotQualification: true,
+      at: stamp.pilotStartedAt,
+    },
+    null,
+    2,
+  )}\n`
+}
+
+async function writeRemoteOperatorPilotClock(sshHost: string, stamp: OperatorPilotClockStamp): Promise<void> {
+  const prepared = await runSshRetry(sshHost, `mkdir -p '${LAB_DIR}/data'`)
+  if (prepared.code !== 0) {
+    throw new Error(prepared.stderr || prepared.stdout || `mkdir data failed on ${sshHost}`)
+  }
+  const tmp = '/tmp/dle-operator-pilot-clock.json'
+  await writeFile(tmp, operatorPilotClockRemoteDocument(stamp), 'utf8')
+  await runScpRetry(tmp, sshHost, `${LAB_DIR}/data/${OPERATOR_PILOT_CLOCK_FILENAME}`)
+}
 
 export function selectLabKeepHosts(
   hosts: PilotLabHostsV1,
@@ -199,6 +303,10 @@ function assertRemappedLiveSeat(
 export function assertOfficialLabMvpHosts(hosts: PilotLabHostsV1, inventory?: PilotInventoryV1): void {
   assertRemappedLiveSeat(hosts, FD01_DOMAIN_ID, FD01_SSH_HOST)
   assertRemappedLiveSeat(hosts, FD03_DOMAIN_ID, FD03_SSH_HOST)
+  const fd06 = assertRemappedLiveSeat(hosts, FD06_DOMAIN_ID, FD06_SSH_HOST)
+  if (fd06.leftoverElCl !== false) {
+    throw new Error(`${FD06_DOMAIN_ID} must be greenfield on ${FD06_SSH_HOST}`)
+  }
   for (const row of hosts.hosts) {
     if (isRetiredLabHost(row)) continue
     assertMvpSshHostAllowed(row.sshHost)
@@ -225,6 +333,14 @@ export function assertOfficialLabMvpHosts(hosts: PilotLabHostsV1, inventory?: Pi
   }
   if (!fd03Row.hostId.includes('45-132-74-221')) {
     throw new Error(`${FD03_DOMAIN_ID} inventory must use HostHatch 45.132.74.221`)
+  }
+  const fd06Row = inventory.domains.find((domain) => domain.domainId === FD06_DOMAIN_ID)
+  if (!fd06Row) throw new Error(`MVP inventory missing ${FD06_DOMAIN_ID}`)
+  if (/RETIRED/i.test(fd06Row.operatorLegalName)) {
+    throw new Error(`${FD06_DOMAIN_ID} inventory must stay live`)
+  }
+  if (!fd06Row.hostId.includes('70-35-205-77')) {
+    throw new Error(`${FD06_DOMAIN_ID} inventory must use 70.35.205.77`)
   }
 }
 
@@ -321,6 +437,10 @@ export async function loadOfficialLabInventory(path = DEFAULT_INVENTORY_PATH): P
   const fd03 = inventory.domains.find((domain) => domain.domainId === FD03_DOMAIN_ID)
   if (!fd03 || /RETIRED/i.test(fd03.operatorLegalName) || !fd03.hostId.includes('45-132-74-221')) {
     throw new Error(`${FD03_DOMAIN_ID} inventory must stay live on HostHatch 45.132.74.221`)
+  }
+  const fd06 = inventory.domains.find((domain) => domain.domainId === FD06_DOMAIN_ID)
+  if (!fd06 || /RETIRED/i.test(fd06.operatorLegalName) || !fd06.hostId.includes('70-35-205-77')) {
+    throw new Error(`${FD06_DOMAIN_ID} inventory must stay live on 70.35.205.77`)
   }
   return inventory
 }
@@ -926,7 +1046,19 @@ export async function deployArchiveRuntime(options?: {
   keepData?: boolean
   extras?: AgentConfigExtras
   onlyDomainIds?: readonly string[]
+  operatorInventoryFreeze?: boolean
+  operatorPilotClock?: OperatorPilotClockStamp
+  skipStop?: boolean
 }): Promise<{ ok: boolean; results: Array<{ domainId: string; host: string; ok: boolean; detail: string }> }> {
+  if (options?.operatorInventoryFreeze === true && options?.keepData !== true) {
+    throw new Error('operator inventory freeze requires keepData')
+  }
+  if (options?.operatorPilotClock !== undefined) {
+    if (options.keepData !== true) throw new Error('operator pilot clock requires keepData')
+    if (options.operatorInventoryFreeze !== true) {
+      throw new Error('operator pilot clock requires inventory freeze')
+    }
+  }
   const inventory = await loadOfficialLabInventory(options?.inventoryPath)
   const hosts = await loadLabHosts(options?.hostsPath)
   const archiveDistDir = options?.archiveDistDir ?? DEFAULT_ARCHIVE_DIST_DIR
@@ -989,15 +1121,35 @@ export async function deployArchiveRuntime(options?: {
       })
       continue
     }
-    const stopped = await runSshRetry(host.sshHost, STOP_LAB_ONLY)
-    if (stopped.code !== 0) {
-      results.push({
-        domainId: host.domainId,
-        host: host.sshHost,
-        ok: false,
-        detail: stopped.stderr || stopped.stdout || 'refused to stop protected process',
-      })
-      continue
+    let stoppedOut = 'skip-stop'
+    if (options?.skipStop !== true) {
+      const stopped = await runSshRetry(host.sshHost, STOP_LAB_ONLY)
+      if (stopped.code !== 0) {
+        results.push({
+          domainId: host.domainId,
+          host: host.sshHost,
+          ok: false,
+          detail: stopped.stderr || stopped.stdout || 'refused to stop protected process',
+        })
+        continue
+      }
+      stoppedOut = stopped.stdout.trim()
+    }
+    if (options?.operatorInventoryFreeze === true) {
+      try {
+        await writeRemoteOperatorInventoryFreeze(host.sshHost)
+        if (options.operatorPilotClock !== undefined) {
+          await writeRemoteOperatorPilotClock(host.sshHost, options.operatorPilotClock)
+        }
+      } catch (error) {
+        results.push({
+          domainId: host.domainId,
+          host: host.sshHost,
+          ok: false,
+          detail: error instanceof Error ? error.message : String(error),
+        })
+        continue
+      }
     }
     const started = await runSshRetry(host.sshHost, options?.keepData === true ? START_ARCHIVE_KEEP_ALL : START_ARCHIVE)
     const healthOk = started.stdout.includes('LIVE_OK') || started.stdout.includes('"command":"archive"')
@@ -1005,7 +1157,7 @@ export async function deployArchiveRuntime(options?: {
       domainId: host.domainId,
       host: host.sshHost,
       ok: started.code === 0 && healthOk,
-      detail: `${stopped.stdout.trim()}\n${started.stdout.trim() || started.stderr.trim()}`.trim(),
+      detail: `${stoppedOut}\n${started.stdout.trim() || started.stderr.trim()}`.trim(),
     })
   }
   return { ok: results.every((row) => row.ok), results }
@@ -2548,12 +2700,25 @@ export async function deployP11FullOpenJoiner(options?: {
   archiveDistDir?: string
   daemonProbePath?: string
   keepData?: boolean
+  operatorInventoryFreeze?: boolean
+  operatorPilotClock?: OperatorPilotClockStamp
+  writeEvidence?: boolean
+  skipStop?: boolean
 }): Promise<{
   ok: boolean
   joiner: PilotLabHostV1
   reachableFromKeeper: boolean
   results: Array<{ domainId: string; host: string; ok: boolean; detail: string }>
 }> {
+  if (options?.operatorInventoryFreeze === true && options?.keepData !== true) {
+    throw new Error('operator inventory freeze requires keepData')
+  }
+  if (options?.operatorPilotClock !== undefined) {
+    if (options.keepData !== true) throw new Error('operator pilot clock requires keepData')
+    if (options.operatorInventoryFreeze !== true) {
+      throw new Error('operator pilot clock requires inventory freeze')
+    }
+  }
   const inventory = await loadOfficialLabInventory()
   const hosts = await loadLabHosts()
   const joiner = await loadP11JoinerHost()
@@ -2597,15 +2762,28 @@ export async function deployP11FullOpenJoiner(options?: {
           detail: unpacked.stderr || unpacked.stdout,
         })
       } else {
-        const stopped = await runSshRetry(joiner.sshHost, STOP_LAB_ONLY)
-        if (stopped.code !== 0) {
-          results.push({
-            domainId: joiner.domainId,
-            host: joiner.sshHost,
-            ok: false,
-            detail: stopped.stderr || stopped.stdout || 'refused to stop protected process',
-          })
-        } else {
+        let stoppedOut = 'skip-stop'
+        if (options?.skipStop !== true) {
+          const stopped = await runSshRetry(joiner.sshHost, STOP_LAB_ONLY)
+          if (stopped.code !== 0) {
+            results.push({
+              domainId: joiner.domainId,
+              host: joiner.sshHost,
+              ok: false,
+              detail: stopped.stderr || stopped.stdout || 'refused to stop protected process',
+            })
+            stoppedOut = ''
+          } else {
+            stoppedOut = stopped.stdout.trim()
+          }
+        }
+        if (stoppedOut !== '') {
+          if (options?.operatorInventoryFreeze === true) {
+            await writeRemoteOperatorInventoryFreeze(joiner.sshHost)
+            if (options.operatorPilotClock !== undefined) {
+              await writeRemoteOperatorPilotClock(joiner.sshHost, options.operatorPilotClock)
+            }
+          }
           const started = await runSshRetry(
             joiner.sshHost,
             options?.keepData === true ? START_ARCHIVE_KEEP_ALL : START_ARCHIVE,
@@ -2615,7 +2793,7 @@ export async function deployP11FullOpenJoiner(options?: {
             domainId: joiner.domainId,
             host: joiner.sshHost,
             ok: started.code === 0 && healthOk,
-            detail: `${stopped.stdout.trim()}\n${started.stdout.trim() || started.stderr.trim()}`.trim(),
+            detail: `${stoppedOut}\n${started.stdout.trim() || started.stderr.trim()}`.trim(),
           })
         }
       }
@@ -2640,29 +2818,31 @@ export async function deployP11FullOpenJoiner(options?: {
     reachableFromKeeper = reach.code === 0 && reach.stdout.includes('"ok":true')
   }
   const ok = results.every((row) => row.ok) && reachableFromKeeper
-  await mkdir(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, { recursive: true })
-  await writeFile(
-    join(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, 'p11-deploy.json'),
-    `${JSON.stringify(
-      {
-        schema: 'DleLabP11JoinerDeployV1',
-        labOnly: true,
-        notOfficialFivePlusTwo: true,
-        neverWipeOfficialSeven: true,
-        keepData: options?.keepData === true,
-        wipedOnly: options?.keepData === true ? [] : [joiner.domainId],
-        dataDir: `${LAB_DIR}/data`,
-        neverGethBeacon: true,
-        reachableFromKeeper,
-        joiner,
-        results: results.map((row) => ({ domainId: row.domainId, ok: row.ok })),
-        ok,
-        at: new Date().toISOString(),
-      },
-      null,
-      2,
-    )}\n`,
-  )
+  if (options?.writeEvidence !== false) {
+    await mkdir(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, { recursive: true })
+    await writeFile(
+      join(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, 'p11-deploy.json'),
+      `${JSON.stringify(
+        {
+          schema: 'DleLabP11JoinerDeployV1',
+          labOnly: true,
+          notOfficialFivePlusTwo: true,
+          neverWipeOfficialSeven: true,
+          keepData: options?.keepData === true,
+          wipedOnly: options?.keepData === true ? [] : [joiner.domainId],
+          dataDir: `${LAB_DIR}/data`,
+          neverGethBeacon: true,
+          reachableFromKeeper,
+          joiner,
+          results: results.map((row) => ({ domainId: row.domainId, ok: row.ok })),
+          ok,
+          at: new Date().toISOString(),
+        },
+        null,
+        2,
+      )}\n`,
+    )
+  }
   return { ok, joiner, reachableFromKeeper, results }
 }
 
@@ -2825,11 +3005,591 @@ export async function acceptP11FullOpenJoin(): Promise<{
   return { ok, joiner, keepers, official, opening, waitedMs: Date.now() - started }
 }
 
+export async function stopLabArchiveOnly(sshHost: string): Promise<{
+  code: number
+  stdout: string
+  stderr: string
+}> {
+  return runSshRetry(sshHost, STOP_LAB_ONLY)
+}
+
+async function postOperatorInventoryFreeze(sshHost: string): Promise<{
+  ok: boolean
+  status: number
+  detail: string
+}> {
+  try {
+    const response = await fetch(`http://${sshHost}:${LAB_PORT}/sync/inventory-freeze`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ frozen: true }),
+      signal: AbortSignal.timeout(10_000),
+    })
+    const body: unknown = await response.json().catch(() => null)
+    const parsed =
+      body !== null && typeof body === 'object' && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : null
+    return {
+      ok: response.ok && parsed?.ok === true,
+      status: response.status,
+      detail: parsed !== null ? JSON.stringify(parsed) : `HTTP ${response.status}`,
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      detail: error instanceof Error ? error.message : String(error),
+    }
+  }
+}
+
+async function postOperatorPilotClock(
+  sshHost: string,
+  stamp: OperatorPilotClockStamp,
+): Promise<{
+  ok: boolean
+  status: number
+  detail: string
+}> {
+  try {
+    const response = await fetch(`http://${sshHost}:${LAB_PORT}/sync/pilot-clock`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        start: true,
+        warmupStartedAt: stamp.warmupStartedAt,
+        pilotStartedAt: stamp.pilotStartedAt,
+      }),
+      signal: AbortSignal.timeout(10_000),
+    })
+    const body: unknown = await response.json().catch(() => null)
+    const parsed =
+      body !== null && typeof body === 'object' && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : null
+    return {
+      ok: response.ok && parsed?.ok === true && parsed.pilotStartedAt === stamp.pilotStartedAt,
+      status: response.status,
+      detail: parsed !== null ? JSON.stringify(parsed) : `HTTP ${response.status}`,
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      detail: error instanceof Error ? error.message : String(error),
+    }
+  }
+}
+
+async function scrapeOperatorFreezeHost(host: Pick<PilotLabHostV1, 'domainId' | 'sshHost'>): Promise<{
+  domainId: string
+  sshHost: string
+  liveOk: boolean
+  inventoryFrozen: boolean | null
+  inventoryOperatorFrozen: boolean | null
+  inventoryFreezeReason: string | null
+  bftProcessStarted: boolean | null
+  officialStandbysReady: boolean | null
+  officialStandbyReadyCount: number | null
+  leafCount: number | null
+  lastACRef: string | null
+  hashIndexRoot: string | null
+  hostedChainSetRoot: string | null
+  membershipRoot: string | null
+  warmupStartedAt: unknown
+  warmupComplete: boolean | null
+  pilotRunning: boolean | null
+  clockIsNotQualification: boolean | null
+  pilotStartedAt: unknown
+}> {
+  const base = `http://${host.sshHost}:${LAB_PORT}`
+  const [liveness, health, sync] = await Promise.all([
+    fetchArchiveJson(`${base}/liveness`).catch(() => null),
+    fetchArchiveJson(`${base}/health`).catch(() => null),
+    fetchArchiveJson(`${base}/sync/status`).catch(() => null),
+  ])
+  const syncQualification =
+    health !== null &&
+    typeof health.syncQualification === 'object' &&
+    health.syncQualification !== null &&
+    !Array.isArray(health.syncQualification)
+      ? (health.syncQualification as Record<string, unknown>)
+      : null
+  return {
+    domainId: host.domainId,
+    sshHost: host.sshHost,
+    liveOk: liveness?.ok === true,
+    inventoryFrozen: typeof health?.inventoryFrozen === 'boolean' ? health.inventoryFrozen : null,
+    inventoryOperatorFrozen:
+      typeof health?.inventoryOperatorFrozen === 'boolean' ? health.inventoryOperatorFrozen : null,
+    inventoryFreezeReason:
+      typeof health?.inventoryFreezeReason === 'string' ? health.inventoryFreezeReason : null,
+    bftProcessStarted: typeof health?.bftProcessStarted === 'boolean' ? health.bftProcessStarted : null,
+    officialStandbysReady:
+      typeof sync?.officialStandbysReady === 'boolean'
+        ? sync.officialStandbysReady
+        : typeof syncQualification?.officialStandbysReady === 'boolean'
+          ? syncQualification.officialStandbysReady
+          : null,
+    officialStandbyReadyCount:
+      typeof sync?.officialStandbyReadyCount === 'number'
+        ? sync.officialStandbyReadyCount
+        : typeof syncQualification?.officialStandbyReadyCount === 'number'
+          ? syncQualification.officialStandbyReadyCount
+          : null,
+    leafCount: typeof sync?.leafCount === 'number' ? sync.leafCount : null,
+    lastACRef: typeof sync?.lastACRef === 'string' ? sync.lastACRef : null,
+    hashIndexRoot: typeof sync?.hashIndexRoot === 'string' ? sync.hashIndexRoot : null,
+    hostedChainSetRoot: typeof sync?.hostedChainSetRoot === 'string' ? sync.hostedChainSetRoot : null,
+    membershipRoot: typeof sync?.membershipRoot === 'string' ? sync.membershipRoot : null,
+    warmupStartedAt: health?.warmupStartedAt ?? null,
+    warmupComplete: typeof health?.warmupComplete === 'boolean' ? health.warmupComplete : null,
+    pilotRunning: typeof health?.pilotRunning === 'boolean' ? health.pilotRunning : null,
+    clockIsNotQualification:
+      typeof health?.clockIsNotQualification === 'boolean' ? health.clockIsNotQualification : null,
+    pilotStartedAt: health?.pilotStartedAt ?? null,
+  }
+}
+
+export async function keepFreezeLabInventory(options?: {
+  extras?: AgentConfigExtras
+  evidenceDir?: string
+}): Promise<{
+  ok: boolean
+  officialLiveOk: number
+  officialFrozen: number
+  officialStandbysReady: boolean | null
+  officialStandbyReadyCount: number | null
+  pilotStartedAt: unknown
+  readyIsNotTheClock: true
+  notThirtyDayQualification: true
+  stops: Array<{ domainId: string; host: string; ok: boolean; detail: string }>
+  officialDeploy: { ok: boolean; results: Array<{ domainId: string; host: string; ok: boolean; detail: string }> }
+  joinerDeploy: { ok: boolean; results: Array<{ domainId: string; host: string; ok: boolean; detail: string }> }
+  posts: Array<{ domainId: string; host: string; ok: boolean; status: number; detail: string }>
+  scrape: Array<Awaited<ReturnType<typeof scrapeOperatorFreezeHost>>>
+  waitedMs: number
+}> {
+  const hosts = await loadLabHosts()
+  const official = selectLabKeepHosts(hosts, OFFICIAL_SEVEN_DOMAIN_IDS)
+  const joiner = await loadP11JoinerHost()
+  const extras = options?.extras
+  if (extras === undefined) throw new Error('keep freeze requires P11 extras so fd-08 stays in extraPeers')
+  const freezeTargets = [...official, joiner]
+  const stops: Array<{ domainId: string; host: string; ok: boolean; detail: string }> = []
+  for (const host of freezeTargets) {
+    const stopped = await stopLabArchiveOnly(host.sshHost)
+    stops.push({
+      domainId: host.domainId,
+      host: host.sshHost,
+      ok: stopped.code === 0,
+      detail: stopped.stdout.trim() || stopped.stderr.trim(),
+    })
+  }
+  const stopOk = stops.every((row) => row.ok)
+  const officialDeploy = stopOk
+    ? await deployArchiveRuntime({
+        keepData: true,
+        extras,
+        operatorInventoryFreeze: true,
+        skipStop: true,
+        onlyDomainIds: [...OFFICIAL_SEVEN_DOMAIN_IDS],
+      })
+    : { ok: false, results: [] }
+  const joinerDeploy = officialDeploy.ok
+    ? await deployP11FullOpenJoiner({
+        keepData: true,
+        extras,
+        operatorInventoryFreeze: true,
+        writeEvidence: false,
+        skipStop: true,
+      })
+    : { ok: false, joiner, reachableFromKeeper: false, results: [] }
+  const posts: Array<{ domainId: string; host: string; ok: boolean; status: number; detail: string }> = []
+  if (officialDeploy.ok && joinerDeploy.ok) {
+    for (const host of freezeTargets) {
+      const posted = await postOperatorInventoryFreeze(host.sshHost)
+      posts.push({ domainId: host.domainId, host: host.sshHost, ...posted })
+    }
+  }
+  const waitStarted = Date.now()
+  if (officialDeploy.ok && joinerDeploy.ok) await delay(45_000)
+  const scrape: Array<Awaited<ReturnType<typeof scrapeOperatorFreezeHost>>> = []
+  await Promise.all(
+    freezeTargets.map(async (host) => {
+      scrape.push(await scrapeOperatorFreezeHost(host))
+    }),
+  )
+  scrape.sort((left, right) => left.domainId.localeCompare(right.domainId))
+  const officialScrape = scrape.filter((row) =>
+    (OFFICIAL_SEVEN_DOMAIN_IDS as readonly string[]).includes(row.domainId),
+  )
+  const officialLiveOk = officialScrape.filter((row) => row.liveOk).length
+  const officialFrozen = officialScrape.filter((row) => row.inventoryFrozen === true).length
+  const fd01 = officialScrape.find((row) => row.domainId === FD01_DOMAIN_ID)
+  const allFrozen =
+    scrape.every((row) => row.liveOk && row.inventoryFrozen === true) && scrape.length === freezeTargets.length
+  const clockStillNull = scrape.every((row) => row.pilotStartedAt === null)
+  const ok =
+    stopOk &&
+    officialDeploy.ok &&
+    joinerDeploy.ok &&
+    posts.length === freezeTargets.length &&
+    posts.every((row) => row.ok) &&
+    allFrozen &&
+    clockStillNull
+  const evidence = {
+    schema: 'DleLabOperatorInventoryFreezeLiveV1',
+    labOnly: true,
+    notThirtyDayQualification: true,
+    readyIsNotTheClock: true,
+    neverWipe: true,
+    neverRestartLeftoverL1: true,
+    neverInventP26: true,
+    officialSeven: [...OFFICIAL_SEVEN_DOMAIN_IDS],
+    extraJoiner: joiner.domainId,
+    extrasRequired: true,
+    stopAllFirst: true,
+    keepData: true,
+    http: 'POST /sync/inventory-freeze',
+    persist: `${LAB_DIR}/data/${OPERATOR_INVENTORY_FREEZE_FILENAME}`,
+    explorerNginxMustNotExposePost: true,
+    ok,
+    officialLiveOk,
+    officialFrozen,
+    officialStandbysReady: fd01?.officialStandbysReady ?? null,
+    officialStandbyReadyCount: fd01?.officialStandbyReadyCount ?? null,
+    pilotStartedAt: fd01?.pilotStartedAt ?? null,
+    stops,
+    officialDeploy: {
+      ok: officialDeploy.ok,
+      results: officialDeploy.results.map((row) => ({ domainId: row.domainId, ok: row.ok })),
+    },
+    joinerDeploy: {
+      ok: joinerDeploy.ok,
+      results: joinerDeploy.results.map((row) => ({ domainId: row.domainId, ok: row.ok })),
+    },
+    posts: posts.map((row) => ({ domainId: row.domainId, ok: row.ok, status: row.status })),
+    scrape,
+    waitedMs: Date.now() - waitStarted,
+    at: new Date().toISOString(),
+  }
+  const evidenceDir = options?.evidenceDir ?? DEFAULT_P23_EVIDENCE_DIR
+  await mkdir(evidenceDir, { recursive: true })
+  await writeFile(join(evidenceDir, 'operator-inventory-freeze.json'), `${JSON.stringify(evidence, null, 2)}\n`)
+  return {
+    ok,
+    officialLiveOk,
+    officialFrozen,
+    officialStandbysReady: fd01?.officialStandbysReady ?? null,
+    officialStandbyReadyCount: fd01?.officialStandbyReadyCount ?? null,
+    pilotStartedAt: fd01?.pilotStartedAt ?? null,
+    readyIsNotTheClock: true,
+    notThirtyDayQualification: true,
+    stops,
+    officialDeploy,
+    joinerDeploy,
+    posts,
+    scrape,
+    waitedMs: Date.now() - waitStarted,
+  }
+}
+
+export async function openOfficialPilotClock(options?: {
+  evidenceDir?: string
+  atMs?: number
+}): Promise<{
+  snapshot: PilotGateSnapshotV1
+  stamp: OperatorPilotClockStamp
+}> {
+  const evidenceDir = options?.evidenceDir ?? DEFAULT_EVIDENCE_DIR
+  const gatePath = join(evidenceDir, 'gate.json')
+  if (!existsSync(gatePath)) {
+    throw new Error('warmup gate.json is missing; do not invent a new warmup')
+  }
+  const existing = parsePilotGateSnapshot(JSON.parse(await readFile(gatePath, 'utf8')))
+  if (existing.lastSafetyFailureAt !== null) {
+    throw new Error('cannot open pilot clock after a safety failure without a new warmup')
+  }
+  const snapshot = PilotQualificationGate.fromSnapshot(existing).startPilotClock(options?.atMs ?? Date.now())
+  if (snapshot.pilotStartedAt === null) throw new Error('pilot clock stamp is missing')
+  await writeFile(gatePath, `${JSON.stringify(snapshot, null, 2)}\n`, 'utf8')
+  return {
+    snapshot,
+    stamp: {
+      warmupStartedAt: snapshot.warmupStartedAt,
+      pilotStartedAt: snapshot.pilotStartedAt,
+      epoch: snapshot.epoch,
+      resetCount: snapshot.resetCount,
+      counters: snapshot.counters,
+    },
+  }
+}
+
+export async function keepStartLabPilotClock(options?: {
+  extras?: AgentConfigExtras
+  evidenceDir?: string
+}): Promise<{
+  ok: boolean
+  officialLiveOk: number
+  officialFrozen: number
+  officialClockAligned: number
+  officialStandbysReady: boolean | null
+  officialStandbyReadyCount: number | null
+  warmupStartedAt: string | null
+  pilotStartedAt: string | null
+  readyIsNotQualification: true
+  clockIsNotQualification: true
+  notThirtyDayQualification: true
+  preflight: Array<Awaited<ReturnType<typeof scrapeOperatorFreezeHost>>>
+  stops: Array<{ domainId: string; host: string; ok: boolean; detail: string }>
+  officialDeploy: { ok: boolean; results: Array<{ domainId: string; host: string; ok: boolean; detail: string }> }
+  joinerDeploy: { ok: boolean; results: Array<{ domainId: string; host: string; ok: boolean; detail: string }> }
+  freezePosts: Array<{ domainId: string; host: string; ok: boolean; status: number; detail: string }>
+  clockPosts: Array<{ domainId: string; host: string; ok: boolean; status: number; detail: string }>
+  scrape: Array<Awaited<ReturnType<typeof scrapeOperatorFreezeHost>>>
+  waitedMs: number
+}> {
+  const extras = options?.extras
+  if (extras === undefined) throw new Error('start pilot clock requires P11 extras so fd-08 stays in extraPeers')
+  const hosts = await loadLabHosts()
+  const official = selectLabKeepHosts(hosts, OFFICIAL_SEVEN_DOMAIN_IDS)
+  const joiner = await loadP11JoinerHost()
+  const clockTargets = [...official, joiner]
+  const evidenceDir = options?.evidenceDir ?? DEFAULT_P23_EVIDENCE_DIR
+  const preflight: Array<Awaited<ReturnType<typeof scrapeOperatorFreezeHost>>> = []
+  await Promise.all(
+    official.map(async (host) => {
+      preflight.push(await scrapeOperatorFreezeHost(host))
+    }),
+  )
+  preflight.sort((left, right) => left.domainId.localeCompare(right.domainId))
+  const preflightFd01 = preflight.find((row) => row.domainId === FD01_DOMAIN_ID)
+  const preflightLiveOk = preflight.filter((row) => row.liveOk).length
+  const preflightFrozen = preflight.filter((row) => row.inventoryFrozen === true).length
+  const preflightOk =
+    preflightLiveOk === OFFICIAL_SEVEN_DOMAIN_IDS.length &&
+    preflightFrozen === OFFICIAL_SEVEN_DOMAIN_IDS.length &&
+    preflightFd01?.officialStandbysReady === true &&
+    preflightFd01.officialStandbyReadyCount === 2
+  const emptyStops: Array<{ domainId: string; host: string; ok: boolean; detail: string }> = []
+  const emptyDeploy = { ok: false, results: [] as Array<{ domainId: string; host: string; ok: boolean; detail: string }> }
+  const emptyPosts: Array<{ domainId: string; host: string; ok: boolean; status: number; detail: string }> = []
+  if (!preflightOk) {
+    const evidence = {
+      schema: 'DleLabOperatorPilotClockLiveV1',
+      labOnly: true,
+      notThirtyDayQualification: true,
+      readyIsNotQualification: true,
+      clockIsNotQualification: true,
+      neverWipe: true,
+      neverRestartLeftoverL1: true,
+      neverInventP26: true,
+      officialSeven: [...OFFICIAL_SEVEN_DOMAIN_IDS],
+      extraJoiner: joiner.domainId,
+      extrasRequired: true,
+      keepData: true,
+      http: 'POST /sync/pilot-clock',
+      persist: `${LAB_DIR}/data/${OPERATOR_PILOT_CLOCK_FILENAME}`,
+      explorerNginxMustNotExposePost: true,
+      ok: false,
+      reason: 'preflight',
+      officialLiveOk: preflightLiveOk,
+      officialFrozen: preflightFrozen,
+      officialClockAligned: 0,
+      officialStandbysReady: preflightFd01?.officialStandbysReady ?? null,
+      officialStandbyReadyCount: preflightFd01?.officialStandbyReadyCount ?? null,
+      warmupStartedAt: null,
+      pilotStartedAt: null,
+      preflight,
+      stops: emptyStops,
+      officialDeploy: emptyDeploy,
+      joinerDeploy: emptyDeploy,
+      freezePosts: emptyPosts,
+      clockPosts: emptyPosts,
+      scrape: preflight,
+      waitedMs: 0,
+      at: new Date().toISOString(),
+    }
+    await mkdir(evidenceDir, { recursive: true })
+    await writeFile(join(evidenceDir, 'operator-pilot-clock.json'), `${JSON.stringify(evidence, null, 2)}\n`)
+    return {
+      ok: false,
+      officialLiveOk: preflightLiveOk,
+      officialFrozen: preflightFrozen,
+      officialClockAligned: 0,
+      officialStandbysReady: preflightFd01?.officialStandbysReady ?? null,
+      officialStandbyReadyCount: preflightFd01?.officialStandbyReadyCount ?? null,
+      warmupStartedAt: null,
+      pilotStartedAt: null,
+      readyIsNotQualification: true,
+      clockIsNotQualification: true,
+      notThirtyDayQualification: true,
+      preflight,
+      stops: emptyStops,
+      officialDeploy: emptyDeploy,
+      joinerDeploy: { ok: false, results: [] },
+      freezePosts: emptyPosts,
+      clockPosts: emptyPosts,
+      scrape: preflight,
+      waitedMs: 0,
+    }
+  }
+  const opened = await openOfficialPilotClock()
+  const stamp = opened.stamp
+  const stops: Array<{ domainId: string; host: string; ok: boolean; detail: string }> = []
+  for (const host of clockTargets) {
+    const stopped = await stopLabArchiveOnly(host.sshHost)
+    stops.push({
+      domainId: host.domainId,
+      host: host.sshHost,
+      ok: stopped.code === 0,
+      detail: stopped.stdout.trim() || stopped.stderr.trim(),
+    })
+  }
+  const stopOk = stops.every((row) => row.ok)
+  const officialDeploy = stopOk
+    ? await deployArchiveRuntime({
+        keepData: true,
+        extras,
+        operatorInventoryFreeze: true,
+        operatorPilotClock: stamp,
+        skipStop: true,
+        onlyDomainIds: [...OFFICIAL_SEVEN_DOMAIN_IDS],
+      })
+    : emptyDeploy
+  const joinerDeploy = officialDeploy.ok
+    ? await deployP11FullOpenJoiner({
+        keepData: true,
+        extras,
+        operatorInventoryFreeze: true,
+        operatorPilotClock: stamp,
+        writeEvidence: false,
+        skipStop: true,
+      })
+    : { ok: false, joiner, reachableFromKeeper: false, results: [] }
+  const freezePosts: Array<{ domainId: string; host: string; ok: boolean; status: number; detail: string }> = []
+  const clockPosts: Array<{ domainId: string; host: string; ok: boolean; status: number; detail: string }> = []
+  if (officialDeploy.ok && joinerDeploy.ok) {
+    for (const host of clockTargets) {
+      const frozen = await postOperatorInventoryFreeze(host.sshHost)
+      freezePosts.push({ domainId: host.domainId, host: host.sshHost, ...frozen })
+      const posted = await postOperatorPilotClock(host.sshHost, stamp)
+      clockPosts.push({ domainId: host.domainId, host: host.sshHost, ...posted })
+    }
+  }
+  const waitStarted = Date.now()
+  if (officialDeploy.ok && joinerDeploy.ok) await delay(45_000)
+  const scrape: Array<Awaited<ReturnType<typeof scrapeOperatorFreezeHost>>> = []
+  await Promise.all(
+    clockTargets.map(async (host) => {
+      scrape.push(await scrapeOperatorFreezeHost(host))
+    }),
+  )
+  scrape.sort((left, right) => left.domainId.localeCompare(right.domainId))
+  const officialScrape = scrape.filter((row) =>
+    (OFFICIAL_SEVEN_DOMAIN_IDS as readonly string[]).includes(row.domainId),
+  )
+  const officialLiveOk = officialScrape.filter((row) => row.liveOk).length
+  const officialFrozen = officialScrape.filter((row) => row.inventoryFrozen === true).length
+  const officialClockAligned = officialScrape.filter(
+    (row) =>
+      row.liveOk &&
+      row.inventoryFrozen === true &&
+      row.pilotStartedAt === stamp.pilotStartedAt &&
+      row.warmupStartedAt === stamp.warmupStartedAt,
+  ).length
+  const fd01 = officialScrape.find((row) => row.domainId === FD01_DOMAIN_ID)
+  const ok =
+    stopOk &&
+    officialDeploy.ok &&
+    joinerDeploy.ok &&
+    freezePosts.length === clockTargets.length &&
+    freezePosts.every((row) => row.ok) &&
+    clockPosts.length === clockTargets.length &&
+    clockPosts.every((row) => row.ok) &&
+    officialLiveOk === OFFICIAL_SEVEN_DOMAIN_IDS.length &&
+    officialFrozen === OFFICIAL_SEVEN_DOMAIN_IDS.length &&
+    officialClockAligned === OFFICIAL_SEVEN_DOMAIN_IDS.length
+  const evidence = {
+    schema: 'DleLabOperatorPilotClockLiveV1',
+    labOnly: true,
+    notThirtyDayQualification: true,
+    readyIsNotQualification: true,
+    clockIsNotQualification: true,
+    neverWipe: true,
+    neverRestartLeftoverL1: true,
+    neverInventP26: true,
+    officialSeven: [...OFFICIAL_SEVEN_DOMAIN_IDS],
+    extraJoiner: joiner.domainId,
+    extrasRequired: true,
+    stopAllFirst: true,
+    keepData: true,
+    http: 'POST /sync/pilot-clock',
+    persist: `${LAB_DIR}/data/${OPERATOR_PILOT_CLOCK_FILENAME}`,
+    explorerNginxMustNotExposePost: true,
+    ok,
+    officialLiveOk,
+    officialFrozen,
+    officialClockAligned,
+    officialStandbysReady: fd01?.officialStandbysReady ?? null,
+    officialStandbyReadyCount: fd01?.officialStandbyReadyCount ?? null,
+    warmupStartedAt: stamp.warmupStartedAt,
+    pilotStartedAt: stamp.pilotStartedAt,
+    preflight,
+    stops,
+    officialDeploy: {
+      ok: officialDeploy.ok,
+      results: officialDeploy.results.map((row) => ({ domainId: row.domainId, ok: row.ok })),
+    },
+    joinerDeploy: {
+      ok: joinerDeploy.ok,
+      results: joinerDeploy.results.map((row) => ({ domainId: row.domainId, ok: row.ok })),
+    },
+    freezePosts: freezePosts.map((row) => ({ domainId: row.domainId, ok: row.ok, status: row.status })),
+    clockPosts: clockPosts.map((row) => ({ domainId: row.domainId, ok: row.ok, status: row.status })),
+    scrape,
+    waitedMs: Date.now() - waitStarted,
+    at: new Date().toISOString(),
+  }
+  await mkdir(evidenceDir, { recursive: true })
+  await writeFile(join(evidenceDir, 'operator-pilot-clock.json'), `${JSON.stringify(evidence, null, 2)}\n`)
+  return {
+    ok,
+    officialLiveOk,
+    officialFrozen,
+    officialClockAligned,
+    officialStandbysReady: fd01?.officialStandbysReady ?? null,
+    officialStandbyReadyCount: fd01?.officialStandbyReadyCount ?? null,
+    warmupStartedAt: stamp.warmupStartedAt,
+    pilotStartedAt: stamp.pilotStartedAt,
+    readyIsNotQualification: true,
+    clockIsNotQualification: true,
+    notThirtyDayQualification: true,
+    preflight,
+    stops,
+    officialDeploy,
+    joinerDeploy,
+    freezePosts,
+    clockPosts,
+    scrape,
+    waitedMs: Date.now() - waitStarted,
+  }
+}
+
 export async function startOfficialWarmup(evidenceDir = DEFAULT_EVIDENCE_DIR): Promise<{
   gatePath: string
   inventoryPath: string
   correlation: LabCapacityNote[]
 }> {
+  const existingGatePath = join(evidenceDir, 'gate.json')
+  if (existsSync(existingGatePath)) {
+    const existing = parsePilotGateSnapshot(JSON.parse(await readFile(existingGatePath, 'utf8')))
+    if (existing.lastSafetyFailureAt === null) {
+      throw new Error('existing warmup gate is already recorded; use lab:start-pilot-clock instead of resetting warmup')
+    }
+  }
   const inventory = await loadOfficialLabInventory()
   const report = preflightOperatorDomains(inventory)
   if (!report.ok) throw new Error('official inventory preflight failed')

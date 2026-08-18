@@ -10,8 +10,22 @@ import { seedLabFissionMarker } from './hashPipe.js'
 import {
   inventoryCatalogFrozen,
   inventoryCatalogFreezeReason,
+  loadOperatorInventoryFreeze,
+  operatorInventoryFrozen,
+  parseOperatorInventoryFreezePost,
+  persistOperatorInventoryFreeze,
+  resolveInventoryFreezeState,
   setInventoryCatalogFrozen,
+  setOperatorInventoryFreeze,
 } from './inventoryFreeze.js'
+import {
+  OPERATOR_PILOT_CLOCK_SCHEMA,
+  commitOperatorPilotClock,
+  loadOperatorPilotClock,
+  operatorPilotClockFromPost,
+  operatorPilotClockHealth,
+  parseOperatorPilotClockPost,
+} from './pilotClock.js'
 import { createArchiveBftEngine } from './bft/engine.js'
 import { listenArchiveHttp } from './http.js'
 import { createNewChainEngine } from './newchain/engine.js'
@@ -193,11 +207,12 @@ function seatingComplete(): boolean {
   return true
 }
 function applyInventoryFreeze(): void {
-  const frozen = sync.inventoryShouldFreeze()
-  const reason = !frozen ? undefined : sync.hasUnseatedActive() ? 'unseated-active' : 'challenge-open'
-  setInventoryCatalogFrozen(frozen, reason)
+  const autoFrozen = sync.inventoryShouldFreeze()
+  const autoReason = !autoFrozen ? undefined : sync.hasUnseatedActive() ? 'unseated-active' : 'challenge-open'
+  const next = resolveInventoryFreezeState(autoFrozen, autoReason)
+  setInventoryCatalogFrozen(next.frozen, next.reason)
   extraHealthCache = null
-  if (!frozen) return
+  if (!next.frozen) return
   if (bftStarted) {
     engine.stop()
     newchain.stop()
@@ -263,8 +278,6 @@ function extraHealthNow(): Record<string, unknown> {
     bftNetworked: bft.networked,
     bftDiskNetworked: bft.networked,
     bftProcessStarted: bftStarted,
-    inventoryFrozen: inventoryCatalogFrozen(),
-    inventoryFreezeReason: inventoryCatalogFreezeReason(),
     bftModeA: bft.modeAAccepted,
     bftCertificateAvailable: bft.certificateAvailable,
     bftEip712: bft.bftEip712,
@@ -290,6 +303,10 @@ function extraHealthNow(): Record<string, unknown> {
     hashIndex: healthHashIndex(),
     hashIndexCommittedInAc: hashIndexCommittedInAc(engine.certificate()),
     ...sync.health(),
+    inventoryFrozen: inventoryCatalogFrozen(),
+    inventoryFreezeReason: inventoryCatalogFreezeReason(),
+    inventoryOperatorFrozen: operatorInventoryFrozen(),
+    ...operatorPilotClockHealth(),
   }
 }
 
@@ -362,6 +379,39 @@ const server = await listenArchiveHttp({
       const result = sync.handleStandbyReady(body)
       return { status: result.ok ? 200 : 400, body: result }
     }
+    if (pathname === '/sync/inventory-freeze') {
+      const parsed = parseOperatorInventoryFreezePost(body)
+      if (!parsed.ok) return { status: 400, body: { ok: false, error: parsed.error } }
+      setOperatorInventoryFreeze(true)
+      persistOperatorInventoryFreeze(dataDir, true)
+      applyInventoryFreeze()
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          schema: 'DleLabOperatorInventoryFreezeV1',
+          inventoryFrozen: true,
+          inventoryFreezeReason: 'operator',
+          inventoryOperatorFrozen: true,
+          labOnly: true,
+          notThirtyDayQualification: true,
+        },
+      }
+    }
+    if (pathname === '/sync/pilot-clock') {
+      const parsed = parseOperatorPilotClockPost(body)
+      if (!parsed.ok) return { status: 400, body: { ok: false, error: parsed.error } }
+      const committed = commitOperatorPilotClock(dataDir, operatorPilotClockFromPost(parsed.value))
+      if (!committed.ok) return { status: 409, body: { ok: false, error: committed.error } }
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          schema: OPERATOR_PILOT_CLOCK_SCHEMA,
+          ...operatorPilotClockHealth(),
+        },
+      }
+    }
     return newchain.post(pathname, body) ?? ondemand.post(pathname, body)
   },
   hopFetch: async (url, chainNftId, height) => {
@@ -374,6 +424,8 @@ const server = await listenArchiveHttp({
 })
 
 await sync.start()
+loadOperatorInventoryFreeze(dataDir)
+loadOperatorPilotClock(dataDir)
 applyInventoryFreeze()
 if (!enableBft && !inventoryCatalogFrozen()) await newchain.start()
 

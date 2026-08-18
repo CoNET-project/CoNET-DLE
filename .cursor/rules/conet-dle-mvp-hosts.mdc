@@ -1,12 +1,12 @@
 ---
-description: DLE TypeScript MVP 官方 7 席；fd-01 换到 45.132.74.220；fd-03 换到 45.132.74.221
+description: DLE TypeScript MVP 官方 7 席；fd-01 在 45.132.74.220；fd-03 在 45.132.74.221；fd-06 在 70.35.205.77
 globs: pilot/lab/**,pilot/inventories/**,pilot/src/lab.ts,**/nginx-dle*
 alwaysApply: false
 ---
 
 # DLE MVP official hosts
 
-Official G1 roster is **exactly 7** (5+2 identity). Seat identity is `domainId` + `participantWallet`, **not** the IP.
+Official G1 roster is **exactly 7** (5+2 identity). Seat identity is `domainId` + `participantWallet`, **not** the IP. Extra `fd-08` is unofficial.
 
 | domainId | live sshHost | role |
 |---|---|---|
@@ -15,19 +15,22 @@ Official G1 roster is **exactly 7** (5+2 identity). Seat identity is `domainId` 
 | `fd-03-ionos-98` | `45.132.74.221` | active keeper (L2 keep-data running) |
 | `fd-04-hosthatch-tokyo1` | `167.254.243.38` | active keeper |
 | `fd-05-hosthatch-tokyo2` | `170.205.39.67` | active wipe-safe |
-| `fd-06-ionos-174` | `216.225.193.174` | standby |
-| `fd-07-ionos-207` | `212.227.242.207` | standby |
+| `fd-06-ionos-174` | `70.35.205.77` | official standby (keep-data remapped 2026-08-18) |
+| `fd-07-ionos-207` | `212.227.242.207` | official standby |
 
-Live keepers are **fd-01 / fd-02 / fd-03 / fd-04**. Do **not** auto-promote a standby. Remapped NYC keepers already have authorized keep-data L2. Refresh those two with `lab:keep-remap-l2` only — never official-seven keep (that starts standby). Completing a remap **MUST NOT** start `pilotStartedAt`.
+Live keepers are **fd-01 / fd-02 / fd-03 / fd-04**. Do **not** auto-promote a standby. Refresh fd-01/fd-03 with `lab:keep-remap-l2` only — never official-seven keep (that starts standby). Start fd-06 with `lab:keep-remap-fd06` only. After that remap, other official seats still gossip fd-06 to leftover `.174` until `lab:keep-refresh-fd06-peers` (keep-data; includes fd-07; `STOP_LAB_ONLY`; never leftover EL/CL). After peers point at `.77`, do **not** keep-restart again to chase `officialStandbysReady`: unfrozen cataloguing / lab BFT keep the two official standbys on **different four roots** (2026-08-18T07:05Z scrape). **Operator authorized inventory freeze:** `npm run lab:keep-freeze-inventory` (STOP official 7 + fd-08 first; keep-data with `operator-inventory-freeze.json`; `POST /sync/inventory-freeze` only `{frozen:true}`). Engine + tests: `runtime:test` **157/157**; `pilot` **14/14**; `explorer:test` **8/8**. **Live freeze 2026-08-18T08:35Z:** official 7 + extra fd-08 `inventoryFrozen=true` `reason=operator`; honest **7/7** LIVE_OK; `officialStandbysReady=true` count=2; leaf **9750**; `bftProcessStarted=false`; `pilotStartedAt=null`. Evidence: `pilot/evidence/conet-dle-p23-live-2026-08/operator-inventory-freeze.json`. Completing a remap or freeze **MUST NOT** start `pilotStartedAt`. **Operator authorized clock start:** `npm run lab:start-pilot-clock` (keep-data; preserve freeze; `POST /sync/pilot-clock`). **Live clock 2026-08-18T09:53:58.092Z** (`warmupStartedAt=2026-08-14T17:10:16.786Z`; official 7 + fd-08 aligned; freeze kept; `officialStandbysReady=true` count=2; leaf **9750**; `pilotQualified=false`). Evidence: `pilot/evidence/conet-dle-p23-live-2026-08/operator-pilot-clock.json`. Engine + tests: `runtime:test` **159/159**; `pilot` **19/19**; `explorer:test` **10/10**. Clock ≠ qualification. **Explorer clock overlay (2026-08-18, not P26):** Home + Certificates show a **non-green** clock chip (`30-day clock running (not qualified)`). Tests: `explorer:test` **10/10**. Public SPA `index-C8IdTq4H.js` on `dle.conet.network` at 2026-08-18T10:15:00Z (replaced pre-clock `index-U1o9ul_I.js`). Painting the clock is **not** qualification. Do **not** invent P26.
+
+`.77` already runs Explorer nginx, `dle-ondemand-clients`, and `dle-newchain-user`. DLE lives only in `~/dle-30d-lab` :27101. Do **not** stop those processes. Do **not** add `70.35.205.77:27101` to Explorer nginx upstream (standby is not an upstream).
 
 ## Retired IPs (MVP exclude)
 
-Do not SSH, keep-deploy, `extraPeers`, on-demand hook, newchain-user, or nginx-upstream **`74.208.224.45`** or **`198.251.77.98`**.
+Do not SSH, keep-deploy, `extraPeers`, on-demand hook, newchain-user, or nginx-upstream **`74.208.224.45`**, **`198.251.77.98`**, or leftover **`216.225.193.174`**. `runSsh` refuses those hosts — use raw ssh only if an operator explicitly needs leftover forensics.
 
 - `fd-01-ionos-45` **stays live**. `sshHost` must be `45.132.74.220`. Do **not** mark the seat `retired`. `agentConfigFor(fd-01)` must succeed.
 - `fd-03-ionos-98` **stays live**. `sshHost` must be `45.132.74.221`. Do **not** mark the seat `retired`. `agentConfigFor(fd-03)` must succeed.
+- `fd-06-ionos-174` **stays live**. `sshHost` must be `70.35.205.77`. Wallet stays `0xb25932EBB7460B40741aA9431798b0f18331fE7a`. Do **not** mark the seat `retired`.
 - `loadLabHosts` / `runSsh` / `runScp` must refuse the excluded IPs.
-- Explorer nginx: `45.132.74.220:27101`, `45.132.74.221:27101`, `167.254.243.38:27101`, `170.205.39.67:27101`. **Never** `74.208.224.45:27101` or `198.251.77.98:27101`. Do not proxy shared-beacon `216.225.197.189`.
-- Keep both `domainId`s. Do **not** rename seats. Do **not** wipe keepers.
+- Explorer nginx: `45.132.74.220:27101`, `45.132.74.221:27101`, `167.254.243.38:27101`, `170.205.39.67:27101`. **Never** `74.208.224.45:27101`, `198.251.77.98:27101`, leftover `216.225.193.174:27101`, or Explorer-host `70.35.205.77:27101`. Do not proxy shared-beacon `216.225.197.189`.
+- Keep the `domainId`s. Do **not** rename seats. Do **not** wipe keepers.
 - Do **not** rewrite `pilot/evidence/**` that still names the old IPs.
 - This is **not** an L1 health-check delist. Do not restart EL/CL.
