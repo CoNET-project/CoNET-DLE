@@ -26,6 +26,7 @@ import {
   canonicalGroupId,
   sameGroupId,
 } from '../protocol'
+import { labSeatingGaugeHint } from '../lib/labSeatingCopy'
 import {
   hashIndexCommittedInAcPill,
   officialStandbysReadyPill,
@@ -264,7 +265,7 @@ export function HomePage() {
             <ClusterGauge
               label="Seating"
               value={seatingShare}
-              hint={seatedCount > 0 ? 'Lab HMAC seated' : 'Not seated'}
+              hint={labSeatingGaugeHint(seatedCount)}
               healthy={seatedCount > 0}
             />
             <ClusterGauge

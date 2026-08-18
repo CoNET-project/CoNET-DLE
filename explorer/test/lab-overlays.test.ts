@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { archiveSeatingPill } from '../src/lib/archiveSeating.ts'
+import { labSeatingDetailLabel, labSeatingGaugeHint } from '../src/lib/labSeatingCopy.ts'
 import {
   ZERO32,
   hashIndexCommittedInAcFromRoot,
@@ -132,5 +133,11 @@ describe('P25 lab overlays', () => {
       archiveSeatingPill(seatingRow({ seatingQualified: false, lastQuorumOk: true })).tone,
       'ok',
     )
+    assert.equal(labSeatingGaugeHint(7), 'Lab EIP-712 seated')
+    assert.equal(labSeatingGaugeHint(0), 'Not seated')
+    assert.equal(labSeatingDetailLabel(true, 'QUALIFIED'), 'seated (lab EIP-712)')
+    assert.equal(labSeatingDetailLabel(false, 'SYNCING'), 'SYNCING')
+    assert.doesNotMatch(labSeatingGaugeHint(1), /hmac/i)
+    assert.doesNotMatch(labSeatingDetailLabel(true, 'QUALIFIED'), /hmac/i)
   })
 })

@@ -5,6 +5,7 @@ import { JsonBlock } from '../components/JsonBlock'
 import { ParticipantWallet } from '../components/ParticipantWallet'
 import { StatusPill } from '../components/StatusPill'
 import { archiveSeatingPill } from '../lib/archiveSeating'
+import { labSeatingDetailLabel } from '../lib/labSeatingCopy'
 import { formatInteger } from '../lib/format'
 import { useExplorer } from '../providers/ExplorerProvider'
 import { useExplorerChrome } from '../providers/ExplorerChrome'
@@ -58,9 +59,7 @@ export function ArchiveDetailPage() {
             <div>
               <dt className="text-xs uppercase tracking-wide text-cyan-200/60">Lab seating</dt>
               <dd className="mt-1 font-medium text-white">
-                {row.seatingQualified === true
-                  ? 'seated (lab HMAC)'
-                  : row.syncPhase ?? 'not seated'}
+                {labSeatingDetailLabel(row.seatingQualified === true, row.syncPhase)}
               </dd>
             </div>
             <div>
