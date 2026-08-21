@@ -38,6 +38,81 @@ async function signOrder(wallet: Wallet, side: typeof ORDER_SIDE_SELL | typeof O
   return { ...unsigned, signature }
 }
 
+async function certifyMatch(opts: {
+  trade: ReturnType<typeof createTradeEngine>
+  seller: Wallet
+  buyer: Wallet
+  checkers: Wallet[]
+}): Promise<string> {
+  const { trade, seller, buyer, checkers } = opts
+  const sell = await signOrder(seller, ORDER_SIDE_SELL)
+  const buy = await signOrder(buyer, ORDER_SIDE_BUY)
+  assert.equal((await Promise.resolve(trade.post('/trade/submit', sell)))?.status, 200)
+  assert.equal((await Promise.resolve(trade.post('/trade/submit', buy)))?.status, 200)
+  const scan = await Promise.resolve(trade.post('/trade/scan', { scanner: checkers[0]!.address }))
+  assert.equal(scan?.status, 200)
+  const matchRow = (scan!.body as { match: Record<string, unknown> }).match
+  const cand = { ...matchRow, candidateHash: matchCandidateHash(matchRow as never) }
+  assert.equal((await Promise.resolve(trade.post('/trade/candidate', cand)))?.status, 200)
+  const checked = await Promise.resolve(trade.post('/trade/check', { candidateHash: cand.candidateHash }))
+  assert.equal(checked?.status, 200)
+  const certMatch = (
+    checked!.body as {
+      match: { certificate: { certificateHash: string; committee: string[] } }
+    }
+  ).match
+  const byAddr = new Map(checkers.map((w) => [w.address.toLowerCase(), w]))
+  for (const addr of certMatch.certificate.committee.slice(0, 5)) {
+    const w = byAddr.get(addr.toLowerCase())!
+    const signature = await w.signMessage(
+      certPersonalSignMessage(certMatch.certificate.certificateHash as Hex),
+    )
+    assert.equal(
+      (
+        await Promise.resolve(
+          trade.post('/trade/attest', {
+            candidateHash: cand.candidateHash,
+            signer: w.address,
+            signature,
+          }),
+        )
+      )?.status,
+      200,
+    )
+  }
+  return cand.candidateHash
+}
+
+async function listAndApprove(
+  trade: ReturnType<typeof createTradeEngine>,
+  candidateHash: string,
+  seller: Wallet,
+  buyer: Wallet,
+): Promise<void> {
+  assert.equal(
+    (
+      await Promise.resolve(
+        trade.post('/trade/list', {
+          candidateHash,
+          sellerPrivateKey: seller.privateKey,
+        }),
+      )
+    )?.status,
+    200,
+  )
+  assert.equal(
+    (
+      await Promise.resolve(
+        trade.post('/trade/approve', {
+          candidateHash,
+          buyerPrivateKey: buyer.privateKey,
+        }),
+      )
+    )?.status,
+    200,
+  )
+}
+
 test('trade settle executeOnChain uses submitL1SettlementTx hook then settles', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'dle-trade-onchain-'))
   const store = openArchiveStore(dir)
@@ -46,12 +121,16 @@ test('trade settle executeOnChain uses submitL1SettlementTx hook then settles', 
   const checkers = Array.from({ length: 9 }, () => Wallet.createRandom())
   let settleCalls = 0
   const fakeTx = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex
+  const fakeListTx = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex
+  const fakeApproveTx = '0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' as Hex
 
   const trade = createTradeEngine({
     domainId: 'onchain-settle-test',
     store,
     checkerPool: checkers.map((w) => w.address),
     verifyL1Custody: async () => ({ ok: true }),
+    submitL1ListTx: async () => ({ ok: true, txHash: fakeListTx }),
+    submitL1ApproveTx: async () => ({ ok: true, txHash: fakeApproveTx }),
     submitL1SettlementTx: async () => {
       settleCalls += 1
       return { ok: true, txHash: fakeTx }
@@ -59,47 +138,12 @@ test('trade settle executeOnChain uses submitL1SettlementTx hook then settles', 
   })
 
   try {
-    const sell = await signOrder(seller, ORDER_SIDE_SELL)
-    const buy = await signOrder(buyer, ORDER_SIDE_BUY)
-    assert.equal((await Promise.resolve(trade.post('/trade/submit', sell)))?.status, 200)
-    assert.equal((await Promise.resolve(trade.post('/trade/submit', buy)))?.status, 200)
-
-    const scan = await Promise.resolve(trade.post('/trade/scan', { scanner: checkers[0]!.address }))
-    assert.equal(scan?.status, 200)
-    const matchRow = (scan!.body as { match: Record<string, unknown> }).match
-    const cand = { ...matchRow, candidateHash: matchCandidateHash(matchRow as never) }
-    assert.equal((await Promise.resolve(trade.post('/trade/candidate', cand)))?.status, 200)
-
-    const checked = await Promise.resolve(trade.post('/trade/check', { candidateHash: cand.candidateHash }))
-    assert.equal(checked?.status, 200)
-    const certMatch = (
-      checked!.body as {
-        match: { certificate: { certificateHash: string; committee: string[] } }
-      }
-    ).match
-    const byAddr = new Map(checkers.map((w) => [w.address.toLowerCase(), w]))
-    for (const addr of certMatch.certificate.committee.slice(0, 5)) {
-      const w = byAddr.get(addr.toLowerCase())!
-      const signature = await w.signMessage(
-        certPersonalSignMessage(certMatch.certificate.certificateHash as Hex),
-      )
-      assert.equal(
-        (
-          await Promise.resolve(
-            trade.post('/trade/attest', {
-              candidateHash: cand.candidateHash,
-              signer: w.address,
-              signature,
-            }),
-          )
-        )?.status,
-        200,
-      )
-    }
+    const candidateHash = await certifyMatch({ trade, seller, buyer, checkers })
+    await listAndApprove(trade, candidateHash, seller, buyer)
 
     const settled = await Promise.resolve(
       trade.post('/trade/settle', {
-        candidateHash: cand.candidateHash,
+        candidateHash,
         outcome: 'settled',
         executeOnChain: true,
       }),
@@ -122,54 +166,71 @@ test('trade settle executeOnChain uses submitL1SettlementTx hook then settles', 
   }
 })
 
+test('trade settle executeOnChain refuses without list/approve (preflight gate)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'dle-trade-preflight-'))
+  const store = openArchiveStore(dir)
+  const seller = Wallet.createRandom()
+  const buyer = Wallet.createRandom()
+  const checkers = Array.from({ length: 9 }, () => Wallet.createRandom())
+  let settleCalls = 0
+
+  const trade = createTradeEngine({
+    domainId: 'preflight-gate-test',
+    store,
+    checkerPool: checkers.map((w) => w.address),
+    verifyL1Custody: async () => ({ ok: true }),
+    submitL1SettlementTx: async () => {
+      settleCalls += 1
+      return { ok: true, txHash: ('0x' + 'd'.repeat(64)) as Hex }
+    },
+  })
+
+  try {
+    const candidateHash = await certifyMatch({ trade, seller, buyer, checkers })
+    const blocked = await Promise.resolve(
+      trade.post('/trade/settle', {
+        candidateHash,
+        outcome: 'settled',
+        executeOnChain: true,
+      }),
+    )
+    assert.equal(blocked?.status, 400)
+    assert.equal(settleCalls, 0)
+    const body = blocked!.body as { error: string; match: { phase: string }; preflight: boolean }
+    assert.match(body.error, /list NFT escrow first/)
+    assert.equal(body.preflight, false)
+    assert.equal(body.match.phase, 'match_certified')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test('trade settle executeOnChain failure marks settlement_failed', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'dle-trade-onchain-fail-'))
   const store = openArchiveStore(dir)
   const seller = Wallet.createRandom()
   const buyer = Wallet.createRandom()
   const checkers = Array.from({ length: 9 }, () => Wallet.createRandom())
+  const fakeListTx = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex
+  const fakeApproveTx = '0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' as Hex
 
   const trade = createTradeEngine({
     domainId: 'onchain-settle-fail',
     store,
     checkerPool: checkers.map((w) => w.address),
     verifyL1Custody: async () => ({ ok: true }),
+    submitL1ListTx: async () => ({ ok: true, txHash: fakeListTx }),
+    submitL1ApproveTx: async () => ({ ok: true, txHash: fakeApproveTx }),
     submitL1SettlementTx: async () => ({ ok: false, reason: 'simulated revert' }),
   })
 
   try {
-    const sell = await signOrder(seller, ORDER_SIDE_SELL)
-    const buy = await signOrder(buyer, ORDER_SIDE_BUY)
-    await Promise.resolve(trade.post('/trade/submit', sell))
-    await Promise.resolve(trade.post('/trade/submit', buy))
-    const scan = await Promise.resolve(trade.post('/trade/scan', { scanner: checkers[0]!.address }))
-    const matchRow = (scan!.body as { match: Record<string, unknown> }).match
-    const cand = { ...matchRow, candidateHash: matchCandidateHash(matchRow as never) }
-    await Promise.resolve(trade.post('/trade/candidate', cand))
-    const checked = await Promise.resolve(trade.post('/trade/check', { candidateHash: cand.candidateHash }))
-    const certMatch = (
-      checked!.body as {
-        match: { certificate: { certificateHash: string; committee: string[] } }
-      }
-    ).match
-    const byAddr = new Map(checkers.map((w) => [w.address.toLowerCase(), w]))
-    for (const addr of certMatch.certificate.committee.slice(0, 5)) {
-      const w = byAddr.get(addr.toLowerCase())!
-      const signature = await w.signMessage(
-        certPersonalSignMessage(certMatch.certificate.certificateHash as Hex),
-      )
-      await Promise.resolve(
-        trade.post('/trade/attest', {
-          candidateHash: cand.candidateHash,
-          signer: w.address,
-          signature,
-        }),
-      )
-    }
+    const candidateHash = await certifyMatch({ trade, seller, buyer, checkers })
+    await listAndApprove(trade, candidateHash, seller, buyer)
 
     const failed = await Promise.resolve(
       trade.post('/trade/settle', {
-        candidateHash: cand.candidateHash,
+        candidateHash,
         outcome: 'settled',
         executeOnChain: true,
       }),

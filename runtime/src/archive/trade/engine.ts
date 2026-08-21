@@ -15,7 +15,13 @@ import {
 import type { Hex } from '../../shared/bytes.js'
 import { mockL1FeePolicyHash } from '../../shared/mockL1.js'
 import { mockL1CustodyEnv, verifyMockL1Custody } from '../../shared/mockL1Custody.js'
-import { listMockL1Auction, approveMockL1AuctionQuote, mockL1SettleEnv, settleMockL1Auction } from '../../shared/mockL1Settle.js'
+import {
+  listMockL1Auction,
+  approveMockL1AuctionQuote,
+  mockL1SettleEnv,
+  preflightMockL1AuctionSettle,
+  settleMockL1Auction,
+} from '../../shared/mockL1Settle.js'
 import {
   MATCH_CANDIDATE_SCHEMA,
   ORDER_SIDE_BUY,
@@ -883,6 +889,49 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
       record.phase === 'match_certified' &&
       record.certificate !== undefined
     ) {
+      // Round 7: refuse on-chain settle until list + approve (record) and optional RPC preflight.
+      const skipSettlePreflight = body.skipSettlePreflight === true
+      if (!skipSettlePreflight) {
+        if (!record.listTxHash) {
+          return {
+            status: 400,
+            body: {
+              ok: false,
+              error: 'list NFT escrow first (POST /trade/list)',
+              preflight: false,
+              match: record,
+            },
+          }
+        }
+        if (!record.approveTxHash) {
+          return {
+            status: 400,
+            body: {
+              ok: false,
+              error: 'approve quote first (POST /trade/approve)',
+              preflight: false,
+              match: record,
+            },
+          }
+        }
+        if (l1RpcUrl && l1Settlement) {
+          const pf = await preflightMockL1AuctionSettle({
+            rpcUrl: l1RpcUrl,
+            settlement: l1Settlement,
+            sellerOrderHash: record.sell.orderHash,
+            buyer: record.buy.maker,
+            quoteAsset: record.candidate.quoteAsset,
+            clearingAmount: record.candidate.clearingPrice,
+          })
+          if (!pf.ok) {
+            return {
+              status: 400,
+              body: { ok: false, error: pf.reason, preflight: false, match: record },
+            }
+          }
+        }
+      }
+
       const cert = record.certificate
       const committee =
         cert.signers.length > 0

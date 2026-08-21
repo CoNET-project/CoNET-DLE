@@ -46,7 +46,12 @@ commands:
   check      --candidateHash 0x.. [--custody true] [--balanceOk true] [--allowanceOk true]
              (when Archive has MOCK_L1_RPC_URL + MOCK_L1_SETTLEMENT, client flags are ignored)
   attest     --candidateHash 0x.. --pk HEX
+  list       --candidateHash 0x.. --pk HEX
+             (seller session key; Archive POST /trade/list)
+  approve    --candidateHash 0x.. --pk HEX [--amount WEI]
+             (buyer session key; Archive POST /trade/approve; default amount = clearingPrice)
   settle     --candidateHash 0x.. --outcome submitted|settled|failed [--txHash 0x..]
+             [--executeOnChain true] [--skipSettlePreflight true]
   status     (GET /trade/orders + /trade/matches + /mockl1/chains)
 
 mockL1Only — not CoNET mainnet, not production DePIN.
@@ -265,12 +270,43 @@ async function main(): Promise<void> {
     return
   }
 
+  if (cmd === 'list') {
+    const pk = args.pk
+    const candidateHash = args.candidateHash
+    if (pk === undefined || candidateHash === undefined) throw new Error('--pk and --candidateHash required')
+    const out = await postJson(`${archiveUrl}/trade/list`, {
+      candidateHash,
+      sellerPrivateKey: pk,
+    })
+    console.log(JSON.stringify(out, null, 2))
+    return
+  }
+
+  if (cmd === 'approve') {
+    const pk = args.pk
+    const candidateHash = args.candidateHash
+    if (pk === undefined || candidateHash === undefined) throw new Error('--pk and --candidateHash required')
+    const out = await postJson(`${archiveUrl}/trade/approve`, {
+      candidateHash,
+      buyerPrivateKey: pk,
+      ...(args.amount !== undefined ? { amount: args.amount } : {}),
+    })
+    console.log(JSON.stringify(out, null, 2))
+    return
+  }
+
   if (cmd === 'settle') {
     const out = await postJson(`${archiveUrl}/trade/settle`, {
       candidateHash: args.candidateHash,
       outcome: args.outcome ?? 'submitted',
       txHash: args.txHash,
       error: args.error,
+      ...(args.executeOnChain === 'true' || args.executeOnChain === '1'
+        ? { executeOnChain: true }
+        : {}),
+      ...(args.skipSettlePreflight === 'true' || args.skipSettlePreflight === '1'
+        ? { skipSettlePreflight: true }
+        : {}),
     })
     console.log(JSON.stringify(out, null, 2))
     return

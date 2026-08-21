@@ -55,8 +55,8 @@ npm run mock-auction-e2e    # attest → Archive /trade/list + /trade/approve �
 | `submit` / `cancel` | EIP-191 signed sell/buy orders → `POST /trade/submit` / `/trade/cancel` |
 | `scan` / `candidate` | Scanner proposes `MockL1MatchCandidateV1` only — **cannot** settle |
 | `check` / `attest` | Archive legality + freeze-then-draw committee attest → `TradeMatchCertificateV1`. With Archive `MOCK_L1_RPC_URL` + `MOCK_L1_SETTLEMENT`, client custody flags are **ignored** |
-| `list` / `approve` (rounds 5–6) | E2E always POSTs Archive `/trade/list` + `/trade/approve` after attest (seller/buyer session keys). Demo POSTs them when `tradeListConfigured` / `tradeApproveConfigured` |
-| `settle` (round 3) | With `MOCK_L1_SETTLE_ONCHAIN` / authority key / `executeOnChain`, Archive posts real `settle` tx; seller must `list` first (buyer allowance via approve) |
+| `list` / `approve` (rounds 5–7) | CLI may POST Archive `/trade/list` / `/trade/approve` with session `--pk`. E2E always POSTs both after attest. Demo POSTs them when `tradeListConfigured` / `tradeApproveConfigured` |
+| `settle` (rounds 3 + 7) | With `MOCK_L1_SETTLE_ONCHAIN` / authority key / `--executeOnChain`, Archive posts real `settle` tx. Round 7: Archive refuses without prior list+approve (unless `--skipSettlePreflight`); optional RPC eth_call preflight |
 | `settle` | Report mock L1 settlement outcome (`submitted` / `settled` / `failed`) |
 | `status` | `GET /mockl1/chains` + `/trade/orders` + `/trade/matches` |
 
@@ -65,4 +65,4 @@ npm run mock-auction-e2e    # attest → Archive /trade/list + /trade/approve �
 ## Related
 
 - Archive fields: `../../RULES.md` §Archive (Mock-L1 / Trade EventIngress)
-- Explorer UI: `../../../explorer/RULES.md` (`/mock-auction` — Round 6 approve + Round 5 list + Round 4 settle CTA; no authority key in browser)
+- Explorer UI: `../../../explorer/RULES.md` (`/mock-auction` — Round 7 List→Approve→Settle one-shot + Round 6 approve + Round 5 list + Round 4 settle CTA; no authority key in browser)

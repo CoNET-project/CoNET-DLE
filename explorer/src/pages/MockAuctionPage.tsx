@@ -49,6 +49,7 @@ type TradeHealth = {
  * Round 4: UI may POST /trade/settle (Archive holds authority key); shows settlementTxHash capsules.
  * Round 5: UI may POST /trade/list with session seller key so escrow exists before settle.
  * Round 6: UI may POST /trade/approve with session buyer key for quote ERC-20 allowance.
+ * Round 7: one-shot List → Approve → Settle; Archive settle preflight refuses settle without list+approve.
  * mockL1Only — not production DePIN / not CoNET mainnet NFT.
  */
 export function MockAuctionPage() {
@@ -318,6 +319,52 @@ export function MockAuctionPage() {
     }
   }
 
+  /** Round 7 lab one-shot: list escrow → approve quote → Archive settle (stops on first 4xx). */
+  const runListApproveSettle = async () => {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      if (!candidateHash) throw new Error('candidateHash required')
+      if (!sellerPk.trim()) throw new Error('seller session private key required for list')
+      if (!buyerPk.trim()) throw new Error('buyer session private key required for approve')
+      const listed = await postJson('/trade/list', {
+        candidateHash,
+        sellerPrivateKey: sellerPk.trim(),
+      })
+      setActionLog(listed)
+      if (listed.status >= 400) {
+        setError(String((listed.body as { error?: string }).error ?? 'list failed'))
+        await load()
+        return
+      }
+      const approved = await postJson('/trade/approve', {
+        candidateHash,
+        buyerPrivateKey: buyerPk.trim(),
+      })
+      setActionLog(approved)
+      if (approved.status >= 400) {
+        setError(String((approved.body as { error?: string }).error ?? 'approve failed'))
+        await load()
+        return
+      }
+      const settled = await postJson('/trade/settle', {
+        candidateHash,
+        outcome: 'settled',
+        executeOnChain,
+      })
+      setActionLog(settled)
+      if (settled.status >= 400) {
+        setError(String((settled.body as { error?: string }).error ?? 'settle failed'))
+      }
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const inputClass =
     'w-full rounded-lg border border-slate-600 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500'
 
@@ -531,10 +578,21 @@ export function MockAuctionPage() {
           >
             Archive settle
           </button>
+          <button
+            type="button"
+            disabled={busy || !sellerPk.trim() || !buyerPk.trim()}
+            className="rounded-full bg-fuchsia-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            onClick={() => void runListApproveSettle()}
+            aria-label="List then approve then settle in one shot"
+            aria-busy={busy}
+          >
+            List → Approve → Settle
+          </button>
         </div>
         <p className="text-xs text-slate-500">
           List uses the seller session key (must match sell maker). Approve uses the buyer session key (must
-          match buy maker). Both required before on-chain settle.
+          match buy maker). Both required before on-chain settle; Archive preflight returns 400 without them
+          (phase stays match_certified). One-shot runs list → approve → settle and stops on first failure.
           {listReady ? ` List mode: ${listMode}.` : ' List env not configured — list will fail.'}
           {approveReady
             ? ` Approve mode: ${approveMode}.`

@@ -56,8 +56,29 @@ export interface MockL1SettleInput {
   committee: readonly Hex[]
 }
 
+export interface MockL1SettlePreflightInput {
+  rpcUrl: string
+  settlement: Hex
+  sellerOrderHash: Hex
+  buyer: Hex
+  quoteAsset: Hex
+  clearingAmount: string
+}
+
 export type MockL1TxResult =
   | { ok: true; txHash: Hex; mockL1Only: true }
+  | { ok: false; reason: string; mockL1Only: true }
+
+export type MockL1PreflightResult =
+  | {
+      ok: true
+      mockL1Only: true
+      listingSeller: Hex
+      askAmount: string
+      deadline: string
+      listingSettled: boolean
+      allowance: string
+    }
   | { ok: false; reason: string; mockL1Only: true }
 
 function asAddress(raw: string, label: string): string {
@@ -161,6 +182,78 @@ export async function approveMockL1AuctionQuote(input: MockL1ApproveInput): Prom
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { ok: false, reason: `approve failed: ${msg}`, mockL1Only: true }
+  } finally {
+    provider.destroy()
+  }
+}
+
+/**
+ * Read-only gate before settle: listing must exist (not settled) and buyer allowance ≥ clearing.
+ * mockL1Only — eth_call only; does not broadcast.
+ */
+export async function preflightMockL1AuctionSettle(
+  input: MockL1SettlePreflightInput,
+): Promise<MockL1PreflightResult> {
+  const settlement = asAddress(input.settlement, 'settlement')
+  const buyer = asAddress(input.buyer, 'buyer')
+  const quoteAsset = asAddress(input.quoteAsset, 'quoteAsset')
+  let sellerOrderHash: string
+  let clearingAmount: bigint
+  try {
+    sellerOrderHash = asBytes32(input.sellerOrderHash, 'sellerOrderHash')
+    clearingAmount = BigInt(input.clearingAmount)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { ok: false, reason: msg, mockL1Only: true }
+  }
+  if (clearingAmount <= 0n) return { ok: false, reason: 'clearingAmount must be > 0', mockL1Only: true }
+
+  const provider = new JsonRpcProvider(input.rpcUrl, undefined, { staticNetwork: true })
+  try {
+    const settlementC = new Contract(settlement, SETTLEMENT_ABI, provider)
+    const quote = new Contract(quoteAsset, ERC20_ABI, provider)
+    const row = await settlementC.listings(sellerOrderHash)
+    const listingSeller = String(row.seller ?? row[0] ?? '')
+    const askAmount = BigInt(row.askAmount ?? row[4] ?? 0)
+    const deadline = BigInt(row.deadline ?? row[5] ?? 0)
+    const listingSettled = Boolean(row.settled ?? row[6])
+    if (!listingSeller || listingSeller === '0x0000000000000000000000000000000000000000') {
+      return { ok: false, reason: 'listing missing — POST /trade/list first', mockL1Only: true }
+    }
+    if (listingSettled) {
+      return { ok: false, reason: 'listing already settled', mockL1Only: true }
+    }
+    const now = BigInt((await provider.getBlock('latest'))?.timestamp ?? 0)
+    if (deadline > 0n && now > deadline) {
+      return { ok: false, reason: 'listing expired', mockL1Only: true }
+    }
+    if (clearingAmount < askAmount) {
+      return {
+        ok: false,
+        reason: `clearingAmount ${clearingAmount} < askAmount ${askAmount}`,
+        mockL1Only: true,
+      }
+    }
+    const allowance = BigInt(await quote.allowance(buyer, settlement))
+    if (allowance < clearingAmount) {
+      return {
+        ok: false,
+        reason: `buyer allowance ${allowance} < clearingAmount ${clearingAmount} — POST /trade/approve first`,
+        mockL1Only: true,
+      }
+    }
+    return {
+      ok: true,
+      mockL1Only: true,
+      listingSeller: listingSeller as Hex,
+      askAmount: askAmount.toString(),
+      deadline: deadline.toString(),
+      listingSettled,
+      allowance: allowance.toString(),
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { ok: false, reason: `preflight failed: ${msg}`, mockL1Only: true }
   } finally {
     provider.destroy()
   }

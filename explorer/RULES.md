@@ -114,6 +114,8 @@ Detail page (footer hidden). Local mock-L1 `/mockl1/*` + `/trade/*` against the 
 
 **MVP round 6:** `/mock-auction` may **POST** `/trade/approve` with the buyer **session** private key (must match buy maker; never persisted) so Archive runs ERC-20 `approve` for the quote. Settlement summary shows `approveTxHash` / `approveError`. Health pill `approve:` from `tradeApproveConfigured` / `tradeApproveMode`. Prefer list → approve → Archive settle.
 
+**MVP round 7:** one-shot **List → Approve → Settle** CTA (fuchsia) runs list then approve then Archive settle with `executeOnChain`; individual CTAs retained. Archive settle preflight requires `listTxHash` + `approveTxHash` (and optional RPC eth_call); preflight **400** does not mark `settlement_failed`.
+
 | Rule | Detail |
 |---|---|
 | Scope | Local Hardhat/Anvil mock network only |

@@ -71,6 +71,13 @@ CoNET mainnet may already host `DLEChainRegistry1155V1`; this MVP still uses **l
 4. Explorer **Approve quote** CTA (buyer session key) after list; Settlement summary shows `approveTxHash`.
 5. E2E / demo prefer Archive `/trade/list` + `/trade/approve` after attest, before settle.
 
+## MVP round 7 (2026-08)
+
+1. **`preflightMockL1AuctionSettle`** (`shared/mockL1Settle.ts`): eth_call gate — listing exists / not settled / not expired / clearing ≥ ask / buyer allowance ≥ clearing.
+2. Archive **`POST /trade/settle`** (unless `skipSettlePreflight: true`): require match record `listTxHash` + `approveTxHash` before `executeOnChain`; when RPC + settlement configured, also run on-chain preflight. Preflight failure → **400**, phase stays `match_certified` (do **not** mark `settlement_failed`).
+3. CLI: `list` / `approve` commands; settle flags `--executeOnChain` / `--skipSettlePreflight`.
+4. Explorer one-shot **List → Approve → Settle** (individual CTAs retained).
+
 ## Fee
 
 ```
