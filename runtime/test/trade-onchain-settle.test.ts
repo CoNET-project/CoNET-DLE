@@ -240,3 +240,67 @@ test('trade list escrow requires seller key matching sell maker', async () => {
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test('trade approve quote requires buyer key matching buy maker', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'dle-trade-approve-'))
+  const store = openArchiveStore(dir)
+  const seller = Wallet.createRandom()
+  const buyer = Wallet.createRandom()
+  const checkers = Array.from({ length: 9 }, () => Wallet.createRandom())
+  const fakeApproveTx = '0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' as Hex
+  let approveCalls = 0
+
+  const trade = createTradeEngine({
+    domainId: 'approve-quote-test',
+    store,
+    checkerPool: checkers.map((w) => w.address),
+    verifyL1Custody: async () => ({ ok: true }),
+    submitL1ApproveTx: async (args) => {
+      approveCalls += 1
+      assert.equal(args.buyer.toLowerCase(), buyer.address.toLowerCase())
+      assert.equal(args.amount, '1000000')
+      return { ok: true, txHash: fakeApproveTx }
+    },
+  })
+
+  try {
+    const sell = await signOrder(seller, ORDER_SIDE_SELL)
+    const buy = await signOrder(buyer, ORDER_SIDE_BUY)
+    await Promise.resolve(trade.post('/trade/submit', sell))
+    await Promise.resolve(trade.post('/trade/submit', buy))
+    const scan = await Promise.resolve(trade.post('/trade/scan', { scanner: checkers[0]!.address }))
+    const matchRow = (scan!.body as { match: Record<string, unknown> }).match
+    const cand = { ...matchRow, candidateHash: matchCandidateHash(matchRow as never) }
+    await Promise.resolve(trade.post('/trade/candidate', cand))
+
+    const wrong = await Promise.resolve(
+      trade.post('/trade/approve', {
+        candidateHash: cand.candidateHash,
+        buyerPrivateKey: seller.privateKey,
+      }),
+    )
+    assert.equal(wrong?.status, 400)
+    assert.match(String((wrong!.body as { error?: string }).error), /does not match/)
+
+    const approved = await Promise.resolve(
+      trade.post('/trade/approve', {
+        candidateHash: cand.candidateHash,
+        buyerPrivateKey: buyer.privateKey,
+      }),
+    )
+    assert.equal(approved?.status, 200)
+    assert.equal(approveCalls, 1)
+    const body = approved!.body as {
+      ok: boolean
+      approveTxHash: string
+      match: { approveTxHash: string }
+    }
+    assert.equal(body.ok, true)
+    assert.equal(body.approveTxHash, fakeApproveTx)
+    assert.equal(body.match.approveTxHash, fakeApproveTx)
+    assert.equal(trade.health().tradeApproveConfigured, true)
+    assert.equal(trade.health().tradeApproveMode, 'hook')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

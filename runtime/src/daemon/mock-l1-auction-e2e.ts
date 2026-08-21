@@ -7,7 +7,7 @@
  *   MOCK_L1_SUBJECT_ID, MOCK_L1_AUTHORITY_PRIVATE_KEY, MOCK_L1_SELLER_PRIVATE_KEY,
  *   MOCK_L1_BUYER_PRIVATE_KEY
  *
- * Flow: seller list() → TradeEngine match/cert → Archive settle() on-chain.
+ * Flow: match/cert → Archive POST /trade/list → /trade/approve → settle() on-chain.
  * mockL1Only — refuses chainId 224422.
  */
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -18,7 +18,7 @@ import { openArchiveStore } from '../archive/store.js'
 import { createTradeEngine } from '../archive/trade/engine.js'
 import { mockL1FeePolicyHash } from '../shared/mockL1.js'
 import { mockL1CustodyEnv } from '../shared/mockL1Custody.js'
-import { listMockL1Auction, mockL1SettleEnv } from '../shared/mockL1Settle.js'
+import { mockL1SettleEnv } from '../shared/mockL1Settle.js'
 import {
   ORDER_SIDE_BUY,
   ORDER_SIDE_SELL,
@@ -112,19 +112,6 @@ async function main(): Promise<void> {
       signature: (await buyer.signMessage(orderPersonalSignMessage(buyUnsigned.orderHash))) as Hex,
     }
 
-    const listed = await listMockL1Auction({
-      rpcUrl,
-      settlement,
-      sellerPrivateKey: sellerPk,
-      sellerOrderHash: sell.orderHash,
-      subjectNft,
-      subjectNftId: subjectId,
-      quoteAsset: quote,
-      askAmount: price,
-      deadline,
-    })
-    if (!listed.ok) throw new Error(`list failed: ${listed.reason}`)
-
     for (const step of [
       await Promise.resolve(trade.post('/trade/submit', sell)),
       await Promise.resolve(trade.post('/trade/submit', buy)),
@@ -175,6 +162,23 @@ async function main(): Promise<void> {
       if (att?.status !== 200) throw new Error(`attest failed: ${JSON.stringify(att)}`)
     }
 
+    // Round 5/6: escrow list + quote approve via Archive (session keys; not stored).
+    const listed = await Promise.resolve(
+      trade.post('/trade/list', {
+        candidateHash: cand.candidateHash,
+        sellerPrivateKey: sellerPk,
+      }),
+    )
+    if (listed?.status !== 200) throw new Error(`Archive list failed: ${JSON.stringify(listed)}`)
+
+    const approved = await Promise.resolve(
+      trade.post('/trade/approve', {
+        candidateHash: cand.candidateHash,
+        buyerPrivateKey: buyerPk,
+      }),
+    )
+    if (approved?.status !== 200) throw new Error(`Archive approve failed: ${JSON.stringify(approved)}`)
+
     const settled = await Promise.resolve(
       trade.post('/trade/settle', {
         candidateHash: cand.candidateHash,
@@ -184,16 +188,26 @@ async function main(): Promise<void> {
     )
     if (settled?.status !== 200) throw new Error(`on-chain settle failed: ${JSON.stringify(settled)}`)
 
+    const matchBody = settled.body as {
+      match?: {
+        settlementTxHash?: string
+        listTxHash?: string
+        approveTxHash?: string
+        phase?: string
+      }
+    }
+
     console.log(
       JSON.stringify(
         {
           ok: true,
           mockL1Only: true,
           onChain: true,
-          listTxHash: listed.txHash,
-          settlementTxHash: (settled.body as { match?: { settlementTxHash?: string } })?.match
-            ?.settlementTxHash,
-          phase: (settled.body as { match?: { phase?: string } })?.match?.phase,
+          listTxHash: (listed.body as { listTxHash?: string }).listTxHash ?? matchBody.match?.listTxHash,
+          approveTxHash:
+            (approved.body as { approveTxHash?: string }).approveTxHash ?? matchBody.match?.approveTxHash,
+          settlementTxHash: matchBody.match?.settlementTxHash,
+          phase: matchBody.match?.phase,
           health: trade.health(),
           candidateHash: cand.candidateHash,
         },

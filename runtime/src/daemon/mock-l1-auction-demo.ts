@@ -4,6 +4,7 @@
  * Default: custody via Archive hook (no Anvil required).
  * With MOCK_L1_RPC_URL + MOCK_L1_SETTLEMENT: Archive uses eth_call custody
  * (requires NFT approved/held + buyer ERC-20 allowance on that RPC).
+ * When list/approve are configured, demo also POSTs /trade/list + /trade/approve.
  * mockL1Only — not CoNET mainnet / not production DePIN.
  */
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -144,6 +145,43 @@ async function main(): Promise<void> {
       if (att?.status !== 200) throw new Error(`attest failed: ${JSON.stringify(att)}`)
     }
 
+    let listTxHash: string | undefined
+    let approveTxHash: string | undefined
+    const healthBeforeSettle = trade.health() as {
+      tradeListConfigured?: boolean
+      tradeApproveConfigured?: boolean
+    }
+
+    // Round 5/6: when Archive list/approve are configured (RPC or hook), use Archive routes.
+    if (healthBeforeSettle.tradeListConfigured) {
+      const listed = await Promise.resolve(
+        trade.post('/trade/list', {
+          candidateHash: cand.candidateHash,
+          sellerPrivateKey: seller.privateKey,
+        }),
+      )
+      if (listed?.status !== 200) {
+        throw new Error(
+          `list failed (need seller NFT approved + MOCK_L1_* or list hook): ${JSON.stringify(listed)}`,
+        )
+      }
+      listTxHash = (listed.body as { listTxHash?: string }).listTxHash
+    }
+    if (healthBeforeSettle.tradeApproveConfigured) {
+      const approved = await Promise.resolve(
+        trade.post('/trade/approve', {
+          candidateHash: cand.candidateHash,
+          buyerPrivateKey: buyer.privateKey,
+        }),
+      )
+      if (approved?.status !== 200) {
+        throw new Error(
+          `approve failed (need buyer allowance path or approve hook): ${JSON.stringify(approved)}`,
+        )
+      }
+      approveTxHash = (approved.body as { approveTxHash?: string }).approveTxHash
+    }
+
     const submitted = await Promise.resolve(
       trade.post('/trade/settle', {
         candidateHash: cand.candidateHash,
@@ -165,6 +203,8 @@ async function main(): Promise<void> {
           ok: true,
           mockL1Only: true,
           health: trade.health(),
+          listTxHash: listTxHash ?? null,
+          approveTxHash: approveTxHash ?? null,
           phases: {
             afterCheck: phaseAfterCheck,
             afterSubmit: (submitted?.body as { match?: { phase: string } })?.match?.phase,
@@ -172,8 +212,8 @@ async function main(): Promise<void> {
           },
           candidateHash: cand.candidateHash,
           note: useRpc
-            ? 'Archive eth_call custody used; on-chain settle() still needs certificateAuthority tx separately.'
-            : 'In-process hook custody; wire Anvil via MOCK_L1_* for real eth_call.',
+            ? 'Archive eth_call custody + /trade/list + /trade/approve when configured; demo settle uses lab txHash unless executeOnChain/authority is set.'
+            : 'In-process hook custody; wire Anvil via MOCK_L1_* for real eth_call / list / approve.',
         },
         null,
         2,

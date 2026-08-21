@@ -18,6 +18,11 @@ const ERC721_ABI = [
   'function ownerOf(uint256 tokenId) view returns (address)',
 ] as const
 
+const ERC20_ABI = [
+  'function approve(address spender, uint256 amount) returns (bool)',
+  'function allowance(address owner, address spender) view returns (uint256)',
+] as const
+
 export interface MockL1ListInput {
   rpcUrl: string
   settlement: Hex
@@ -28,6 +33,15 @@ export interface MockL1ListInput {
   quoteAsset: Hex
   askAmount: string
   deadline: string
+}
+
+export interface MockL1ApproveInput {
+  rpcUrl: string
+  settlement: Hex
+  buyerPrivateKey: string
+  quoteAsset: Hex
+  /** Minimum allowance required (clearing / ask amount). */
+  amount: string
 }
 
 export interface MockL1SettleInput {
@@ -111,6 +125,42 @@ export async function listMockL1Auction(input: MockL1ListInput): Promise<MockL1T
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { ok: false, reason: `list failed: ${msg}`, mockL1Only: true }
+  } finally {
+    provider.destroy()
+  }
+}
+
+/**
+ * Buyer approves quote ERC-20 to settlement (required before settle transferFrom).
+ * Idempotent when allowance already ≥ amount.
+ */
+export async function approveMockL1AuctionQuote(input: MockL1ApproveInput): Promise<MockL1TxResult> {
+  const settlement = asAddress(input.settlement, 'settlement')
+  const quoteAsset = asAddress(input.quoteAsset, 'quoteAsset')
+  let amount: bigint
+  try {
+    amount = BigInt(input.amount)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { ok: false, reason: msg, mockL1Only: true }
+  }
+  if (amount <= 0n) return { ok: false, reason: 'amount must be > 0', mockL1Only: true }
+
+  const provider = new JsonRpcProvider(input.rpcUrl, undefined, { staticNetwork: true })
+  try {
+    const buyer = new Wallet(input.buyerPrivateKey, provider)
+    const quote = new Contract(quoteAsset, ERC20_ABI, buyer)
+    const current = BigInt(await quote.allowance(buyer.address, settlement))
+    if (current >= amount) {
+      return { ok: true, txHash: ('0x' + '0'.repeat(64)) as Hex, mockL1Only: true }
+    }
+    const tx = await quote.approve(settlement, amount)
+    const receipt = await tx.wait()
+    const txHash = String(receipt?.hash ?? tx.hash) as Hex
+    return { ok: true, txHash, mockL1Only: true }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { ok: false, reason: `approve failed: ${msg}`, mockL1Only: true }
   } finally {
     provider.destroy()
   }

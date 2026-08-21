@@ -112,11 +112,13 @@ Detail page (footer hidden). Local mock-L1 `/mockl1/*` + `/trade/*` against the 
 
 **MVP round 5:** `/mock-auction` may **POST** `/trade/list` with the seller **session** private key (must match sell maker; never persisted) so Archive runs `list` into escrow. Settlement summary shows `listTxHash` / `listError`. Health pill `list:` from `tradeListConfigured` / `tradeListMode`. List **before** Archive settle when on-chain settle is enabled.
 
+**MVP round 6:** `/mock-auction` may **POST** `/trade/approve` with the buyer **session** private key (must match buy maker; never persisted) so Archive runs ERC-20 `approve` for the quote. Settlement summary shows `approveTxHash` / `approveError`. Health pill `approve:` from `tradeApproveConfigured` / `tradeApproveMode`. Prefer list → approve → Archive settle.
+
 | Rule | Detail |
 |---|---|
 | Scope | Local Hardhat/Anvil mock network only |
-| UI | May sign client orders/attests/list with session keys; may ask Archive to settle via HTTP; does **not** self-claim Archive legality / quorum; does **not** hold authority key or broadcast settle txs |
-| Labels | Always show `mockL1Only` / `notProductionDepin` pills; custody/list/settle mode from health when trusted |
+| UI | May sign client orders/attests/list/approve with session keys; may ask Archive to settle via HTTP; does **not** self-claim Archive legality / quorum; does **not** hold authority key or broadcast settle txs |
+| Labels | Always show `mockL1Only` / `notProductionDepin` pills; custody/list/approve/settle mode from health when trusted |
 | Forbidden | Painting as CoNET mainnet, production DePIN, or live CL RANDAO; persisting private keys; treating demo fake hashes as on-chain settles |
 
 ## Other Explorer invariants

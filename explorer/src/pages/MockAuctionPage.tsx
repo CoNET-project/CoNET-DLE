@@ -24,6 +24,8 @@ type TradeMatchRow = {
   phase?: string
   listTxHash?: string
   listError?: string
+  approveTxHash?: string
+  approveError?: string
   settlementTxHash?: string
   settlementError?: string
   certificate?: { certificateHash?: string }
@@ -35,15 +37,18 @@ type TradeHealth = {
   tradeOnChainSettleMode?: string
   tradeListConfigured?: boolean
   tradeListMode?: string
+  tradeApproveConfigured?: boolean
+  tradeApproveMode?: string
   tradeMockL1Settlement?: string | null
 }
 
 /**
  * Local mock-L1 auction client surface.
- * Session-only lab private keys may sign submit/attest/list; never persisted.
+ * Session-only lab private keys may sign submit/attest/list/approve; never persisted.
  * Archive legality is never self-attested — custody is Archive-side when RPC configured.
  * Round 4: UI may POST /trade/settle (Archive holds authority key); shows settlementTxHash capsules.
  * Round 5: UI may POST /trade/list with session seller key so escrow exists before settle.
+ * Round 6: UI may POST /trade/approve with session buyer key for quote ERC-20 allowance.
  * mockL1Only — not production DePIN / not CoNET mainnet NFT.
  */
 export function MockAuctionPage() {
@@ -269,6 +274,28 @@ export function MockAuctionPage() {
     }
   }
 
+  const runApprove = async () => {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      if (!candidateHash) throw new Error('candidateHash required')
+      if (!buyerPk.trim()) throw new Error('buyer session private key required for approve')
+      // Lab only: Archive broadcasts ERC-20 approve with request-scoped buyer key (not stored).
+      const out = await postJson('/trade/approve', {
+        candidateHash,
+        buyerPrivateKey: buyerPk.trim(),
+      })
+      setActionLog(out)
+      if (out.status >= 400) setError(String((out.body as { error?: string }).error ?? 'approve failed'))
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const runSettle = async () => {
     if (busy) return
     setBusy(true)
@@ -299,6 +326,8 @@ export function MockAuctionPage() {
   const onChainReady = tradeHealth?.tradeOnChainSettleConfigured === true
   const listMode = tradeHealth?.tradeListMode ?? 'unknown'
   const listReady = tradeHealth?.tradeListConfigured === true
+  const approveMode = tradeHealth?.tradeApproveMode ?? 'unknown'
+  const approveReady = tradeHealth?.tradeApproveConfigured === true
 
   return (
     <DetailPageShell
@@ -315,6 +344,10 @@ export function MockAuctionPage() {
             tone={listReady ? 'ok' : 'warn'}
           />
           <StatusPill
+            label={approveReady ? `approve: ${approveMode}` : 'approve: off'}
+            tone={approveReady ? 'ok' : 'warn'}
+          />
+          <StatusPill
             label={onChainReady ? `settle: ${settleMode}` : 'settle: off'}
             tone={onChainReady ? 'ok' : 'warn'}
           />
@@ -324,9 +357,10 @@ export function MockAuctionPage() {
     >
       <p className="mb-6 max-w-3xl text-sm text-slate-300">
         Local archive routes <code className="text-cyan-200">/mockl1/*</code> and{' '}
-        <code className="text-cyan-200">/trade/*</code>. Session private keys sign orders/attests/list only and
-        are never persisted. Seller must <code className="text-cyan-200">list</code> NFT into escrow before
-        Archive <code className="text-cyan-200">settle</code>. Custody and settle authority stay on Archive (
+        <code className="text-cyan-200">/trade/*</code>. Session private keys sign orders/attests/list/approve
+        only and are never persisted. Seller must <code className="text-cyan-200">list</code> NFT into escrow and
+        buyer must <code className="text-cyan-200">approve</code> quote ERC-20 before Archive{' '}
+        <code className="text-cyan-200">settle</code>. Custody and settle authority stay on Archive (
         <code className="text-cyan-200">MOCK_L1_*</code>) — this page never holds the authority key.
         WaitingPool / on-demand is not this ingress. Lab demo fake hashes ≠ local RPC{' '}
         <code className="text-cyan-200">settlementTxHash</code>.
@@ -401,7 +435,7 @@ export function MockAuctionPage() {
 
       <section className="mb-8 space-y-4 rounded-2xl border border-slate-700/80 bg-slate-900/40 p-4">
         <h2 className="text-lg font-semibold text-white">
-          Scan → candidate → Archive check → attest → list escrow → settle
+          Scan → candidate → Archive check → attest → list escrow → approve quote → settle
         </h2>
         <label className="block text-xs text-slate-400">
           Scanner address
@@ -480,6 +514,16 @@ export function MockAuctionPage() {
           </button>
           <button
             type="button"
+            disabled={busy || !buyerPk.trim()}
+            className="rounded-full bg-sky-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            onClick={() => void runApprove()}
+            aria-label="Approve quote ERC-20 for settlement"
+            aria-busy={busy}
+          >
+            Approve quote
+          </button>
+          <button
+            type="button"
             disabled={busy}
             className="rounded-full bg-rose-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             onClick={() => void runSettle()}
@@ -489,8 +533,12 @@ export function MockAuctionPage() {
           </button>
         </div>
         <p className="text-xs text-slate-500">
-          List uses the seller session key above (must match sell maker). Required before on-chain settle.
-          {listReady ? ` Archive list mode: ${listMode}.` : ' Archive list env not configured — list will fail.'}
+          List uses the seller session key (must match sell maker). Approve uses the buyer session key (must
+          match buy maker). Both required before on-chain settle.
+          {listReady ? ` List mode: ${listMode}.` : ' List env not configured — list will fail.'}
+          {approveReady
+            ? ` Approve mode: ${approveMode}.`
+            : ' Approve env not configured — approve will fail.'}
         </p>
       </section>
 
@@ -538,6 +586,15 @@ export function MockAuctionPage() {
                   <p className="mb-2 text-xs text-slate-500">No listTxHash yet (list NFT escrow first).</p>
                 )}
                 {m.listError ? <p className="mb-2 text-xs text-amber-300">{m.listError}</p> : null}
+                {m.approveTxHash ? (
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-slate-400">approveTxHash</span>
+                    <HashCapsule value={m.approveTxHash} />
+                  </div>
+                ) : (
+                  <p className="mb-2 text-xs text-slate-500">No approveTxHash yet (approve quote ERC-20).</p>
+                )}
+                {m.approveError ? <p className="mb-2 text-xs text-amber-300">{m.approveError}</p> : null}
                 {m.settlementTxHash ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs text-slate-400">settlementTxHash</span>

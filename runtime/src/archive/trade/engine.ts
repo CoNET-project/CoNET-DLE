@@ -15,7 +15,7 @@ import {
 import type { Hex } from '../../shared/bytes.js'
 import { mockL1FeePolicyHash } from '../../shared/mockL1.js'
 import { mockL1CustodyEnv, verifyMockL1Custody } from '../../shared/mockL1Custody.js'
-import { listMockL1Auction, mockL1SettleEnv, settleMockL1Auction } from '../../shared/mockL1Settle.js'
+import { listMockL1Auction, approveMockL1AuctionQuote, mockL1SettleEnv, settleMockL1Auction } from '../../shared/mockL1Settle.js'
 import {
   MATCH_CANDIDATE_SCHEMA,
   ORDER_SIDE_BUY,
@@ -87,6 +87,9 @@ export interface TradeMatchRecordV1 {
   /** Seller `list()` escrow tx (required before on-chain settle). */
   listTxHash?: Hex
   listError?: string
+  /** Buyer ERC-20 `approve` tx (required before settle transferFrom). */
+  approveTxHash?: Hex
+  approveError?: string
   settlementTxHash?: Hex
   settlementError?: string
   updatedAt: string
@@ -137,6 +140,16 @@ export interface TradeEngineOptions {
     askAmount: string
     deadline: string
     seller: Hex
+  }) => Promise<{ ok: true; txHash: Hex } | { ok: false; reason: string }>
+  /**
+   * Test hook — overrides buyer quote ERC-20 approve broadcast.
+   * Production path uses MOCK_L1_RPC + settlement + request-scoped buyerPrivateKey (lab only).
+   */
+  submitL1ApproveTx?: (args: {
+    quoteAsset: Hex
+    amount: string
+    buyer: Hex
+    settlement: Hex
   }) => Promise<{ ok: true; txHash: Hex } | { ok: false; reason: string }>
 }
 
@@ -201,6 +214,8 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
     Boolean(l1RpcUrl && l1Settlement && l1AuthorityPk)
   const listConfigured =
     options.submitL1ListTx !== undefined || Boolean(l1RpcUrl && l1Settlement)
+  const approveConfigured =
+    options.submitL1ApproveTx !== undefined || Boolean(l1RpcUrl && l1Settlement)
 
   function persist(): void {
     const state: PersistedState = {
@@ -276,6 +291,13 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
       tradeListMode: options.submitL1ListTx !== undefined
         ? 'hook'
         : listConfigured
+          ? 'rpc'
+          : 'off',
+      /** Buyer can approve quote ERC-20 when RPC+settlement (or approve hook) is set. */
+      tradeApproveConfigured: approveConfigured,
+      tradeApproveMode: options.submitL1ApproveTx !== undefined
+        ? 'hook'
+        : approveConfigured
           ? 'rpc'
           : 'off',
       /** Settlement address when configured — never private keys. */
@@ -751,6 +773,93 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
     }
   }
 
+  /**
+   * Buyer approves quote ERC-20 to settlement (required before settle transferFrom).
+   * Lab-only: request may carry buyerPrivateKey (session key from Explorer); never persisted.
+   */
+  async function approveQuote(body: unknown): Promise<{ status: number; body: Record<string, unknown> }> {
+    if (!isRecord(body) || typeof body.candidateHash !== 'string') {
+      return { status: 400, body: { ok: false, error: 'candidateHash required' } }
+    }
+    if (typeof body.buyerPrivateKey !== 'string' || !body.buyerPrivateKey.trim()) {
+      return {
+        status: 400,
+        body: {
+          ok: false,
+          error: 'buyerPrivateKey required (lab session key; not stored on Archive)',
+        },
+      }
+    }
+    const record = matches.get(body.candidateHash.toLowerCase())
+    if (record === undefined) return { status: 404, body: { ok: false, error: 'match not found' } }
+
+    let buyerWallet: Wallet
+    try {
+      buyerWallet = new Wallet(body.buyerPrivateKey.trim())
+    } catch {
+      return { status: 400, body: { ok: false, error: 'invalid buyerPrivateKey' } }
+    }
+    if (buyerWallet.address.toLowerCase() !== record.buy.maker.toLowerCase()) {
+      return {
+        status: 400,
+        body: { ok: false, error: 'buyerPrivateKey does not match buy order maker' },
+      }
+    }
+
+    const amount =
+      typeof body.amount === 'string' && body.amount.trim()
+        ? body.amount.trim()
+        : record.candidate.clearingPrice
+
+    const onChain =
+      options.submitL1ApproveTx !== undefined
+        ? await options.submitL1ApproveTx({
+            quoteAsset: record.buy.quoteAsset,
+            amount,
+            buyer: record.buy.maker,
+            settlement: (l1Settlement ?? ('0x0000000000000000000000000000000000000000' as Hex)),
+          })
+        : l1RpcUrl && l1Settlement
+          ? await approveMockL1AuctionQuote({
+              rpcUrl: l1RpcUrl,
+              settlement: l1Settlement,
+              buyerPrivateKey: body.buyerPrivateKey.trim(),
+              quoteAsset: record.buy.quoteAsset,
+              amount,
+            })
+          : {
+              ok: false as const,
+              reason: 'approve not configured (need MOCK_L1_RPC_URL + MOCK_L1_SETTLEMENT)',
+            }
+
+    if (!onChain.ok) {
+      record.approveError = onChain.reason
+      record.updatedAt = new Date().toISOString()
+      persist()
+      return { status: 400, body: { ok: false, error: onChain.reason, match: record } }
+    }
+
+    record.approveTxHash = onChain.txHash
+    record.approveError = undefined
+    record.updatedAt = new Date().toISOString()
+    persist()
+    options.store.appendWal({
+      type: 'trade-approve',
+      candidateHash: record.candidateHash,
+      approveTxHash: record.approveTxHash,
+    })
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        match: record,
+        onChain: true,
+        mockL1Only: true,
+        approveTxHash: record.approveTxHash,
+      },
+    }
+  }
+
   async function settleStatus(body: unknown): Promise<{ status: number; body: Record<string, unknown> }> {
     if (!isRecord(body) || typeof body.candidateHash !== 'string') {
       return { status: 400, body: { ok: false, error: 'candidateHash required' } }
@@ -896,6 +1005,7 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
       if (pathname === '/trade/check') return archiveCheck(body)
       if (pathname === '/trade/attest') return attest(body)
       if (pathname === '/trade/list') return listEscrow(body)
+      if (pathname === '/trade/approve') return approveQuote(body)
       if (pathname === '/trade/settle') return settleStatus(body)
       return undefined
     },

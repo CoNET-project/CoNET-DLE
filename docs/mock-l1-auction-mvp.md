@@ -63,6 +63,14 @@ CoNET mainnet may already host `DLEChainRegistry1155V1`; this MVP still uses **l
 3. `/health`: `tradeListConfigured` / `tradeListMode` (`rpc` | `hook` | off).
 4. Explorer **List NFT escrow** CTA (uses seller session key) → then **Archive settle**. Settlement summary shows `listTxHash` capsules.
 
+## MVP round 6 (2026-08)
+
+1. Archive **`POST /trade/approve`**: body `{ candidateHash, buyerPrivateKey, amount? }` (lab session key; **not** stored). Key must match buy order `maker`; default `amount` = candidate `clearingPrice`. Calls ERC-20 `approve(settlement, amount)` via `approveMockL1AuctionQuote` or `submitL1ApproveTx` hook (idempotent when `allowance >= amount`).
+2. Match record may expose `approveTxHash` / `approveError`; WAL type `trade-approve`.
+3. `/health`: `tradeApproveConfigured` / `tradeApproveMode` (`rpc` | `hook` | off).
+4. Explorer **Approve quote** CTA (buyer session key) after list; Settlement summary shows `approveTxHash`.
+5. E2E / demo prefer Archive `/trade/list` + `/trade/approve` after attest, before settle.
+
 ## Fee
 
 ```
