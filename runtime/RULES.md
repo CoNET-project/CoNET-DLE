@@ -116,7 +116,7 @@ Independent of NFT 42 Tendermint / `bft-state.json`. **Not** an L1 birth certifi
 
 Fee: **1 bps** of clearing price; **50% scanner / 50% committee**. Mode A events `0x1302–0x1306` (MatchProposed → … → Settled / SettlementFailed); keep `TradeOpened` (`0x1301`) replay compatible.
 
-`/health` may expose `tradeRpcCustodyConfigured` / `tradeRpcCustodyMode` (`rpc` | `hook` | `clientFlags`) and `tradeOnChainSettleConfigured` / `tradeOnChainSettleMode`. **MVP round 2 (2026-08):** Archive-side custody via `shared/mockL1Custody.ts`; in-process demo `npm run mock-auction-demo`. **MVP round 3 (2026-08):** on-chain settle via `shared/mockL1Settle.ts`; E2E `npm run mock-auction-e2e` (needs `MOCK_L1_*`); root one-shot `npm run dle:mock-auction-e2e` (hardhat node → deploy → e2e).
+`/health` may expose `tradeRpcCustodyConfigured` / `tradeRpcCustodyMode` (`rpc` | `hook` | `clientFlags`) and `tradeOnChainSettleConfigured` / `tradeOnChainSettleMode`. **MVP round 2 (2026-08):** Archive-side custody via `shared/mockL1Custody.ts`; in-process demo `npm run mock-auction-demo`. **MVP round 3 (2026-08):** on-chain settle via `shared/mockL1Settle.ts`; E2E `npm run mock-auction-e2e` (needs `MOCK_L1_*`); root one-shot `npm run dle:mock-auction-e2e` (hardhat node → deploy → e2e). **MVP round 4 (2026-08):** Explorer may POST `/trade/settle` (authority key stays on Archive); Settlement summary shows phase + `settlementTxHash` capsules.
 
 Live keep evidence (2026-08-16): `pilot/evidence/conet-dle-p6-genesis-2026-08/p6-live-accept.json` — trade `chainNftId=326990096`, 7/7 `DleLabArchiveCertificateV1` in ~10s, NFT 42 `eth_blockNumber` stayed `0x1`, `liveGroupCount=2`. Completing P6 is **not** 30-day qualification.
 

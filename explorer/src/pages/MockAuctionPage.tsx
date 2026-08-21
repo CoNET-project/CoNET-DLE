@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Wallet } from 'ethers'
 import { useNavigate } from 'react-router-dom'
 import { DetailPageShell } from '../components/DetailPageShell'
+import { HashCapsule } from '../components/HashCapsule'
 import { JsonBlock } from '../components/JsonBlock'
 import { RefreshButton } from '../components/RefreshButton'
 import { StatusPill } from '../components/StatusPill'
@@ -18,10 +19,25 @@ import {
   ORDER_SIDE_SELL,
 } from '../lib/mockAuctionWire'
 
+type TradeMatchRow = {
+  candidateHash: string
+  phase?: string
+  settlementTxHash?: string
+  settlementError?: string
+  certificate?: { certificateHash?: string }
+}
+
+type TradeHealth = {
+  tradeRpcCustodyMode?: string
+  tradeOnChainSettleConfigured?: boolean
+  tradeOnChainSettleMode?: string
+}
+
 /**
  * Local mock-L1 auction client surface.
  * Session-only lab private keys may sign submit/attest; never persisted.
  * Archive legality is never self-attested — custody is Archive-side when RPC configured.
+ * Round 4: UI may POST /trade/settle (Archive holds authority key); shows settlementTxHash capsules.
  * mockL1Only — not production DePIN / not CoNET mainnet NFT.
  */
 export function MockAuctionPage() {
@@ -36,6 +52,7 @@ export function MockAuctionPage() {
   const [error, setError] = useState<string | null>(null)
   const [actionLog, setActionLog] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
+  const [executeOnChain, setExecuteOnChain] = useState(true)
 
   // Session-only — never write to localStorage / IndexedDB.
   const [sellerPk, setSellerPk] = useState('')
@@ -90,6 +107,16 @@ export function MockAuctionPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  const tradeHealth = useMemo((): TradeHealth | null => {
+    if (health === null || typeof health !== 'object') return null
+    return health as TradeHealth
+  }, [health])
+
+  const matchRows = useMemo((): TradeMatchRow[] => {
+    const tl = timeline as { matches?: TradeMatchRow[] } | null
+    return Array.isArray(tl?.matches) ? tl.matches : []
+  }, [timeline])
 
   const postJson = async (path: string, body: unknown) => {
     const res = await fetch(`${archiveUrl.replace(/\/$/, '')}${path}`, {
@@ -195,8 +222,7 @@ export function MockAuctionPage() {
     try {
       if (!candidateHash || !attestPk.trim()) throw new Error('candidateHash + committee session pk required')
       const wallet = new Wallet(attestPk.trim())
-      const tl = timeline as { matches?: Array<{ candidateHash: string; certificate?: { certificateHash: string } }> } | null
-      const row = tl?.matches?.find((m) => m.candidateHash.toLowerCase() === candidateHash.toLowerCase())
+      const row = matchRows.find((m) => m.candidateHash.toLowerCase() === candidateHash.toLowerCase())
       const certHash = row?.certificate?.certificateHash
       if (!certHash) throw new Error('certificate not proposed yet — run Archive check first')
       const signature = await wallet.signMessage(certPersonalSignMessage(certHash))
@@ -215,8 +241,34 @@ export function MockAuctionPage() {
     }
   }
 
+  const runSettle = async () => {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      if (!candidateHash) throw new Error('candidateHash required')
+      // Browser never holds certificateAuthority — Archive posts settle when executeOnChain.
+      const out = await postJson('/trade/settle', {
+        candidateHash,
+        outcome: 'settled',
+        executeOnChain,
+      })
+      setActionLog(out)
+      if (out.status >= 400) setError(String((out.body as { error?: string }).error ?? 'settle failed'))
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const inputClass =
     'w-full rounded-lg border border-slate-600 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500'
+
+  const settleMode = tradeHealth?.tradeOnChainSettleMode ?? 'unknown'
+  const custodyMode = tradeHealth?.tradeRpcCustodyMode ?? 'unknown'
+  const onChainReady = tradeHealth?.tradeOnChainSettleConfigured === true
 
   return (
     <DetailPageShell
@@ -227,16 +279,22 @@ export function MockAuctionPage() {
         <>
           <StatusPill label="mockL1Only" tone="warn" />
           <StatusPill label="not production DePIN" tone="neutral" />
+          <StatusPill label={`custody: ${custodyMode}`} tone="blue" />
+          <StatusPill
+            label={onChainReady ? `settle: ${settleMode}` : 'settle: off'}
+            tone={onChainReady ? 'ok' : 'warn'}
+          />
           <RefreshButton status={refreshStatus} onClick={() => void load()} />
         </>
       }
     >
       <p className="mb-6 max-w-3xl text-sm text-slate-300">
         Local archive routes <code className="text-cyan-200">/mockl1/*</code> and{' '}
-        <code className="text-cyan-200">/trade/*</code>. Session private keys sign orders here only for lab
-        demos and are never persisted. Archive legality (custody) is Archive-side when{' '}
-        <code className="text-cyan-200">MOCK_L1_RPC_URL</code> is set — this page does not self-attest
-        escrow. WaitingPool / on-demand is not this ingress.
+        <code className="text-cyan-200">/trade/*</code>. Session private keys sign orders/attests only and are
+        never persisted. Custody and on-chain <code className="text-cyan-200">settle</code> run on Archive
+        (<code className="text-cyan-200">MOCK_L1_*</code>) — this page never holds the authority key. WaitingPool
+        / on-demand is not this ingress. Lab demo fake hashes ≠ local RPC{' '}
+        <code className="text-cyan-200">settlementTxHash</code>.
       </p>
       {error ? <p className="mb-4 text-sm text-amber-300">{error}</p> : null}
 
@@ -307,7 +365,7 @@ export function MockAuctionPage() {
       </section>
 
       <section className="mb-8 space-y-4 rounded-2xl border border-slate-700/80 bg-slate-900/40 p-4">
-        <h2 className="text-lg font-semibold text-white">Scan → candidate → Archive check → attest</h2>
+        <h2 className="text-lg font-semibold text-white">Scan → candidate → Archive check → attest → settle</h2>
         <label className="block text-xs text-slate-400">
           Scanner address
           <input className={`${inputClass} mt-1`} value={scanner} onChange={(e) => setScanner(e.target.value)} />
@@ -331,6 +389,22 @@ export function MockAuctionPage() {
             onChange={(e) => setAttestPk(e.target.value)}
             placeholder="must be on drawn committee"
           />
+        </label>
+        <label className="flex items-start gap-2 text-sm text-slate-300">
+          <input
+            type="checkbox"
+            checked={executeOnChain}
+            onChange={(e) => setExecuteOnChain(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-500"
+          />
+          <span>
+            Request Archive on-chain settle (
+            <code className="text-cyan-200">executeOnChain</code>
+            ).
+            {onChainReady
+              ? ' Authority key stays on Archive.'
+              : ' Archive settle env not configured — expect failure if checked.'}
+          </span>
         </label>
         <div className="flex flex-wrap gap-2">
           <button
@@ -357,7 +431,68 @@ export function MockAuctionPage() {
           >
             Attest (committee)
           </button>
+          <button
+            type="button"
+            disabled={busy}
+            className="rounded-full bg-rose-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            onClick={() => void runSettle()}
+            aria-label="Ask Archive to settle match"
+          >
+            Archive settle
+          </button>
         </div>
+      </section>
+
+      <section className="mb-8 space-y-3">
+        <h2 className="text-lg font-semibold text-white">Settlement summary</h2>
+        {matchRows.length === 0 ? (
+          <p className="text-sm text-slate-400">No matches in last trusted timeline.</p>
+        ) : (
+          <ul className="space-y-3">
+            {matchRows.map((m) => (
+              <li
+                key={m.candidateHash}
+                className="rounded-xl border border-slate-700/70 bg-slate-950/50 px-4 py-3"
+              >
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <StatusPill
+                    label={m.phase ?? 'unknown'}
+                    tone={
+                      m.phase === 'settled'
+                        ? 'ok'
+                        : m.phase === 'settlement_failed'
+                          ? 'bad'
+                          : m.phase === 'match_certified' || m.phase === 'settlement_submitted'
+                            ? 'warn'
+                            : 'neutral'
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="text-xs text-cyan-300 underline-offset-2 hover:underline"
+                    onClick={() => setCandidateHash(m.candidateHash)}
+                  >
+                    Use as candidate
+                  </button>
+                </div>
+                <p className="mb-2 font-mono text-[11px] text-slate-400" title={m.candidateHash}>
+                  candidate {m.candidateHash.slice(0, 18)}…
+                </p>
+                {m.settlementTxHash ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-slate-400">settlementTxHash</span>
+                    <HashCapsule value={m.settlementTxHash} />
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">No settlementTxHash yet (lab or pending).</p>
+                )}
+                {m.settlementError ? (
+                  <p className="mt-2 text-xs text-rose-300">{m.settlementError}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="mb-8 space-y-3">

@@ -64,4 +64,4 @@ npm run mock-auction-e2e    # list → match → Archive settle() on live local 
 ## Related
 
 - Archive fields: `../../RULES.md` §Archive (Mock-L1 / Trade EventIngress)
-- Explorer UI: `../../../explorer/RULES.md` (`/mock-auction`)
+- Explorer UI: `../../../explorer/RULES.md` (`/mock-auction` — Round 4 settle CTA POSTs Archive; no authority key in browser)

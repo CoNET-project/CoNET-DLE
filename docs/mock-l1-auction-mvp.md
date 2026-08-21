@@ -34,7 +34,7 @@ CoNET mainnet may already host `DLEChainRegistry1155V1`; this MVP still uses **l
 | Mode A | `runtime/src/archive/bft/modeA.ts` → `replayTradeMatchModeA` |
 | CLI / demo / e2e | `runtime/src/daemon/mock-l1-auction-cli.ts`, `mock-l1-auction-demo.ts`, `mock-l1-auction-e2e.ts` |
 | One-shot local | Root `scripts/dle/mockAuctionE2eLocal.sh` → `npm run dle:mock-auction-e2e` |
-| Web | Explorer `/mock-auction` (session keys may sign; Archive-side custody when RPC set) |
+| Web | Explorer `/mock-auction` (session keys may sign; Round 4 settle CTA → Archive) |
 
 ## MVP round 2 (2026-08)
 
@@ -49,6 +49,12 @@ CoNET mainnet may already host `DLEChainRegistry1155V1`; this MVP still uses **l
 2. Archive `POST /trade/settle` with `executeOnChain` / env → `certificateAuthority` calls `settle` on local RPC; phases `match_certified` → `settlement_submitted` → `settled` | `settlement_failed`.
 3. `npm run mock-auction-e2e` (DLE) or root `npm run dle:mock-auction-e2e` (hardhat node → deploy → e2e) produces a **real** `settlementTxHash`.
 4. `/health` may expose `tradeOnChainSettleConfigured` / `tradeOnChainSettleMode`.
+
+## MVP round 4 (2026-08)
+
+1. Explorer **Settlement summary**: phase pills + `HashCapsule` for `settlementTxHash` from `/trade/timeline`.
+2. Explorer **Archive settle** button: `POST /trade/settle` with `outcome: settled` + optional `executeOnChain` (default on). Authority private key **never** enters the browser.
+3. Health pills: `custody:` / `settle:` from trusted `/health` fields.
 
 ## Fee
 

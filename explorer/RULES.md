@@ -106,14 +106,16 @@ Detail page (footer hidden). Local mock-L1 `/mockl1/*` + `/trade/*` against the 
 
 **MVP round 2:** session-only lab private keys may **sign** sell/buy/attest in the browser (`ethers`); keys are **never** written to localStorage / IndexedDB. Order / candidate hashing is mirrored in `explorer/src/lib/mockAuctionWire.ts` (no runtime import). Archive legality remains Archive-side when RPC custody is configured — the page may pass lab flags only for Archive without `MOCK_L1_*`.
 
-**MVP round 3:** when Archive has on-chain settle configured, match timeline may show a **real** `settlementTxHash` from `MockDleAuctionSettlement.settle` (local Hardhat/Anvil). Do **not** paint lab demo fake hashes as mainnet settles. UI still does **not** call `settle` from the browser — Archive posts the authority tx.
+**MVP round 3:** when Archive has on-chain settle configured, match timeline may show a **real** `settlementTxHash` from `MockDleAuctionSettlement.settle` (local Hardhat/Anvil). Do **not** paint lab demo fake hashes as mainnet settles.
+
+**MVP round 4:** `/mock-auction` shows a **Settlement summary** (phase pills + `HashCapsule` for `settlementTxHash`) and may **POST** `/trade/settle` with `executeOnChain` so Archive runs authority `settle`. The browser **never** holds `certificateAuthority` / `MOCK_L1_AUTHORITY_PRIVATE_KEY`. Health pills may show `custody:` / `settle:` from `/health` (`tradeRpcCustodyMode`, `tradeOnChainSettleConfigured`).
 
 | Rule | Detail |
 |---|---|
 | Scope | Local Hardhat/Anvil mock network only |
-| UI | May sign client orders/attests with session keys; does **not** self-claim Archive legality / quorum; does **not** submit settlement txs |
-| Labels | Always show `mockL1Only` / `notProductionDepin` pills |
-| Forbidden | Painting as CoNET mainnet, production DePIN, or live CL RANDAO; persisting private keys |
+| UI | May sign client orders/attests with session keys; may ask Archive to settle via HTTP; does **not** self-claim Archive legality / quorum; does **not** sign or broadcast settlement txs |
+| Labels | Always show `mockL1Only` / `notProductionDepin` pills; custody/settle mode from health when trusted |
+| Forbidden | Painting as CoNET mainnet, production DePIN, or live CL RANDAO; persisting private keys; treating demo fake hashes as on-chain settles |
 
 ## Other Explorer invariants
 
