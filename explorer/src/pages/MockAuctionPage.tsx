@@ -28,7 +28,15 @@ type TradeMatchRow = {
   approveError?: string
   settlementTxHash?: string
   settlementError?: string
-  certificate?: { certificateHash?: string }
+  certificate?: {
+    certificateHash?: string
+    clearingPrice?: string
+    feeBps?: number
+    feeAmount?: string
+    scannerReward?: string
+    committeeReward?: string
+  }
+  candidate?: { clearingPrice?: string }
 }
 
 type TradeHealth = {
@@ -50,6 +58,7 @@ type TradeHealth = {
  * Round 5: UI may POST /trade/list with session seller key so escrow exists before settle.
  * Round 6: UI may POST /trade/approve with session buyer key for quote ERC-20 allowance.
  * Round 7: one-shot List → Approve → Settle; Archive settle preflight refuses settle without list+approve.
+ * Round 8: read-only Preflight CTA + fee split on Settlement summary.
  * mockL1Only — not production DePIN / not CoNET mainnet NFT.
  */
 export function MockAuctionPage() {
@@ -310,7 +319,32 @@ export function MockAuctionPage() {
         executeOnChain,
       })
       setActionLog(out)
-      if (out.status >= 400) setError(String((out.body as { error?: string }).error ?? 'settle failed'))
+      if (out.status >= 400) {
+        const body = out.body as { error?: string; preflight?: boolean }
+        const prefix = body.preflight === false ? 'Preflight: ' : ''
+        setError(`${prefix}${String(body.error ?? 'settle failed')}`)
+      }
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** Round 8: read-only settle readiness (list+approve + optional RPC); no phase change. */
+  const runPreflight = async () => {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      if (!candidateHash) throw new Error('candidateHash required')
+      const out = await postJson('/trade/preflight', { candidateHash })
+      setActionLog(out)
+      if (out.status >= 400) {
+        const body = out.body as { error?: string }
+        setError(`Preflight: ${String(body.error ?? 'not ready')}`)
+      }
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -355,7 +389,9 @@ export function MockAuctionPage() {
       })
       setActionLog(settled)
       if (settled.status >= 400) {
-        setError(String((settled.body as { error?: string }).error ?? 'settle failed'))
+        const body = settled.body as { error?: string; preflight?: boolean }
+        const prefix = body.preflight === false ? 'Preflight: ' : ''
+        setError(`${prefix}${String(body.error ?? 'settle failed')}`)
       }
       await load()
     } catch (e) {
@@ -571,6 +607,16 @@ export function MockAuctionPage() {
           </button>
           <button
             type="button"
+            disabled={busy || !candidateHash.trim()}
+            className="rounded-full bg-slate-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            onClick={() => void runPreflight()}
+            aria-label="Run settle preflight"
+            aria-busy={busy}
+          >
+            Preflight
+          </button>
+          <button
+            type="button"
             disabled={busy}
             className="rounded-full bg-rose-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             onClick={() => void runSettle()}
@@ -590,9 +636,11 @@ export function MockAuctionPage() {
           </button>
         </div>
         <p className="text-xs text-slate-500">
-          List uses the seller session key (must match sell maker). Approve uses the buyer session key (must
-          match buy maker). Both required before on-chain settle; Archive preflight returns 400 without them
-          (phase stays match_certified). One-shot runs list → approve → settle and stops on first failure.
+          Preflight is read-only (POST /trade/preflight): checks list+approve records and optional RPC
+          eth_call; returns fee split; never changes phase. List uses the seller session key (must match
+          sell maker). Approve uses the buyer session key (must match buy maker). Both required before
+          on-chain settle; Archive preflight returns 400 without them (phase stays match_certified).
+          One-shot runs list → approve → settle and stops on first failure.
           {listReady ? ` List mode: ${listMode}.` : ' List env not configured — list will fail.'}
           {approveReady
             ? ` Approve mode: ${approveMode}.`
@@ -635,6 +683,15 @@ export function MockAuctionPage() {
                 <p className="mb-2 font-mono text-[11px] text-slate-400" title={m.candidateHash}>
                   candidate {m.candidateHash.slice(0, 18)}…
                 </p>
+                {m.certificate?.feeAmount !== undefined ? (
+                  <p className="mb-2 text-xs text-slate-300">
+                    Fee {m.certificate.feeBps ?? 1} bps · clearing{' '}
+                    <span className="font-mono">{m.certificate.clearingPrice ?? '—'}</span> · fee{' '}
+                    <span className="font-mono">{m.certificate.feeAmount}</span> · scanner{' '}
+                    <span className="font-mono">{m.certificate.scannerReward ?? '—'}</span> · committee{' '}
+                    <span className="font-mono">{m.certificate.committeeReward ?? '—'}</span>
+                  </p>
+                ) : null}
                 {m.listTxHash ? (
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <span className="text-xs text-slate-400">listTxHash</span>

@@ -50,6 +50,8 @@ commands:
              (seller session key; Archive POST /trade/list)
   approve    --candidateHash 0x.. --pk HEX [--amount WEI]
              (buyer session key; Archive POST /trade/approve; default amount = clearingPrice)
+  preflight  --candidateHash 0x..
+             (read-only settle readiness + fee split; POST /trade/preflight; no phase change)
   settle     --candidateHash 0x.. --outcome submitted|settled|failed [--txHash 0x..]
              [--executeOnChain true] [--skipSettlePreflight true]
   status     (GET /trade/orders + /trade/matches + /mockl1/chains)
@@ -291,6 +293,14 @@ async function main(): Promise<void> {
       buyerPrivateKey: pk,
       ...(args.amount !== undefined ? { amount: args.amount } : {}),
     })
+    console.log(JSON.stringify(out, null, 2))
+    return
+  }
+
+  if (cmd === 'preflight') {
+    const candidateHash = args.candidateHash
+    if (candidateHash === undefined) throw new Error('--candidateHash required')
+    const out = await postJson(`${archiveUrl}/trade/preflight`, { candidateHash })
     console.log(JSON.stringify(out, null, 2))
     return
   }

@@ -78,6 +78,13 @@ CoNET mainnet may already host `DLEChainRegistry1155V1`; this MVP still uses **l
 3. CLI: `list` / `approve` commands; settle flags `--executeOnChain` / `--skipSettlePreflight`.
 4. Explorer one-shot **List → Approve → Settle** (individual CTAs retained).
 
+## MVP round 8 (2026-08)
+
+1. Archive **`POST /trade/preflight`**: **read-only** settle readiness. Shared gate `evaluateSettlePreflight` (phase, `listTxHash`, `approveTxHash`, optional RPC `preflightMockL1AuctionSettle`). Returns `checks`, `fees` (1 bps split), optional `onChain`. **Never** mutates match phase.
+2. Settle path reuses the same evaluator (no duplicated list/approve/RPC checks).
+3. CLI: `preflight --candidateHash 0x…`.
+4. Explorer **Preflight** CTA + Settlement summary fee line (`feeAmount` / scanner / committee); settle / one-shot errors may prefix `Preflight:`.
+
 ## Fee
 
 ```

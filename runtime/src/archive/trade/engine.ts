@@ -866,6 +866,116 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
     }
   }
 
+  /**
+   * Round 7/8 settle readiness: record list+approve (+ optional RPC eth_call).
+   * Does not mutate match phase. Shared by POST /trade/preflight and settle gate.
+   */
+  async function evaluateSettlePreflight(record: TradeMatchRecordV1): Promise<{
+    ok: boolean
+    error?: string
+    checks: {
+      phaseOk: boolean
+      hasListTx: boolean
+      hasApproveTx: boolean
+      rpcConfigured: boolean
+      rpcOk: boolean | null
+    }
+    onChain?: Awaited<ReturnType<typeof preflightMockL1AuctionSettle>>
+    fees?: {
+      clearingPrice: string
+      feeBps: number
+      feeAmount: string
+      scannerReward: string
+      committeeReward: string
+      feePolicyHash: Hex
+    }
+  }> {
+    const cert = record.certificate
+    const fees =
+      cert !== undefined
+        ? {
+            clearingPrice: cert.clearingPrice,
+            feeBps: cert.feeBps,
+            feeAmount: cert.feeAmount,
+            scannerReward: cert.scannerReward,
+            committeeReward: cert.committeeReward,
+            feePolicyHash: cert.feePolicyHash,
+          }
+        : undefined
+    const phaseOk = record.phase === 'match_certified' || record.phase === 'settlement_submitted'
+    const hasListTx = Boolean(record.listTxHash)
+    const hasApproveTx = Boolean(record.approveTxHash)
+    const rpcConfigured = Boolean(l1RpcUrl && l1Settlement)
+    const checks = {
+      phaseOk,
+      hasListTx,
+      hasApproveTx,
+      rpcConfigured,
+      rpcOk: null as boolean | null,
+    }
+    if (!phaseOk) {
+      return { ok: false, error: 'certificate not ready for settlement', checks, fees }
+    }
+    if (!hasListTx) {
+      return { ok: false, error: 'list NFT escrow first (POST /trade/list)', checks, fees }
+    }
+    if (!hasApproveTx) {
+      return { ok: false, error: 'approve quote first (POST /trade/approve)', checks, fees }
+    }
+    if (rpcConfigured) {
+      const onChain = await preflightMockL1AuctionSettle({
+        rpcUrl: l1RpcUrl!,
+        settlement: l1Settlement!,
+        sellerOrderHash: record.sell.orderHash,
+        buyer: record.buy.maker,
+        quoteAsset: record.candidate.quoteAsset,
+        clearingAmount: record.candidate.clearingPrice,
+      })
+      checks.rpcOk = onChain.ok
+      if (!onChain.ok) {
+        return { ok: false, error: onChain.reason, checks, onChain, fees }
+      }
+      return { ok: true, checks, onChain, fees }
+    }
+    return { ok: true, checks, fees }
+  }
+
+  /** Round 8: read-only settle readiness (no phase mutation). */
+  async function settlePreflight(body: unknown): Promise<{ status: number; body: Record<string, unknown> }> {
+    if (!isRecord(body) || typeof body.candidateHash !== 'string') {
+      return { status: 400, body: { ok: false, error: 'candidateHash required' } }
+    }
+    const record = matches.get(body.candidateHash.toLowerCase())
+    if (record === undefined) return { status: 404, body: { ok: false, error: 'match not found' } }
+    const result = await evaluateSettlePreflight(record)
+    if (!result.ok) {
+      return {
+        status: 400,
+        body: {
+          ok: false,
+          preflight: false,
+          error: result.error,
+          checks: result.checks,
+          fees: result.fees,
+          match: record,
+          mockL1Only: true,
+        },
+      }
+    }
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        preflight: true,
+        checks: result.checks,
+        fees: result.fees,
+        onChain: result.onChain,
+        match: record,
+        mockL1Only: true,
+      },
+    }
+  }
+
   async function settleStatus(body: unknown): Promise<{ status: number; body: Record<string, unknown> }> {
     if (!isRecord(body) || typeof body.candidateHash !== 'string') {
       return { status: 400, body: { ok: false, error: 'candidateHash required' } }
@@ -889,45 +999,21 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
       record.phase === 'match_certified' &&
       record.certificate !== undefined
     ) {
-      // Round 7: refuse on-chain settle until list + approve (record) and optional RPC preflight.
+      // Round 7/8: refuse on-chain settle until list + approve (record) and optional RPC preflight.
       const skipSettlePreflight = body.skipSettlePreflight === true
       if (!skipSettlePreflight) {
-        if (!record.listTxHash) {
+        const gate = await evaluateSettlePreflight(record)
+        if (!gate.ok) {
           return {
             status: 400,
             body: {
               ok: false,
-              error: 'list NFT escrow first (POST /trade/list)',
+              error: gate.error,
               preflight: false,
+              checks: gate.checks,
+              fees: gate.fees,
               match: record,
             },
-          }
-        }
-        if (!record.approveTxHash) {
-          return {
-            status: 400,
-            body: {
-              ok: false,
-              error: 'approve quote first (POST /trade/approve)',
-              preflight: false,
-              match: record,
-            },
-          }
-        }
-        if (l1RpcUrl && l1Settlement) {
-          const pf = await preflightMockL1AuctionSettle({
-            rpcUrl: l1RpcUrl,
-            settlement: l1Settlement,
-            sellerOrderHash: record.sell.orderHash,
-            buyer: record.buy.maker,
-            quoteAsset: record.candidate.quoteAsset,
-            clearingAmount: record.candidate.clearingPrice,
-          })
-          if (!pf.ok) {
-            return {
-              status: 400,
-              body: { ok: false, error: pf.reason, preflight: false, match: record },
-            }
           }
         }
       }
@@ -1055,6 +1141,7 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
       if (pathname === '/trade/attest') return attest(body)
       if (pathname === '/trade/list') return listEscrow(body)
       if (pathname === '/trade/approve') return approveQuote(body)
+      if (pathname === '/trade/preflight') return settlePreflight(body)
       if (pathname === '/trade/settle') return settleStatus(body)
       return undefined
     },

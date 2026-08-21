@@ -365,3 +365,70 @@ test('trade approve quote requires buyer key matching buy maker', async () => {
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test('trade preflight is read-only and returns fees after list+approve', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'dle-trade-preflight-api-'))
+  const store = openArchiveStore(dir)
+  const seller = Wallet.createRandom()
+  const buyer = Wallet.createRandom()
+  const checkers = Array.from({ length: 9 }, () => Wallet.createRandom())
+  const fakeListTx = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex
+  const fakeApproveTx = '0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' as Hex
+
+  const trade = createTradeEngine({
+    domainId: 'preflight-api-test',
+    store,
+    checkerPool: checkers.map((w) => w.address),
+    verifyL1Custody: async () => ({ ok: true }),
+    submitL1ListTx: async () => ({ ok: true, txHash: fakeListTx }),
+    submitL1ApproveTx: async () => ({ ok: true, txHash: fakeApproveTx }),
+  })
+
+  try {
+    const candidateHash = await certifyMatch({ trade, seller, buyer, checkers })
+
+    const missing = await Promise.resolve(trade.post('/trade/preflight', { candidateHash }))
+    assert.equal(missing?.status, 400)
+    const missingBody = missing!.body as {
+      ok: boolean
+      preflight: boolean
+      error: string
+      checks: { hasListTx: boolean; hasApproveTx: boolean }
+      fees: { feeAmount: string; feeBps: number }
+      match: { phase: string }
+    }
+    assert.equal(missingBody.ok, false)
+    assert.equal(missingBody.preflight, false)
+    assert.match(missingBody.error, /list NFT escrow first/)
+    assert.equal(missingBody.checks.hasListTx, false)
+    assert.equal(missingBody.match.phase, 'match_certified')
+    assert.equal(missingBody.fees.feeBps, 1)
+    assert.ok(BigInt(missingBody.fees.feeAmount) > 0n)
+
+    await listAndApprove(trade, candidateHash, seller, buyer)
+
+    const ready = await Promise.resolve(trade.post('/trade/preflight', { candidateHash }))
+    assert.equal(ready?.status, 200)
+    const readyBody = ready!.body as {
+      ok: boolean
+      preflight: boolean
+      checks: { hasListTx: boolean; hasApproveTx: boolean; rpcConfigured: boolean }
+      fees: { feeAmount: string; scannerReward: string; committeeReward: string }
+      match: { phase: string; listTxHash: string; approveTxHash: string }
+    }
+    assert.equal(readyBody.ok, true)
+    assert.equal(readyBody.preflight, true)
+    assert.equal(readyBody.checks.hasListTx, true)
+    assert.equal(readyBody.checks.hasApproveTx, true)
+    assert.equal(readyBody.checks.rpcConfigured, false)
+    assert.equal(readyBody.match.phase, 'match_certified')
+    assert.equal(readyBody.match.listTxHash, fakeListTx)
+    assert.equal(readyBody.match.approveTxHash, fakeApproveTx)
+    assert.equal(
+      BigInt(readyBody.fees.feeAmount),
+      BigInt(readyBody.fees.scannerReward) + BigInt(readyBody.fees.committeeReward),
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

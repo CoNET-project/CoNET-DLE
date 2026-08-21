@@ -116,6 +116,8 @@ Detail page (footer hidden). Local mock-L1 `/mockl1/*` + `/trade/*` against the 
 
 **MVP round 7:** one-shot **List → Approve → Settle** CTA (fuchsia) runs list then approve then Archive settle with `executeOnChain`; individual CTAs retained. Archive settle preflight requires `listTxHash` + `approveTxHash` (and optional RPC eth_call); preflight **400** does not mark `settlement_failed`.
 
+**MVP round 8:** **Preflight** CTA POSTs read-only `/trade/preflight` (no phase change); Settlement summary shows certificate fee split (1 bps / scanner / committee); settle / one-shot errors may prefix `Preflight:`.
+
 | Rule | Detail |
 |---|---|
 | Scope | Local Hardhat/Anvil mock network only |
