@@ -110,11 +110,13 @@ Detail page (footer hidden). Local mock-L1 `/mockl1/*` + `/trade/*` against the 
 
 **MVP round 4:** `/mock-auction` shows a **Settlement summary** (phase pills + `HashCapsule` for `settlementTxHash`) and may **POST** `/trade/settle` with `executeOnChain` so Archive runs authority `settle`. The browser **never** holds `certificateAuthority` / `MOCK_L1_AUTHORITY_PRIVATE_KEY`. Health pills may show `custody:` / `settle:` from `/health` (`tradeRpcCustodyMode`, `tradeOnChainSettleConfigured`).
 
+**MVP round 5:** `/mock-auction` may **POST** `/trade/list` with the seller **session** private key (must match sell maker; never persisted) so Archive runs `list` into escrow. Settlement summary shows `listTxHash` / `listError`. Health pill `list:` from `tradeListConfigured` / `tradeListMode`. List **before** Archive settle when on-chain settle is enabled.
+
 | Rule | Detail |
 |---|---|
 | Scope | Local Hardhat/Anvil mock network only |
-| UI | May sign client orders/attests with session keys; may ask Archive to settle via HTTP; does **not** self-claim Archive legality / quorum; does **not** sign or broadcast settlement txs |
-| Labels | Always show `mockL1Only` / `notProductionDepin` pills; custody/settle mode from health when trusted |
+| UI | May sign client orders/attests/list with session keys; may ask Archive to settle via HTTP; does **not** self-claim Archive legality / quorum; does **not** hold authority key or broadcast settle txs |
+| Labels | Always show `mockL1Only` / `notProductionDepin` pills; custody/list/settle mode from health when trusted |
 | Forbidden | Painting as CoNET mainnet, production DePIN, or live CL RANDAO; persisting private keys; treating demo fake hashes as on-chain settles |
 
 ## Other Explorer invariants

@@ -22,6 +22,8 @@ import {
 type TradeMatchRow = {
   candidateHash: string
   phase?: string
+  listTxHash?: string
+  listError?: string
   settlementTxHash?: string
   settlementError?: string
   certificate?: { certificateHash?: string }
@@ -31,13 +33,17 @@ type TradeHealth = {
   tradeRpcCustodyMode?: string
   tradeOnChainSettleConfigured?: boolean
   tradeOnChainSettleMode?: string
+  tradeListConfigured?: boolean
+  tradeListMode?: string
+  tradeMockL1Settlement?: string | null
 }
 
 /**
  * Local mock-L1 auction client surface.
- * Session-only lab private keys may sign submit/attest; never persisted.
+ * Session-only lab private keys may sign submit/attest/list; never persisted.
  * Archive legality is never self-attested — custody is Archive-side when RPC configured.
  * Round 4: UI may POST /trade/settle (Archive holds authority key); shows settlementTxHash capsules.
+ * Round 5: UI may POST /trade/list with session seller key so escrow exists before settle.
  * mockL1Only — not production DePIN / not CoNET mainnet NFT.
  */
 export function MockAuctionPage() {
@@ -241,6 +247,28 @@ export function MockAuctionPage() {
     }
   }
 
+  const runList = async () => {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      if (!candidateHash) throw new Error('candidateHash required')
+      if (!sellerPk.trim()) throw new Error('seller session private key required for list')
+      // Lab only: Archive broadcasts list with request-scoped seller key (not stored).
+      const out = await postJson('/trade/list', {
+        candidateHash,
+        sellerPrivateKey: sellerPk.trim(),
+      })
+      setActionLog(out)
+      if (out.status >= 400) setError(String((out.body as { error?: string }).error ?? 'list failed'))
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const runSettle = async () => {
     if (busy) return
     setBusy(true)
@@ -269,6 +297,8 @@ export function MockAuctionPage() {
   const settleMode = tradeHealth?.tradeOnChainSettleMode ?? 'unknown'
   const custodyMode = tradeHealth?.tradeRpcCustodyMode ?? 'unknown'
   const onChainReady = tradeHealth?.tradeOnChainSettleConfigured === true
+  const listMode = tradeHealth?.tradeListMode ?? 'unknown'
+  const listReady = tradeHealth?.tradeListConfigured === true
 
   return (
     <DetailPageShell
@@ -281,6 +311,10 @@ export function MockAuctionPage() {
           <StatusPill label="not production DePIN" tone="neutral" />
           <StatusPill label={`custody: ${custodyMode}`} tone="blue" />
           <StatusPill
+            label={listReady ? `list: ${listMode}` : 'list: off'}
+            tone={listReady ? 'ok' : 'warn'}
+          />
+          <StatusPill
             label={onChainReady ? `settle: ${settleMode}` : 'settle: off'}
             tone={onChainReady ? 'ok' : 'warn'}
           />
@@ -290,10 +324,11 @@ export function MockAuctionPage() {
     >
       <p className="mb-6 max-w-3xl text-sm text-slate-300">
         Local archive routes <code className="text-cyan-200">/mockl1/*</code> and{' '}
-        <code className="text-cyan-200">/trade/*</code>. Session private keys sign orders/attests only and are
-        never persisted. Custody and on-chain <code className="text-cyan-200">settle</code> run on Archive
-        (<code className="text-cyan-200">MOCK_L1_*</code>) — this page never holds the authority key. WaitingPool
-        / on-demand is not this ingress. Lab demo fake hashes ≠ local RPC{' '}
+        <code className="text-cyan-200">/trade/*</code>. Session private keys sign orders/attests/list only and
+        are never persisted. Seller must <code className="text-cyan-200">list</code> NFT into escrow before
+        Archive <code className="text-cyan-200">settle</code>. Custody and settle authority stay on Archive (
+        <code className="text-cyan-200">MOCK_L1_*</code>) — this page never holds the authority key.
+        WaitingPool / on-demand is not this ingress. Lab demo fake hashes ≠ local RPC{' '}
         <code className="text-cyan-200">settlementTxHash</code>.
       </p>
       {error ? <p className="mb-4 text-sm text-amber-300">{error}</p> : null}
@@ -365,7 +400,9 @@ export function MockAuctionPage() {
       </section>
 
       <section className="mb-8 space-y-4 rounded-2xl border border-slate-700/80 bg-slate-900/40 p-4">
-        <h2 className="text-lg font-semibold text-white">Scan → candidate → Archive check → attest → settle</h2>
+        <h2 className="text-lg font-semibold text-white">
+          Scan → candidate → Archive check → attest → list escrow → settle
+        </h2>
         <label className="block text-xs text-slate-400">
           Scanner address
           <input className={`${inputClass} mt-1`} value={scanner} onChange={(e) => setScanner(e.target.value)} />
@@ -433,6 +470,16 @@ export function MockAuctionPage() {
           </button>
           <button
             type="button"
+            disabled={busy || !sellerPk.trim()}
+            className="rounded-full bg-orange-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            onClick={() => void runList()}
+            aria-label="List NFT into mock settlement escrow"
+            aria-busy={busy}
+          >
+            List NFT escrow
+          </button>
+          <button
+            type="button"
             disabled={busy}
             className="rounded-full bg-rose-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             onClick={() => void runSettle()}
@@ -441,6 +488,10 @@ export function MockAuctionPage() {
             Archive settle
           </button>
         </div>
+        <p className="text-xs text-slate-500">
+          List uses the seller session key above (must match sell maker). Required before on-chain settle.
+          {listReady ? ` Archive list mode: ${listMode}.` : ' Archive list env not configured — list will fail.'}
+        </p>
       </section>
 
       <section className="mb-8 space-y-3">
@@ -478,6 +529,15 @@ export function MockAuctionPage() {
                 <p className="mb-2 font-mono text-[11px] text-slate-400" title={m.candidateHash}>
                   candidate {m.candidateHash.slice(0, 18)}…
                 </p>
+                {m.listTxHash ? (
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-slate-400">listTxHash</span>
+                    <HashCapsule value={m.listTxHash} />
+                  </div>
+                ) : (
+                  <p className="mb-2 text-xs text-slate-500">No listTxHash yet (list NFT escrow first).</p>
+                )}
+                {m.listError ? <p className="mb-2 text-xs text-amber-300">{m.listError}</p> : null}
                 {m.settlementTxHash ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs text-slate-400">settlementTxHash</span>

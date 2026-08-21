@@ -182,3 +182,61 @@ test('trade settle executeOnChain failure marks settlement_failed', async () => 
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test('trade list escrow requires seller key matching sell maker', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'dle-trade-list-'))
+  const store = openArchiveStore(dir)
+  const seller = Wallet.createRandom()
+  const buyer = Wallet.createRandom()
+  const checkers = Array.from({ length: 9 }, () => Wallet.createRandom())
+  const fakeListTx = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex
+  let listCalls = 0
+
+  const trade = createTradeEngine({
+    domainId: 'list-escrow-test',
+    store,
+    checkerPool: checkers.map((w) => w.address),
+    verifyL1Custody: async () => ({ ok: true }),
+    submitL1ListTx: async () => {
+      listCalls += 1
+      return { ok: true, txHash: fakeListTx }
+    },
+  })
+
+  try {
+    const sell = await signOrder(seller, ORDER_SIDE_SELL)
+    const buy = await signOrder(buyer, ORDER_SIDE_BUY)
+    await Promise.resolve(trade.post('/trade/submit', sell))
+    await Promise.resolve(trade.post('/trade/submit', buy))
+    const scan = await Promise.resolve(trade.post('/trade/scan', { scanner: checkers[0]!.address }))
+    const matchRow = (scan!.body as { match: Record<string, unknown> }).match
+    const cand = { ...matchRow, candidateHash: matchCandidateHash(matchRow as never) }
+    await Promise.resolve(trade.post('/trade/candidate', cand))
+
+    const wrong = await Promise.resolve(
+      trade.post('/trade/list', {
+        candidateHash: cand.candidateHash,
+        sellerPrivateKey: buyer.privateKey,
+      }),
+    )
+    assert.equal(wrong?.status, 400)
+    assert.match(String((wrong!.body as { error?: string }).error), /does not match/)
+
+    const listed = await Promise.resolve(
+      trade.post('/trade/list', {
+        candidateHash: cand.candidateHash,
+        sellerPrivateKey: seller.privateKey,
+      }),
+    )
+    assert.equal(listed?.status, 200)
+    assert.equal(listCalls, 1)
+    const body = listed!.body as { ok: boolean; listTxHash: string; match: { listTxHash: string } }
+    assert.equal(body.ok, true)
+    assert.equal(body.listTxHash, fakeListTx)
+    assert.equal(body.match.listTxHash, fakeListTx)
+    assert.equal(trade.health().tradeListConfigured, true)
+    assert.equal(trade.health().tradeListMode, 'hook')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

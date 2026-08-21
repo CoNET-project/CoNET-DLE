@@ -5,7 +5,7 @@
  * WaitingPool / POST /ondemand/hook MUST NOT be used as this ingress.
  */
 
-import { recoverAddress, hashMessage } from 'ethers'
+import { Wallet, recoverAddress, hashMessage } from 'ethers'
 import {
   drawCommittee,
   labBeaconAfterFreeze,
@@ -15,7 +15,7 @@ import {
 import type { Hex } from '../../shared/bytes.js'
 import { mockL1FeePolicyHash } from '../../shared/mockL1.js'
 import { mockL1CustodyEnv, verifyMockL1Custody } from '../../shared/mockL1Custody.js'
-import { mockL1SettleEnv, settleMockL1Auction } from '../../shared/mockL1Settle.js'
+import { listMockL1Auction, mockL1SettleEnv, settleMockL1Auction } from '../../shared/mockL1Settle.js'
 import {
   MATCH_CANDIDATE_SCHEMA,
   ORDER_SIDE_BUY,
@@ -84,6 +84,9 @@ export interface TradeMatchRecordV1 {
   tipStateRoot?: Hex
   valueHash?: Hex
   l2Nonce?: string
+  /** Seller `list()` escrow tx (required before on-chain settle). */
+  listTxHash?: Hex
+  listError?: string
   settlementTxHash?: Hex
   settlementError?: string
   updatedAt: string
@@ -121,6 +124,19 @@ export interface TradeEngineOptions {
     clearingAmount: string
     scanner: Hex
     committee: readonly Hex[]
+  }) => Promise<{ ok: true; txHash: Hex } | { ok: false; reason: string }>
+  /**
+   * Test hook — overrides seller `list()` escrow broadcast.
+   * Production path uses MOCK_L1_RPC + settlement + request-scoped sellerPrivateKey (lab only).
+   */
+  submitL1ListTx?: (args: {
+    sellerOrderHash: Hex
+    subjectNft: Hex
+    subjectNftId: string
+    quoteAsset: Hex
+    askAmount: string
+    deadline: string
+    seller: Hex
   }) => Promise<{ ok: true; txHash: Hex } | { ok: false; reason: string }>
 }
 
@@ -183,6 +199,8 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
   const onChainSettleConfigured =
     options.submitL1SettlementTx !== undefined ||
     Boolean(l1RpcUrl && l1Settlement && l1AuthorityPk)
+  const listConfigured =
+    options.submitL1ListTx !== undefined || Boolean(l1RpcUrl && l1Settlement)
 
   function persist(): void {
     const state: PersistedState = {
@@ -253,6 +271,15 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
         : onChainSettleConfigured
           ? 'rpc'
           : 'off',
+      /** Seller can list into escrow when RPC+settlement (or list hook) is set. */
+      tradeListConfigured: listConfigured,
+      tradeListMode: options.submitL1ListTx !== undefined
+        ? 'hook'
+        : listConfigured
+          ? 'rpc'
+          : 'off',
+      /** Settlement address when configured — never private keys. */
+      tradeMockL1Settlement: l1Settlement ?? null,
       tradeOrderCount: orders.size,
       tradeMatchCount: matches.size,
       tradeByPhase: byPhase,
@@ -641,6 +668,89 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
     return { status: 200, body: { ok: true, match: record } }
   }
 
+  /**
+   * Seller escrows NFT via MockDleAuctionSettlement.list (required before settle).
+   * Lab-only: request may carry sellerPrivateKey (session key from Explorer); never persisted.
+   */
+  async function listEscrow(body: unknown): Promise<{ status: number; body: Record<string, unknown> }> {
+    if (!isRecord(body) || typeof body.candidateHash !== 'string') {
+      return { status: 400, body: { ok: false, error: 'candidateHash required' } }
+    }
+    if (typeof body.sellerPrivateKey !== 'string' || !body.sellerPrivateKey.trim()) {
+      return {
+        status: 400,
+        body: {
+          ok: false,
+          error: 'sellerPrivateKey required (lab session key; not stored on Archive)',
+        },
+      }
+    }
+    const record = matches.get(body.candidateHash.toLowerCase())
+    if (record === undefined) return { status: 404, body: { ok: false, error: 'match not found' } }
+
+    let sellerWallet: Wallet
+    try {
+      sellerWallet = new Wallet(body.sellerPrivateKey.trim())
+    } catch {
+      return { status: 400, body: { ok: false, error: 'invalid sellerPrivateKey' } }
+    }
+    if (sellerWallet.address.toLowerCase() !== record.sell.maker.toLowerCase()) {
+      return {
+        status: 400,
+        body: { ok: false, error: 'sellerPrivateKey does not match sell order maker' },
+      }
+    }
+
+    const onChain =
+      options.submitL1ListTx !== undefined
+        ? await options.submitL1ListTx({
+            sellerOrderHash: record.sell.orderHash,
+            subjectNft: record.sell.subjectNftContract,
+            subjectNftId: record.sell.subjectNftId,
+            quoteAsset: record.sell.quoteAsset,
+            askAmount: record.sell.price,
+            deadline: record.sell.deadline,
+            seller: record.sell.maker,
+          })
+        : l1RpcUrl && l1Settlement
+          ? await listMockL1Auction({
+              rpcUrl: l1RpcUrl,
+              settlement: l1Settlement,
+              sellerPrivateKey: body.sellerPrivateKey.trim(),
+              sellerOrderHash: record.sell.orderHash,
+              subjectNft: record.sell.subjectNftContract,
+              subjectNftId: record.sell.subjectNftId,
+              quoteAsset: record.sell.quoteAsset,
+              askAmount: record.sell.price,
+              deadline: record.sell.deadline,
+            })
+          : {
+              ok: false as const,
+              reason: 'list not configured (need MOCK_L1_RPC_URL + MOCK_L1_SETTLEMENT)',
+            }
+
+    if (!onChain.ok) {
+      record.listError = onChain.reason
+      record.updatedAt = new Date().toISOString()
+      persist()
+      return { status: 400, body: { ok: false, error: onChain.reason, match: record } }
+    }
+
+    record.listTxHash = onChain.txHash
+    record.listError = undefined
+    record.updatedAt = new Date().toISOString()
+    persist()
+    options.store.appendWal({
+      type: 'trade-list',
+      candidateHash: record.candidateHash,
+      listTxHash: record.listTxHash,
+    })
+    return {
+      status: 200,
+      body: { ok: true, match: record, onChain: true, mockL1Only: true, listTxHash: record.listTxHash },
+    }
+  }
+
   async function settleStatus(body: unknown): Promise<{ status: number; body: Record<string, unknown> }> {
     if (!isRecord(body) || typeof body.candidateHash !== 'string') {
       return { status: 400, body: { ok: false, error: 'candidateHash required' } }
@@ -785,6 +895,7 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
       if (pathname === '/trade/candidate') return submitCandidate(body)
       if (pathname === '/trade/check') return archiveCheck(body)
       if (pathname === '/trade/attest') return attest(body)
+      if (pathname === '/trade/list') return listEscrow(body)
       if (pathname === '/trade/settle') return settleStatus(body)
       return undefined
     },

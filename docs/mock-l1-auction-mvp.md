@@ -34,7 +34,7 @@ CoNET mainnet may already host `DLEChainRegistry1155V1`; this MVP still uses **l
 | Mode A | `runtime/src/archive/bft/modeA.ts` → `replayTradeMatchModeA` |
 | CLI / demo / e2e | `runtime/src/daemon/mock-l1-auction-cli.ts`, `mock-l1-auction-demo.ts`, `mock-l1-auction-e2e.ts` |
 | One-shot local | Root `scripts/dle/mockAuctionE2eLocal.sh` → `npm run dle:mock-auction-e2e` |
-| Web | Explorer `/mock-auction` (session keys may sign; Round 4 settle CTA → Archive) |
+| Web | Explorer `/mock-auction` (session keys may sign; Round 5 list + Round 4 settle CTA → Archive) |
 
 ## MVP round 2 (2026-08)
 
@@ -55,6 +55,13 @@ CoNET mainnet may already host `DLEChainRegistry1155V1`; this MVP still uses **l
 1. Explorer **Settlement summary**: phase pills + `HashCapsule` for `settlementTxHash` from `/trade/timeline`.
 2. Explorer **Archive settle** button: `POST /trade/settle` with `outcome: settled` + optional `executeOnChain` (default on). Authority private key **never** enters the browser.
 3. Health pills: `custody:` / `settle:` from trusted `/health` fields.
+
+## MVP round 5 (2026-08)
+
+1. Archive **`POST /trade/list`**: body `{ candidateHash, sellerPrivateKey }` (lab session key; **not** stored on Archive). Key must match sell order `maker`; calls `MockDleAuctionSettlement.list` via `listMockL1Auction` or `submitL1ListTx` hook.
+2. Match record may expose `listTxHash` / `listError`; WAL type `trade-list`.
+3. `/health`: `tradeListConfigured` / `tradeListMode` (`rpc` | `hook` | off).
+4. Explorer **List NFT escrow** CTA (uses seller session key) → then **Archive settle**. Settlement summary shows `listTxHash` capsules.
 
 ## Fee
 
