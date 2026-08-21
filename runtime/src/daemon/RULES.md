@@ -46,7 +46,9 @@ Local Hardhat/Anvil MVP only. **Not** CoNET 224422 mainnet, **not** production D
 npm run mock-auction-cli -- --archive http://127.0.0.1:27101 <command> …
 npm run mock-auction-demo   # in-process: attest → list/approve → lab settle (MOCK_L1_DEMO_MODE=settle|recovery)
 npm run mock-auction-e2e    # MOCK_L1_E2E_MODE=settle|recovery on live local RPC (MOCK_L1_*)
+npm run mock-auction-ci     # Round 11: unit tests + demo settle + demo recovery (no Hardhat)
 # monorepo root: npm run dle:mock-auction-e2e  # hardhat node + deploy + recovery e2e then settle e2e
+# monorepo root: npm run test:dle:ci           # Hardhat unit + full e2e (parent CI)
 ```
 
 | Command | Role |
@@ -60,6 +62,7 @@ npm run mock-auction-e2e    # MOCK_L1_E2E_MODE=settle|recovery on live local RPC
 | `unlist` (round 9) | Seller reclaim: `POST /trade/unlist` with `--candidateHash` + `--pk`. Clears `listTxHash` on success; phase unchanged. Use after list stuck or after `settle … failed` |
 | `settle` (rounds 3 + 7–9) | With `MOCK_L1_SETTLE_ONCHAIN` / authority key / `--executeOnChain`, Archive posts real `settle` tx. Round 7/8: Archive refuses without prior list+approve (unless `--skipSettlePreflight`); optional RPC eth_call preflight. Round 9: `outcome: failed` for lab recovery before unlist |
 | Round 10 e2e/demo | `MOCK_L1_E2E_MODE=recovery` = list → fail → unlist + `ownerOf` assert; `settle` = happy path. One-shot shell runs recovery **then** settle. Demo: `MOCK_L1_DEMO_MODE=recovery` (hook or RPC) |
+| Round 11 CI | Parent `.github/workflows/dle-mock-auction-hardhat.yml` → `test:dle` + `dle:mock-auction-e2e`. DLE `mock-auction-ci` / `.github/workflows/mock-l1-auction-ci.yml` for TypeScript gate. E2E settle path **re-approves** NFT (+ quote allowance if needed) before submit so custody still passes after recovery unlist |
 | `status` | `GET /mockl1/chains` + `/trade/orders` + `/trade/matches` |
 
 **Forbidden:** elevating `DleLabNewChainRequestV1` / `notL1Nft`; using `POST /ondemand/hook` / WaitingPool as trade ingress; claiming lab beacon = live CL RANDAO; browser holding settlement **authority** private key.
@@ -67,4 +70,4 @@ npm run mock-auction-e2e    # MOCK_L1_E2E_MODE=settle|recovery on live local RPC
 ## Related
 
 - Archive fields: `../../RULES.md` §Archive (Mock-L1 / Trade EventIngress)
-- Explorer UI: `../../../explorer/RULES.md` (`/mock-auction` — Round 9 Unlist / Mark failed / Cancel sell + Round 8 Preflight + Round 7 List→Approve→Settle one-shot; no authority key in browser)
+- Explorer UI: `../../../explorer/RULES.md` (`/mock-auction` — Round 11 recovery English + Mark failed→Unlist; Round 9–10 recovery CTAs; no authority key in browser)

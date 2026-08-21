@@ -33,12 +33,59 @@ import {
 } from '../shared/tradeMatch.js'
 import type { Hex } from '../shared/bytes.js'
 
-const ERC721_OWNER_ABI = ['function ownerOf(uint256 tokenId) view returns (address)'] as const
+const ERC721_OWNER_ABI = [
+  'function ownerOf(uint256 tokenId) view returns (address)',
+  'function getApproved(uint256 tokenId) view returns (address)',
+  'function approve(address to, uint256 tokenId)',
+] as const
+const ERC20_APPROVE_ABI = [
+  'function allowance(address owner, address spender) view returns (uint256)',
+  'function approve(address spender, uint256 amount) returns (bool)',
+] as const
 
 function requireEnv(name: string): string {
   const v = process.env[name]?.trim()
   if (!v) throw new Error(`missing ${name}`)
   return v
+}
+
+/**
+ * After recovery unlist (or a fresh Anvil), seller may hold the NFT without settlement
+ * approval. Re-approve so Archive custody check can pass for a subsequent settle run.
+ */
+async function ensureEscrowApprovals(args: {
+  rpcUrl: string
+  settlement: Hex
+  subjectNft: Hex
+  subjectId: string
+  quote: Hex
+  price: string
+  sellerPk: string
+  buyerPk: string
+}): Promise<void> {
+  const provider = new JsonRpcProvider(args.rpcUrl, undefined, { staticNetwork: true })
+  try {
+    const seller = new Wallet(args.sellerPk, provider)
+    const buyer = new Wallet(args.buyerPk, provider)
+    const nft = new Contract(args.subjectNft, ERC721_OWNER_ABI, seller)
+    const tokenId = BigInt(args.subjectId)
+    const owner = String(await nft.ownerOf(tokenId)).toLowerCase()
+    const settlementLc = args.settlement.toLowerCase()
+    if (owner === seller.address.toLowerCase()) {
+      const approved = String(await nft.getApproved(tokenId)).toLowerCase()
+      if (approved !== settlementLc) {
+        await (await nft.approve(args.settlement, tokenId)).wait()
+      }
+    }
+    const erc20 = new Contract(args.quote, ERC20_APPROVE_ABI, buyer)
+    const need = BigInt(args.price)
+    const allow = BigInt(await erc20.allowance(buyer.address, args.settlement))
+    if (allow < need) {
+      await (await erc20.approve(args.settlement, need * 10n)).wait()
+    }
+  } finally {
+    provider.destroy()
+  }
 }
 
 type E2eMode = 'settle' | 'recovery'
@@ -83,6 +130,17 @@ async function main(): Promise<void> {
   } finally {
     provider.destroy()
   }
+
+  await ensureEscrowApprovals({
+    rpcUrl,
+    settlement,
+    subjectNft,
+    subjectId,
+    quote,
+    price,
+    sellerPk,
+    buyerPk,
+  })
 
   const seller = new Wallet(sellerPk)
   const buyer = new Wallet(buyerPk)

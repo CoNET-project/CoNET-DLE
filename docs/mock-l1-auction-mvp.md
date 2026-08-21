@@ -102,6 +102,13 @@ CoNET mainnet may already host `DLEChainRegistry1155V1`; this MVP still uses **l
 3. **Demo modes** (`MOCK_L1_DEMO_MODE`): `settle` (default) or `recovery` (list → fail → unlist). Non-RPC demo injects in-process list/unlist/approve hooks so recovery works without Anvil.
 4. Acceptance: recovery JSON includes `unlistTxHash` + `nftOwner`; settle JSON includes real `settlementTxHash`.
 
+## MVP round 11 (2026-08)
+
+1. **CI (DLE):** `npm run mock-auction-ci` → `scripts/ci/run-mock-l1-auction-gate.sh` (runtime mock-l1/trade tests + `explorer:test` + demo settle + demo recovery). Workflow: `.github/workflows/mock-l1-auction-ci.yml`. Optional nested Hardhat: `npm run mock-auction-ci:hardhat`.
+2. **CI (parent Hardhat):** `npm run test:dle` includes mock-auction fixture + settlement unit tests; `npm run test:dle:ci` = unit + `dle:mock-auction-e2e`. Workflow: `.github/workflows/dle-mock-auction-hardhat.yml` (local Hardhat/Anvil only).
+3. **Explorer:** English intro/help distinguish happy path vs recovery; one-shot **Mark failed → Unlist**.
+4. **E2E after recovery:** `mock-l1-auction-e2e` settle mode re-approves the subject NFT to settlement (and tops up buyer quote allowance if needed) before submit, so Archive custody still passes after unlist cleared approval.
+
 ## Fee
 
 ```

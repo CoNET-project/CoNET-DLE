@@ -120,11 +120,15 @@ Detail page (footer hidden). Local mock-L1 `/mockl1/*` + `/trade/*` against the 
 
 **MVP round 9:** **Unlist escrow** POSTs `/trade/unlist` with seller session key (clears `listTxHash`, sets `unlistTxHash`; phase unchanged). **Mark failed** POSTs `/trade/settle` with `outcome: 'failed'`. **Cancel sell order** EIP-191 signs then POSTs `/trade/cancel`. Settlement summary shows `unlistTxHash` / `unlistError` / `settlementError`. Health pill `unlist:` from `tradeUnlistConfigured` / `tradeUnlistMode`.
 
+**MVP round 10:** E2E/demo `MOCK_L1_*_MODE=recovery` (list → fail → unlist). Parent one-shot `dle:mock-auction-e2e` runs recovery then settle. Explorer copy must distinguish happy path vs recovery (`settlement_failed` → Unlist).
+
+**MVP round 11:** Intro + help spell out recovery in English. One-shot **Mark failed → Unlist** CTA (stops on first 4xx). CI: DLE `npm run mock-auction-ci`; parent Hardhat `test:dle` + `dle:mock-auction-e2e` via `.github/workflows/dle-mock-auction-hardhat.yml`.
+
 | Rule | Detail |
 |---|---|
 | Scope | Local Hardhat/Anvil mock network only |
 | UI | May sign client orders/attests/list/approve/unlist/cancel with session keys; may ask Archive to settle/fail via HTTP; does **not** self-claim Archive legality / quorum; does **not** hold authority key or broadcast settle txs |
-| Labels | Always show `mockL1Only` / `notProductionDepin` pills; custody/list/approve/unlist/settle mode from health when trusted |
+| Labels | Always show `mockL1Only` / `notProductionDepin` pills; custody/list/approve/unlist/settle mode from health when trusted; recovery copy must say Unlist after `settlement_failed` |
 | Forbidden | Painting as CoNET mainnet, production DePIN, or live CL RANDAO; persisting private keys; treating demo fake hashes as on-chain settles |
 
 ## Other Explorer invariants

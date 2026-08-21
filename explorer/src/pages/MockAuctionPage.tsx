@@ -451,6 +451,41 @@ export function MockAuctionPage() {
     }
   }
 
+  /** Round 11: lab recovery one-shot — mark failed then unlist escrow (stops on first 4xx). */
+  const runMarkFailedThenUnlist = async () => {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      if (!candidateHash) throw new Error('candidateHash required')
+      if (!sellerPk.trim()) throw new Error('seller session private key required for unlist')
+      const failed = await postJson('/trade/settle', {
+        candidateHash,
+        outcome: 'failed',
+        error: 'marked failed from Explorer (lab recovery one-shot)',
+      })
+      setActionLog(failed)
+      if (failed.status >= 400) {
+        setError(String((failed.body as { error?: string }).error ?? 'mark failed'))
+        await load()
+        return
+      }
+      const unlisted = await postJson('/trade/unlist', {
+        candidateHash,
+        sellerPrivateKey: sellerPk.trim(),
+      })
+      setActionLog(unlisted)
+      if (unlisted.status >= 400) {
+        setError(String((unlisted.body as { error?: string }).error ?? 'unlist failed'))
+      }
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   /** Round 9: cancel open sell order via EIP-191 (maker must match seller session key). */
   const runCancelSell = async () => {
     if (busy) return
@@ -528,13 +563,13 @@ export function MockAuctionPage() {
       <p className="mb-6 max-w-3xl text-sm text-slate-300">
         Local archive routes <code className="text-cyan-200">/mockl1/*</code> and{' '}
         <code className="text-cyan-200">/trade/*</code>. Session private keys sign orders/attests/list/approve/unlist
-        only and are never persisted. Seller must <code className="text-cyan-200">list</code> NFT into escrow and
-        buyer must <code className="text-cyan-200">approve</code> quote ERC-20 before Archive{' '}
-        <code className="text-cyan-200">settle</code>. After <code className="text-cyan-200">settlement_failed</code>,
-        seller can <code className="text-cyan-200">unlist</code> to reclaim escrow (clears listTxHash; phase unchanged).
-        Custody and settle authority stay on Archive (
-        <code className="text-cyan-200">MOCK_L1_*</code>) — this page never holds the authority key.
-        WaitingPool / on-demand is not this ingress. Lab demo fake hashes ≠ local RPC{' '}
+        only and are never persisted. Happy path: seller <code className="text-cyan-200">list</code> → buyer{' '}
+        <code className="text-cyan-200">approve</code> → Archive <code className="text-cyan-200">settle</code>.
+        Recovery path: after <code className="text-cyan-200">settlement_failed</code> (or lab Mark failed), seller
+        must Unlist escrow to reclaim the NFT (clears <code className="text-cyan-200">listTxHash</code>; phase stays{' '}
+        <code className="text-cyan-200">settlement_failed</code> / prior). Custody and settle authority stay on Archive
+        (<code className="text-cyan-200">MOCK_L1_*</code>) — this page never holds the authority key. WaitingPool /
+        on-demand is not this ingress. Lab demo fake hashes ≠ local RPC{' '}
         <code className="text-cyan-200">settlementTxHash</code>.
       </p>
       {error ? <p className="mb-4 text-sm text-amber-300">{error}</p> : null}
@@ -745,6 +780,16 @@ export function MockAuctionPage() {
           </button>
           <button
             type="button"
+            disabled={busy || !sellerPk.trim() || !candidateHash.trim()}
+            className="rounded-full border border-teal-400/70 bg-teal-950/50 px-4 py-2 text-sm font-medium text-teal-100 disabled:opacity-50"
+            onClick={() => void runMarkFailedThenUnlist()}
+            aria-label="Mark settlement failed then unlist escrow"
+            aria-busy={busy}
+          >
+            Mark failed → Unlist
+          </button>
+          <button
+            type="button"
             disabled={busy || !sellerPk.trim()}
             className="rounded-full border border-slate-500 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-100 disabled:opacity-50"
             onClick={() => void runCancelSell()}
@@ -759,9 +804,10 @@ export function MockAuctionPage() {
           eth_call; returns fee split; never changes phase. List uses the seller session key (must match
           sell maker). Approve uses the buyer session key (must match buy maker). Both required before
           on-chain settle; Archive preflight returns 400 without them (phase stays match_certified).
-          One-shot runs list → approve → settle and stops on first failure. Unlist reclaims escrow after
-          list (or after settlement_failed); clears listTxHash without changing phase. Mark failed posts
-          settle outcome=failed. Cancel sell uses EIP-191 on the open sell orderHash.
+          Happy one-shot: List → Approve → Settle (stops on first failure). Recovery: Mark failed posts
+          settle outcome=failed → phase settlement_failed; then Unlist reclaims escrow (clears listTxHash;
+          phase unchanged). Lab one-shot Mark failed → Unlist runs both in order. Cancel sell uses EIP-191
+          on the open sell orderHash.
           {listReady ? ` List mode: ${listMode}.` : ' List env not configured — list will fail.'}
           {approveReady
             ? ` Approve mode: ${approveMode}.`

@@ -1,0 +1,48 @@
+# CoNET-DLE mock-L1 auction TypeScript gate (demos + unit tests).
+# Hardhat full e2e lives in the monorepo parent workflow `dle-mock-auction-hardhat.yml`
+# (or local: npm run mock-auction-ci:hardhat when nested under BeamioContract).
+name: Mock-L1 auction CI
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "runtime/**"
+      - "explorer/**"
+      - "docs/mock-l1-auction*.md"
+      - "scripts/ci/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/mock-l1-auction-ci.yml"
+  pull_request:
+    paths:
+      - "runtime/**"
+      - "explorer/**"
+      - "docs/mock-l1-auction*.md"
+      - "scripts/ci/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/mock-l1-auction-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mock-l1-auction-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typescript-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Mock-L1 TypeScript gate (tests + demos)
+        run: npm run mock-auction-ci
