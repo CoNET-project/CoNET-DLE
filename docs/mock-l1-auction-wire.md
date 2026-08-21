@@ -25,12 +25,15 @@ All payloads below are **`mockL1Only: true`**. HTTP JSON only; Archive validates
 | `POST` | `/trade/candidate` | Submit `MockL1MatchCandidateV1` |
 | `POST` | `/trade/check` | Archive legality. With `MOCK_L1_RPC_URL` + `MOCK_L1_SETTLEMENT` (or custody hook), **eth_call / hook** — client `l1EscrowCustody` flags **ignored**. Otherwise lab flags fallback |
 | `POST` | `/trade/attest` | Freeze pool → draw → collect → certificate |
-| `POST` | `/trade/settle` | Mode A settlement transition (mock L1 settle separate) |
+| `POST` | `/trade/list` | Escrow NFT into settlement (`listTxHash`); needs `sellerPrivateKey` (session) |
+| `POST` | `/trade/unlist` | Seller reclaim after list / on `settlement_failed`; clears `listTxHash`, sets `unlistTxHash` |
+| `POST` | `/trade/approve` | Buyer ERC-20 approve for settlement |
+| `POST` | `/trade/settle` | Mode A settlement; `outcome: 'failed'` → `settlement_failed` (lab recovery) |
 | `GET` | `/trade/orders` | Order pool |
 | `GET` | `/trade/matches` | Match / cert timeline |
 | `GET` | `/trade/timeline` | Combined timeline |
 
-`/health` may include `tradeRpcCustodyConfigured` / `tradeRpcCustodyMode` (`rpc` | `hook` | `clientFlags`).
+`/health` may include `tradeRpcCustodyConfigured` / `tradeRpcCustodyMode` (`rpc` | `hook` | `clientFlags`), `tradeListConfigured` / `tradeListMode`, `tradeUnlistConfigured` / `tradeUnlistMode`, `tradeApproveConfigured` / `tradeApproveMode`, `tradeSettleConfigured` / `tradeSettleMode`, `tradeSettlePreflightConfigured` / `tradeSettlePreflightMode`.
 
 **Forbidden:** using `POST /ondemand/hook` or WaitingPool as this ingress.
 

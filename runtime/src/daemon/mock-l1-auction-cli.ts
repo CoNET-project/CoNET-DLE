@@ -50,6 +50,8 @@ commands:
              (seller session key; Archive POST /trade/list)
   approve    --candidateHash 0x.. --pk HEX [--amount WEI]
              (buyer session key; Archive POST /trade/approve; default amount = clearingPrice)
+  unlist     --candidateHash 0x.. --pk HEX
+             (seller reclaim escrow; Archive POST /trade/unlist; clears listTxHash; no phase change)
   preflight  --candidateHash 0x..
              (read-only settle readiness + fee split; POST /trade/preflight; no phase change)
   settle     --candidateHash 0x.. --outcome submitted|settled|failed [--txHash 0x..]
@@ -292,6 +294,18 @@ async function main(): Promise<void> {
       candidateHash,
       buyerPrivateKey: pk,
       ...(args.amount !== undefined ? { amount: args.amount } : {}),
+    })
+    console.log(JSON.stringify(out, null, 2))
+    return
+  }
+
+  if (cmd === 'unlist') {
+    const pk = args.pk
+    const candidateHash = args.candidateHash
+    if (pk === undefined || candidateHash === undefined) throw new Error('--pk and --candidateHash required')
+    const out = await postJson(`${archiveUrl}/trade/unlist`, {
+      candidateHash,
+      sellerPrivateKey: pk,
     })
     console.log(JSON.stringify(out, null, 2))
     return

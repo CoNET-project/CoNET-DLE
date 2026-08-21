@@ -85,6 +85,16 @@ CoNET mainnet may already host `DLEChainRegistry1155V1`; this MVP still uses **l
 3. CLI: `preflight --candidateHash 0x…`.
 4. Explorer **Preflight** CTA + Settlement summary fee line (`feeAmount` / scanner / committee); settle / one-shot errors may prefix `Preflight:`.
 
+## MVP round 9 (2026-08)
+
+1. **`MockDleAuctionSettlement.unlist(sellerOrderHash)`**: seller-only reclaim when listing exists and not settled; emits `Unlisted`; deletes listing and returns NFT.
+2. Shared helper **`unlistMockL1Auction`** (`shared/mockL1Settle.ts`); Archive hook `submitL1UnlistTx`.
+3. Archive **`POST /trade/unlist`**: body `{ candidateHash, sellerPrivateKey }` (lab session key; **not** stored). Requires `listTxHash`; phase `match_certified` **or** `settlement_failed`. On success: set `unlistTxHash`, **clear `listTxHash`**, clear list errors; **do not** change phase. WAL `trade-unlist`.
+4. Lab recovery: `POST /trade/settle` with `outcome: 'failed'` → `settlement_failed` + `settlementError` (then unlist to reclaim escrow).
+5. CLI: `unlist --candidateHash 0x… --pk HEX`.
+6. Explorer: **Unlist escrow** / **Mark failed** / **Cancel sell order** CTAs; Settlement summary shows `unlistTxHash` / `unlistError` / `settlementError`; health pill `unlist:`.
+7. `/health`: `tradeUnlistConfigured` / `tradeUnlistMode` (`rpc` | `hook`).
+
 ## Fee
 
 ```

@@ -57,7 +57,8 @@ npm run mock-auction-e2e    # attest → Archive /trade/list + /trade/approve �
 | `check` / `attest` | Archive legality + freeze-then-draw committee attest → `TradeMatchCertificateV1`. With Archive `MOCK_L1_RPC_URL` + `MOCK_L1_SETTLEMENT`, client custody flags are **ignored** |
 | `list` / `approve` (rounds 5–7) | CLI may POST Archive `/trade/list` / `/trade/approve` with session `--pk`. E2E always POSTs both after attest. Demo POSTs them when `tradeListConfigured` / `tradeApproveConfigured` |
 | `preflight` (round 8) | Read-only `POST /trade/preflight` — settle readiness + fee split; **no** phase change |
-| `settle` (rounds 3 + 7–8) | With `MOCK_L1_SETTLE_ONCHAIN` / authority key / `--executeOnChain`, Archive posts real `settle` tx. Round 7/8: Archive refuses without prior list+approve (unless `--skipSettlePreflight`); optional RPC eth_call preflight |
+| `unlist` (round 9) | Seller reclaim: `POST /trade/unlist` with `--candidateHash` + `--pk`. Clears `listTxHash` on success; phase unchanged. Use after list stuck or after `settle … failed` |
+| `settle` (rounds 3 + 7–9) | With `MOCK_L1_SETTLE_ONCHAIN` / authority key / `--executeOnChain`, Archive posts real `settle` tx. Round 7/8: Archive refuses without prior list+approve (unless `--skipSettlePreflight`); optional RPC eth_call preflight. Round 9: `outcome: failed` for lab recovery before unlist |
 | `settle` | Report mock L1 settlement outcome (`submitted` / `settled` / `failed`) |
 | `status` | `GET /mockl1/chains` + `/trade/orders` + `/trade/matches` |
 
@@ -66,4 +67,4 @@ npm run mock-auction-e2e    # attest → Archive /trade/list + /trade/approve �
 ## Related
 
 - Archive fields: `../../RULES.md` §Archive (Mock-L1 / Trade EventIngress)
-- Explorer UI: `../../../explorer/RULES.md` (`/mock-auction` — Round 8 Preflight + Round 7 List→Approve→Settle one-shot + Round 6 approve + Round 5 list + Round 4 settle CTA; no authority key in browser)
+- Explorer UI: `../../../explorer/RULES.md` (`/mock-auction` — Round 9 Unlist / Mark failed / Cancel sell + Round 8 Preflight + Round 7 List→Approve→Settle one-shot; no authority key in browser)

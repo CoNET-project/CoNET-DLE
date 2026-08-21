@@ -17,6 +17,7 @@ import { mockL1FeePolicyHash } from '../../shared/mockL1.js'
 import { mockL1CustodyEnv, verifyMockL1Custody } from '../../shared/mockL1Custody.js'
 import {
   listMockL1Auction,
+  unlistMockL1Auction,
   approveMockL1AuctionQuote,
   mockL1SettleEnv,
   preflightMockL1AuctionSettle,
@@ -93,6 +94,9 @@ export interface TradeMatchRecordV1 {
   /** Seller `list()` escrow tx (required before on-chain settle). */
   listTxHash?: Hex
   listError?: string
+  /** Seller `unlist()` reclaim tx (lab recovery after settlement_failed). */
+  unlistTxHash?: Hex
+  unlistError?: string
   /** Buyer ERC-20 `approve` tx (required before settle transferFrom). */
   approveTxHash?: Hex
   approveError?: string
@@ -156,6 +160,14 @@ export interface TradeEngineOptions {
     amount: string
     buyer: Hex
     settlement: Hex
+  }) => Promise<{ ok: true; txHash: Hex } | { ok: false; reason: string }>
+  /**
+   * Test hook — overrides seller `unlist()` reclaim broadcast.
+   * Lab path uses MOCK_L1_RPC + settlement + request-scoped sellerPrivateKey.
+   */
+  submitL1UnlistTx?: (args: {
+    sellerOrderHash: Hex
+    seller: Hex
   }) => Promise<{ ok: true; txHash: Hex } | { ok: false; reason: string }>
 }
 
@@ -222,6 +234,8 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
     options.submitL1ListTx !== undefined || Boolean(l1RpcUrl && l1Settlement)
   const approveConfigured =
     options.submitL1ApproveTx !== undefined || Boolean(l1RpcUrl && l1Settlement)
+  const unlistConfigured =
+    options.submitL1UnlistTx !== undefined || Boolean(l1RpcUrl && l1Settlement)
 
   function persist(): void {
     const state: PersistedState = {
@@ -304,6 +318,13 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
       tradeApproveMode: options.submitL1ApproveTx !== undefined
         ? 'hook'
         : approveConfigured
+          ? 'rpc'
+          : 'off',
+      /** Seller can unlist escrow when RPC+settlement (or unlist hook) is set. */
+      tradeUnlistConfigured: unlistConfigured,
+      tradeUnlistMode: options.submitL1UnlistTx !== undefined
+        ? 'hook'
+        : unlistConfigured
           ? 'rpc'
           : 'off',
       /** Settlement address when configured — never private keys. */
@@ -867,6 +888,106 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
   }
 
   /**
+   * Seller reclaims escrowed NFT via MockDleAuctionSettlement.unlist (lab recovery).
+   * Allowed when listTxHash is set and phase is match_certified or settlement_failed.
+   * On success: sets unlistTxHash, clears listTxHash; does **not** change phase.
+   * Lab-only: request may carry sellerPrivateKey (session key); never persisted.
+   */
+  async function unlistEscrow(body: unknown): Promise<{ status: number; body: Record<string, unknown> }> {
+    if (!isRecord(body) || typeof body.candidateHash !== 'string') {
+      return { status: 400, body: { ok: false, error: 'candidateHash required' } }
+    }
+    if (typeof body.sellerPrivateKey !== 'string' || !body.sellerPrivateKey.trim()) {
+      return {
+        status: 400,
+        body: {
+          ok: false,
+          error: 'sellerPrivateKey required (lab session key; not stored on Archive)',
+        },
+      }
+    }
+    const record = matches.get(body.candidateHash.toLowerCase())
+    if (record === undefined) return { status: 404, body: { ok: false, error: 'match not found' } }
+
+    if (!record.listTxHash) {
+      return {
+        status: 400,
+        body: { ok: false, error: 'no listTxHash — nothing to unlist (POST /trade/list first)', match: record },
+      }
+    }
+    if (record.phase !== 'match_certified' && record.phase !== 'settlement_failed') {
+      return {
+        status: 400,
+        body: {
+          ok: false,
+          error: 'unlist only when phase is match_certified or settlement_failed',
+          match: record,
+        },
+      }
+    }
+
+    let sellerWallet: Wallet
+    try {
+      sellerWallet = new Wallet(body.sellerPrivateKey.trim())
+    } catch {
+      return { status: 400, body: { ok: false, error: 'invalid sellerPrivateKey' } }
+    }
+    if (sellerWallet.address.toLowerCase() !== record.sell.maker.toLowerCase()) {
+      return {
+        status: 400,
+        body: { ok: false, error: 'sellerPrivateKey does not match sell order maker' },
+      }
+    }
+
+    const onChain =
+      options.submitL1UnlistTx !== undefined
+        ? await options.submitL1UnlistTx({
+            sellerOrderHash: record.sell.orderHash,
+            seller: record.sell.maker,
+          })
+        : l1RpcUrl && l1Settlement
+          ? await unlistMockL1Auction({
+              rpcUrl: l1RpcUrl,
+              settlement: l1Settlement,
+              sellerPrivateKey: body.sellerPrivateKey.trim(),
+              sellerOrderHash: record.sell.orderHash,
+            })
+          : {
+              ok: false as const,
+              reason: 'unlist not configured (need MOCK_L1_RPC_URL + MOCK_L1_SETTLEMENT)',
+            }
+
+    if (!onChain.ok) {
+      record.unlistError = onChain.reason
+      record.updatedAt = new Date().toISOString()
+      persist()
+      return { status: 400, body: { ok: false, error: onChain.reason, match: record } }
+    }
+
+    record.unlistTxHash = onChain.txHash
+    record.unlistError = undefined
+    record.listTxHash = undefined
+    record.listError = undefined
+    record.updatedAt = new Date().toISOString()
+    persist()
+    options.store.appendWal({
+      type: 'trade-unlist',
+      candidateHash: record.candidateHash,
+      unlistTxHash: record.unlistTxHash,
+    })
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        match: record,
+        onChain: true,
+        mockL1Only: true,
+        unlistTxHash: record.unlistTxHash,
+      },
+    }
+  }
+
+  /**
    * Round 7/8 settle readiness: record list+approve (+ optional RPC eth_call).
    * Does not mutate match phase. Shared by POST /trade/preflight and settle gate.
    */
@@ -1141,6 +1262,7 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
       if (pathname === '/trade/attest') return attest(body)
       if (pathname === '/trade/list') return listEscrow(body)
       if (pathname === '/trade/approve') return approveQuote(body)
+      if (pathname === '/trade/unlist') return unlistEscrow(body)
       if (pathname === '/trade/preflight') return settlePreflight(body)
       if (pathname === '/trade/settle') return settleStatus(body)
       return undefined

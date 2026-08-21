@@ -7,6 +7,7 @@ import type { Hex } from './bytes.js'
 
 const SETTLEMENT_ABI = [
   'function list(bytes32 sellerOrderHash, address subjectNft, uint256 subjectNftId, address quoteAsset, uint256 askAmount, uint64 deadline)',
+  'function unlist(bytes32 sellerOrderHash)',
   'function settle(bytes32 certificateHash, bytes32 sellerOrderHash, address buyer, uint256 clearingAmount, address scanner, address[] committee)',
   'function listings(bytes32) view returns (address seller, address subjectNft, uint256 subjectNftId, address quoteAsset, uint256 askAmount, uint64 deadline, bool settled)',
 ] as const
@@ -42,6 +43,13 @@ export interface MockL1ApproveInput {
   quoteAsset: Hex
   /** Minimum allowance required (clearing / ask amount). */
   amount: string
+}
+
+export interface MockL1UnlistInput {
+  rpcUrl: string
+  settlement: Hex
+  sellerPrivateKey: string
+  sellerOrderHash: Hex
 }
 
 export interface MockL1SettleInput {
@@ -146,6 +154,46 @@ export async function listMockL1Auction(input: MockL1ListInput): Promise<MockL1T
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { ok: false, reason: `list failed: ${msg}`, mockL1Only: true }
+  } finally {
+    provider.destroy()
+  }
+}
+
+/**
+ * Seller reclaim of escrowed NFT via MockDleAuctionSettlement.unlist (lab recovery).
+ */
+export async function unlistMockL1Auction(input: MockL1UnlistInput): Promise<MockL1TxResult> {
+  const settlement = asAddress(input.settlement, 'settlement')
+  let orderHash: string
+  try {
+    orderHash = asBytes32(input.sellerOrderHash, 'sellerOrderHash')
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { ok: false, reason: msg, mockL1Only: true }
+  }
+
+  const provider = new JsonRpcProvider(input.rpcUrl, undefined, { staticNetwork: true })
+  try {
+    const seller = new Wallet(input.sellerPrivateKey, provider)
+    const settlementC = new Contract(settlement, SETTLEMENT_ABI, seller)
+    const row = await settlementC.listings(orderHash)
+    const listingSeller = String(row.seller ?? row[0] ?? '')
+    if (!listingSeller || listingSeller === '0x0000000000000000000000000000000000000000') {
+      return { ok: false, reason: 'listing missing — nothing to unlist', mockL1Only: true }
+    }
+    if (listingSeller.toLowerCase() !== seller.address.toLowerCase()) {
+      return { ok: false, reason: 'sellerPrivateKey does not match listing seller', mockL1Only: true }
+    }
+    if (Boolean(row.settled ?? row[6])) {
+      return { ok: false, reason: 'listing already settled — cannot unlist', mockL1Only: true }
+    }
+    const tx = await settlementC.unlist(orderHash)
+    const receipt = await tx.wait()
+    const txHash = String(receipt?.hash ?? tx.hash) as Hex
+    return { ok: true, txHash, mockL1Only: true }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { ok: false, reason: `unlist failed: ${msg}`, mockL1Only: true }
   } finally {
     provider.destroy()
   }

@@ -118,11 +118,13 @@ Detail page (footer hidden). Local mock-L1 `/mockl1/*` + `/trade/*` against the 
 
 **MVP round 8:** **Preflight** CTA POSTs read-only `/trade/preflight` (no phase change); Settlement summary shows certificate fee split (1 bps / scanner / committee); settle / one-shot errors may prefix `Preflight:`.
 
+**MVP round 9:** **Unlist escrow** POSTs `/trade/unlist` with seller session key (clears `listTxHash`, sets `unlistTxHash`; phase unchanged). **Mark failed** POSTs `/trade/settle` with `outcome: 'failed'`. **Cancel sell order** EIP-191 signs then POSTs `/trade/cancel`. Settlement summary shows `unlistTxHash` / `unlistError` / `settlementError`. Health pill `unlist:` from `tradeUnlistConfigured` / `tradeUnlistMode`.
+
 | Rule | Detail |
 |---|---|
 | Scope | Local Hardhat/Anvil mock network only |
-| UI | May sign client orders/attests/list/approve with session keys; may ask Archive to settle via HTTP; does **not** self-claim Archive legality / quorum; does **not** hold authority key or broadcast settle txs |
-| Labels | Always show `mockL1Only` / `notProductionDepin` pills; custody/list/approve/settle mode from health when trusted |
+| UI | May sign client orders/attests/list/approve/unlist/cancel with session keys; may ask Archive to settle/fail via HTTP; does **not** self-claim Archive legality / quorum; does **not** hold authority key or broadcast settle txs |
+| Labels | Always show `mockL1Only` / `notProductionDepin` pills; custody/list/approve/unlist/settle mode from health when trusted |
 | Forbidden | Painting as CoNET mainnet, production DePIN, or live CL RANDAO; persisting private keys; treating demo fake hashes as on-chain settles |
 
 ## Other Explorer invariants

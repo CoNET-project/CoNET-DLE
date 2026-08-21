@@ -432,3 +432,141 @@ test('trade preflight is read-only and returns fees after list+approve', async (
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test('trade unlist reclaim clears listTxHash after list (hook)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'dle-trade-unlist-'))
+  const store = openArchiveStore(dir)
+  const seller = Wallet.createRandom()
+  const buyer = Wallet.createRandom()
+  const checkers = Array.from({ length: 9 }, () => Wallet.createRandom())
+  const fakeListTx = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex
+  const fakeUnlistTx = '0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd' as Hex
+  let unlistCalls = 0
+
+  const trade = createTradeEngine({
+    domainId: 'unlist-reclaim-test',
+    store,
+    checkerPool: checkers.map((w) => w.address),
+    verifyL1Custody: async () => ({ ok: true }),
+    submitL1ListTx: async () => ({ ok: true, txHash: fakeListTx }),
+    submitL1UnlistTx: async (args) => {
+      unlistCalls += 1
+      assert.equal(args.seller.toLowerCase(), seller.address.toLowerCase())
+      return { ok: true, txHash: fakeUnlistTx }
+    },
+  })
+
+  try {
+    const candidateHash = await certifyMatch({ trade, seller, buyer, checkers })
+
+    const listed = await Promise.resolve(
+      trade.post('/trade/list', {
+        candidateHash,
+        sellerPrivateKey: seller.privateKey,
+      }),
+    )
+    assert.equal(listed?.status, 200)
+    assert.equal((listed!.body as { match: { listTxHash: string } }).match.listTxHash, fakeListTx)
+
+    const wrong = await Promise.resolve(
+      trade.post('/trade/unlist', {
+        candidateHash,
+        sellerPrivateKey: buyer.privateKey,
+      }),
+    )
+    assert.equal(wrong?.status, 400)
+    assert.match(String((wrong!.body as { error?: string }).error), /does not match/)
+
+    const unlisted = await Promise.resolve(
+      trade.post('/trade/unlist', {
+        candidateHash,
+        sellerPrivateKey: seller.privateKey,
+      }),
+    )
+    assert.equal(unlisted?.status, 200)
+    assert.equal(unlistCalls, 1)
+    const body = unlisted!.body as {
+      ok: boolean
+      unlistTxHash: string
+      match: { phase: string; listTxHash?: string; unlistTxHash: string }
+    }
+    assert.equal(body.ok, true)
+    assert.equal(body.unlistTxHash, fakeUnlistTx)
+    assert.equal(body.match.unlistTxHash, fakeUnlistTx)
+    assert.equal(body.match.listTxHash, undefined)
+    assert.equal(body.match.phase, 'match_certified')
+    assert.equal(trade.health().tradeUnlistConfigured, true)
+    assert.equal(trade.health().tradeUnlistMode, 'hook')
+
+    const again = await Promise.resolve(
+      trade.post('/trade/unlist', {
+        candidateHash,
+        sellerPrivateKey: seller.privateKey,
+      }),
+    )
+    assert.equal(again?.status, 400)
+    assert.match(String((again!.body as { error?: string }).error), /no listTxHash/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('trade settle outcome=failed marks settlement_failed then unlist reclaim', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'dle-trade-fail-unlist-'))
+  const store = openArchiveStore(dir)
+  const seller = Wallet.createRandom()
+  const buyer = Wallet.createRandom()
+  const checkers = Array.from({ length: 9 }, () => Wallet.createRandom())
+  const fakeListTx = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex
+  const fakeUnlistTx = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' as Hex
+
+  const trade = createTradeEngine({
+    domainId: 'fail-unlist-test',
+    store,
+    checkerPool: checkers.map((w) => w.address),
+    verifyL1Custody: async () => ({ ok: true }),
+    submitL1ListTx: async () => ({ ok: true, txHash: fakeListTx }),
+    submitL1UnlistTx: async () => ({ ok: true, txHash: fakeUnlistTx }),
+  })
+
+  try {
+    const candidateHash = await certifyMatch({ trade, seller, buyer, checkers })
+    await Promise.resolve(
+      trade.post('/trade/list', {
+        candidateHash,
+        sellerPrivateKey: seller.privateKey,
+      }),
+    )
+
+    const failed = await Promise.resolve(
+      trade.post('/trade/settle', {
+        candidateHash,
+        outcome: 'failed',
+        error: 'lab marked failed',
+      }),
+    )
+    assert.equal(failed?.status, 200)
+    const failBody = failed!.body as {
+      match: { phase: string; settlementError?: string; listTxHash?: string }
+    }
+    assert.equal(failBody.match.phase, 'settlement_failed')
+    assert.match(String(failBody.match.settlementError), /lab marked failed/)
+    assert.equal(failBody.match.listTxHash, fakeListTx)
+
+    const unlisted = await Promise.resolve(
+      trade.post('/trade/unlist', {
+        candidateHash,
+        sellerPrivateKey: seller.privateKey,
+      }),
+    )
+    assert.equal(unlisted?.status, 200)
+    const body = unlisted!.body as {
+      match: { phase: string; listTxHash?: string; unlistTxHash: string }
+    }
+    assert.equal(body.match.phase, 'settlement_failed')
+    assert.equal(body.match.listTxHash, undefined)
+    assert.equal(body.match.unlistTxHash, fakeUnlistTx)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

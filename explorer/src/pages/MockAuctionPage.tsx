@@ -24,10 +24,13 @@ type TradeMatchRow = {
   phase?: string
   listTxHash?: string
   listError?: string
+  unlistTxHash?: string
+  unlistError?: string
   approveTxHash?: string
   approveError?: string
   settlementTxHash?: string
   settlementError?: string
+  sell?: { orderHash?: string }
   certificate?: {
     certificateHash?: string
     clearingPrice?: string
@@ -47,6 +50,8 @@ type TradeHealth = {
   tradeListMode?: string
   tradeApproveConfigured?: boolean
   tradeApproveMode?: string
+  tradeUnlistConfigured?: boolean
+  tradeUnlistMode?: string
   tradeMockL1Settlement?: string | null
 }
 
@@ -59,6 +64,7 @@ type TradeHealth = {
  * Round 6: UI may POST /trade/approve with session buyer key for quote ERC-20 allowance.
  * Round 7: one-shot List → Approve → Settle; Archive settle preflight refuses settle without list+approve.
  * Round 8: read-only Preflight CTA + fee split on Settlement summary.
+ * Round 9: Unlist reclaim + Mark failed + Cancel sell order; Settlement summary shows unlistTxHash / settlementError.
  * mockL1Only — not production DePIN / not CoNET mainnet NFT.
  */
 export function MockAuctionPage() {
@@ -401,6 +407,81 @@ export function MockAuctionPage() {
     }
   }
 
+  /** Round 9: seller reclaim escrow after settlement_failed (or before settle). Clears listTxHash; no phase change. */
+  const runUnlist = async () => {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      if (!candidateHash) throw new Error('candidateHash required')
+      if (!sellerPk.trim()) throw new Error('seller session private key required for unlist')
+      const out = await postJson('/trade/unlist', {
+        candidateHash,
+        sellerPrivateKey: sellerPk.trim(),
+      })
+      setActionLog(out)
+      if (out.status >= 400) setError(String((out.body as { error?: string }).error ?? 'unlist failed'))
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** Round 9: mark match settlement_failed (lab recovery path before/without on-chain settle). */
+  const runMarkFailed = async () => {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      if (!candidateHash) throw new Error('candidateHash required')
+      const out = await postJson('/trade/settle', {
+        candidateHash,
+        outcome: 'failed',
+        error: 'marked failed from Explorer (lab)',
+      })
+      setActionLog(out)
+      if (out.status >= 400) setError(String((out.body as { error?: string }).error ?? 'mark failed'))
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** Round 9: cancel open sell order via EIP-191 (maker must match seller session key). */
+  const runCancelSell = async () => {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      if (!sellerPk.trim()) throw new Error('seller session private key required for cancel')
+      const row = matchRows.find((m) => m.candidateHash.toLowerCase() === candidateHash.toLowerCase())
+      const orderHash =
+        row?.sell?.orderHash ??
+        (() => {
+          const o = orders as { orders?: Array<{ orderHash?: string; side?: number; cancelled?: boolean }> } | null
+          const openSell = o?.orders?.find(
+            (x) => String(x.side) === ORDER_SIDE_SELL && !x.cancelled,
+          )
+          return openSell?.orderHash
+        })()
+      if (!orderHash) throw new Error('sell orderHash required (select a candidate or submit a sell first)')
+      const wallet = new Wallet(sellerPk.trim())
+      const signature = await wallet.signMessage(orderPersonalSignMessage(orderHash))
+      const out = await postJson('/trade/cancel', { orderHash, signature })
+      setActionLog(out)
+      if (out.status >= 400) setError(String((out.body as { error?: string }).error ?? 'cancel failed'))
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const inputClass =
     'w-full rounded-lg border border-slate-600 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500'
 
@@ -411,6 +492,8 @@ export function MockAuctionPage() {
   const listReady = tradeHealth?.tradeListConfigured === true
   const approveMode = tradeHealth?.tradeApproveMode ?? 'unknown'
   const approveReady = tradeHealth?.tradeApproveConfigured === true
+  const unlistMode = tradeHealth?.tradeUnlistMode ?? 'unknown'
+  const unlistReady = tradeHealth?.tradeUnlistConfigured === true
 
   return (
     <DetailPageShell
@@ -431,6 +514,10 @@ export function MockAuctionPage() {
             tone={approveReady ? 'ok' : 'warn'}
           />
           <StatusPill
+            label={unlistReady ? `unlist: ${unlistMode}` : 'unlist: off'}
+            tone={unlistReady ? 'ok' : 'warn'}
+          />
+          <StatusPill
             label={onChainReady ? `settle: ${settleMode}` : 'settle: off'}
             tone={onChainReady ? 'ok' : 'warn'}
           />
@@ -440,10 +527,12 @@ export function MockAuctionPage() {
     >
       <p className="mb-6 max-w-3xl text-sm text-slate-300">
         Local archive routes <code className="text-cyan-200">/mockl1/*</code> and{' '}
-        <code className="text-cyan-200">/trade/*</code>. Session private keys sign orders/attests/list/approve
+        <code className="text-cyan-200">/trade/*</code>. Session private keys sign orders/attests/list/approve/unlist
         only and are never persisted. Seller must <code className="text-cyan-200">list</code> NFT into escrow and
         buyer must <code className="text-cyan-200">approve</code> quote ERC-20 before Archive{' '}
-        <code className="text-cyan-200">settle</code>. Custody and settle authority stay on Archive (
+        <code className="text-cyan-200">settle</code>. After <code className="text-cyan-200">settlement_failed</code>,
+        seller can <code className="text-cyan-200">unlist</code> to reclaim escrow (clears listTxHash; phase unchanged).
+        Custody and settle authority stay on Archive (
         <code className="text-cyan-200">MOCK_L1_*</code>) — this page never holds the authority key.
         WaitingPool / on-demand is not this ingress. Lab demo fake hashes ≠ local RPC{' '}
         <code className="text-cyan-200">settlementTxHash</code>.
@@ -634,17 +723,50 @@ export function MockAuctionPage() {
           >
             List → Approve → Settle
           </button>
+          <button
+            type="button"
+            disabled={busy || !sellerPk.trim() || !candidateHash.trim()}
+            className="rounded-full bg-teal-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            onClick={() => void runUnlist()}
+            aria-label="Unlist NFT from mock settlement escrow"
+            aria-busy={busy}
+          >
+            Unlist escrow
+          </button>
+          <button
+            type="button"
+            disabled={busy || !candidateHash.trim()}
+            className="rounded-full border border-amber-500/60 bg-amber-950/40 px-4 py-2 text-sm font-medium text-amber-100 disabled:opacity-50"
+            onClick={() => void runMarkFailed()}
+            aria-label="Mark match settlement failed"
+            aria-busy={busy}
+          >
+            Mark failed
+          </button>
+          <button
+            type="button"
+            disabled={busy || !sellerPk.trim()}
+            className="rounded-full border border-slate-500 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-100 disabled:opacity-50"
+            onClick={() => void runCancelSell()}
+            aria-label="Cancel open sell order"
+            aria-busy={busy}
+          >
+            Cancel sell order
+          </button>
         </div>
         <p className="text-xs text-slate-500">
           Preflight is read-only (POST /trade/preflight): checks list+approve records and optional RPC
           eth_call; returns fee split; never changes phase. List uses the seller session key (must match
           sell maker). Approve uses the buyer session key (must match buy maker). Both required before
           on-chain settle; Archive preflight returns 400 without them (phase stays match_certified).
-          One-shot runs list → approve → settle and stops on first failure.
+          One-shot runs list → approve → settle and stops on first failure. Unlist reclaims escrow after
+          list (or after settlement_failed); clears listTxHash without changing phase. Mark failed posts
+          settle outcome=failed. Cancel sell uses EIP-191 on the open sell orderHash.
           {listReady ? ` List mode: ${listMode}.` : ' List env not configured — list will fail.'}
           {approveReady
             ? ` Approve mode: ${approveMode}.`
             : ' Approve env not configured — approve will fail.'}
+          {unlistReady ? ` Unlist mode: ${unlistMode}.` : ' Unlist env not configured — unlist will fail.'}
         </p>
       </section>
 
@@ -701,6 +823,13 @@ export function MockAuctionPage() {
                   <p className="mb-2 text-xs text-slate-500">No listTxHash yet (list NFT escrow first).</p>
                 )}
                 {m.listError ? <p className="mb-2 text-xs text-amber-300">{m.listError}</p> : null}
+                {m.unlistTxHash ? (
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-slate-400">unlistTxHash</span>
+                    <HashCapsule value={m.unlistTxHash} />
+                  </div>
+                ) : null}
+                {m.unlistError ? <p className="mb-2 text-xs text-amber-300">{m.unlistError}</p> : null}
                 {m.approveTxHash ? (
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <span className="text-xs text-slate-400">approveTxHash</span>
@@ -719,7 +848,9 @@ export function MockAuctionPage() {
                   <p className="text-xs text-slate-500">No settlementTxHash yet (lab or pending).</p>
                 )}
                 {m.settlementError ? (
-                  <p className="mt-2 text-xs text-rose-300">{m.settlementError}</p>
+                  <p className="mt-2 text-xs text-rose-300" title="settlementError">
+                    {m.settlementError}
+                  </p>
                 ) : null}
               </li>
             ))}
