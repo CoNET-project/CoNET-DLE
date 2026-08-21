@@ -38,7 +38,26 @@ Separate from the isomorphic daemon. Deploy: `npm run lab:deploy-newchain-user` 
 
 **Not** L1 NFT mint, Treasury burn, Settlement escrow, or 30-day archive qualification. Do not stop `dle-ondemand-clients` when restarting this user.
 
+## Mock-L1 auction CLI (`mock-l1-auction-cli`)
+
+Local Hardhat/Anvil MVP only. **Not** CoNET 224422 mainnet, **not** production DePIN, **not** lab `notL1Nft` newchain.
+
+```bash
+npm run mock-auction-cli -- --archive http://127.0.0.1:27101 <command> …
+```
+
+| Command | Role |
+|---|---|
+| `register` | `POST /mockl1/register` with `MockL1ChainRegistrationV1` (real local ERC-1155 `tokenId`, `assignmentStatus=BOUND(2)`) |
+| `submit` / `cancel` | EIP-191 signed sell/buy orders → `POST /trade/submit` / `/trade/cancel` |
+| `scan` / `candidate` | Scanner proposes `MockL1MatchCandidateV1` only — **cannot** settle |
+| `check` / `attest` | Archive legality + freeze-then-draw committee attest → `TradeMatchCertificateV1` |
+| `settle` | Report mock L1 settlement outcome (`submitted` / `settled` / `failed`) |
+| `status` | `GET /mockl1/chains` + `/trade/orders` + `/trade/matches` |
+
+**Forbidden:** elevating `DleLabNewChainRequestV1` / `notL1Nft`; using `POST /ondemand/hook` / WaitingPool as trade ingress; claiming lab beacon = live CL RANDAO.
+
 ## Related
 
-- Archive fields: `../../RULES.md` §Archive
-- Explorer UI: `../../../explorer/RULES.md`
+- Archive fields: `../../RULES.md` §Archive (Mock-L1 / Trade EventIngress)
+- Explorer UI: `../../../explorer/RULES.md` (`/mock-auction`)

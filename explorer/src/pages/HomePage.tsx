@@ -120,6 +120,12 @@ export function HomePage() {
         {officialReadyPill ? <StatusPill label={officialReadyPill.label} tone={officialReadyPill.tone} /> : null}
         {hashIndexPill ? <StatusPill label={hashIndexPill.label} tone={hashIndexPill.tone} /> : null}
         {clockPill ? <StatusPill label={clockPill.label} tone={clockPill.tone} /> : null}
+        <Link
+          to="/mock-auction"
+          className="inline-flex items-center rounded-full border border-amber-300/35 bg-amber-300/10 px-2.5 py-0.5 text-xs font-semibold text-amber-200"
+        >
+          Mock auction (local)
+        </Link>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

@@ -13,8 +13,18 @@ export const TRADE_CLASS_ID = 3
 export const EVENT_ASSET_OPENED = 0x1101
 export const EVENT_STORAGE_OPENED = 0x1201
 export const EVENT_TRADE_OPENED = 0x1301
+export const EVENT_TRADE_MATCH_PROPOSED = 0x1302
+export const EVENT_TRADE_MATCH_CERTIFIED = 0x1303
+export const EVENT_TRADE_SETTLEMENT_SUBMITTED = 0x1304
+export const EVENT_TRADE_SETTLED = 0x1305
+export const EVENT_TRADE_SETTLEMENT_FAILED = 0x1306
 export const TRADE_STATE_NONE = 0
 export const TRADE_STATE_OPEN = 1
+export const TRADE_STATE_MATCH_PROPOSED = 2
+export const TRADE_STATE_MATCH_CERTIFIED = 3
+export const TRADE_STATE_SETTLEMENT_SUBMITTED = 4
+export const TRADE_STATE_SETTLED = 5
+export const TRADE_STATE_SETTLEMENT_FAILED = 6
 export const ASSET_STATE_NONE = 0
 export const ASSET_STATE_OPEN = 1
 export const STORAGE_STATE_NONE = 0
@@ -33,6 +43,10 @@ export const ERR_STORAGE_VIEW_MISMATCH = 0x1207
 export const ERR_TRADE_L1_NOT_FOUND = 0x1305
 export const ERR_TRADE_SELLER_ORDER_MISMATCH = 0x1307
 export const ERR_TRADE_ESCROW_CUSTODY = 0x1308
+export const ERR_TRADE_MATCH_INVALID = 0x1309
+export const ERR_TRADE_CERT_QUORUM = 0x130a
+export const ERR_TRADE_SETTLE_REPLAY = 0x130b
+export const ERR_TRADE_BAD_PHASE = 0x130c
 export const ERR_WAL_DOUBLE_SIGN = 'ERR_WAL_DOUBLE_SIGN'
 export const ERR_SIGNER_NOT_ACTIVE = 'ERR_SIGNER_NOT_ACTIVE'
 export const ERR_INVALID_QUORUM = 'ERR_INVALID_QUORUM'
@@ -74,6 +88,11 @@ export const TRADE_STATE_PATHS = [
   '/deadline',
   '/paymentAuthHash',
   '/l1TxHash',
+  '/candidateHash',
+  '/certificateHash',
+  '/scanner',
+  '/clearingPrice',
+  '/settlementCalldataHash',
 ] as const
 
 export interface TradeParent {
@@ -95,12 +114,36 @@ export interface TradeOpenedFields {
   sellerNonce: bigint
 }
 
+export interface TradeMatchFields {
+  candidateHash: Hex
+  certificateHash: Hex
+  sellOrderHash: Hex
+  buyOrderHash: Hex
+  scanner: Hex
+  clearingPrice: bigint
+  feeAmount: bigint
+  scannerReward: bigint
+  committeeReward: bigint
+  feePolicyHash: Hex
+  settlementCalldataHash: Hex
+  quorum: number
+  signerCount: number
+}
+
 export interface L1EscrowView extends TradeOpenedFields {
   live: boolean
   settlementOwnsSubject: boolean
 }
 
 export interface TradeOpenedEvent extends TradeOpenedFields {
+  version: number
+  classId: number
+  eventType: number
+  tipId: Hex
+  nonce: bigint
+}
+
+export interface TradeMatchEvent extends TradeMatchFields {
   version: number
   classId: number
   eventType: number

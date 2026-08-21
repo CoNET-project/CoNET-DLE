@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "sourceMap": true,
+    "rootDir": "src",
+    "outDir": "dist/mock-auction-cli"
+  },
+  "include": [
+    "src/shared/bytes.ts",
+    "src/shared/mockL1.ts",
+    "src/shared/tradeMatch.ts",
+    "src/daemon/mock-l1-auction-cli.ts"
+  ]
+}

@@ -24,6 +24,7 @@
     "archive": "tsx runtime/src/archive/cli.ts",
     "daemon": "tsx runtime/src/daemon/cli.ts",
     "daemon:browser": "tsx runtime/src/daemon/serve-browser.ts",
+    "mock-auction-cli": "tsx runtime/src/daemon/mock-l1-auction-cli.ts",
     "runtime:build": "tsc -p runtime/tsconfig.archive.json && tsc -p runtime/tsconfig.daemon.json && tsc -p runtime/tsconfig.fleet.json && tsc -p runtime/tsconfig.newchain-user.json && node -e \"import('node:fs').then(({writeFileSync,mkdirSync})=>{mkdirSync('runtime/dist/archive',{recursive:true});mkdirSync('runtime/dist/fleet',{recursive:true});mkdirSync('runtime/dist/newchain-user',{recursive:true});writeFileSync('runtime/dist/archive/package.json', JSON.stringify({type:'module',private:true,name:'@conet/dle-archive-runtime',dependencies:{ethers:'^6.15.0'}},null,2)+'\\n');writeFileSync('runtime/dist/fleet/package.json', JSON.stringify({type:'module',private:true,name:'@conet/dle-ondemand-fleet'},null,2)+'\\n');writeFileSync('runtime/dist/newchain-user/package.json', JSON.stringify({type:'module',private:true,name:'@conet/dle-newchain-user'},null,2)+'\\n')})\" && npm install --omit=dev --prefix runtime/dist/archive",
     "runtime:test": "tsx --test runtime/test/**/*.test.ts",
     "explorer:test": "tsx --test explorer/test/**/*.test.ts",

@@ -21,6 +21,10 @@ export interface ArchiveStore {
   loadOnDemandState(): unknown | null
   persistNewChainState(state: unknown): void
   loadNewChainState(): unknown | null
+  persistMockL1State(state: unknown): void
+  loadMockL1State(): unknown | null
+  persistTradeState(state: unknown): void
+  loadTradeState(): unknown | null
   persistSyncQualificationState(state: unknown): void
   loadSyncQualificationState(): unknown | null
 }
@@ -32,6 +36,8 @@ export function openArchiveStore(dataDir: string): ArchiveStore {
   const bftPath = join(dataDir, 'bft-state.json')
   const ondemandPath = join(dataDir, 'ondemand-state.json')
   const newchainPath = join(dataDir, 'newchain-state.json')
+  const mockL1Path = join(dataDir, 'mockl1-state.json')
+  const tradePath = join(dataDir, 'trade-state.json')
   const syncPath = join(dataDir, 'sync-qualification.json')
   const ring: Array<Record<string, unknown>> = []
   writeFileSync(
@@ -90,6 +96,28 @@ export function openArchiveStore(dataDir: string): ArchiveStore {
       if (!existsSync(newchainPath)) return null
       try {
         return JSON.parse(readFileSync(newchainPath, 'utf8')) as unknown
+      } catch {
+        return null
+      }
+    },
+    persistMockL1State(state) {
+      atomicWriteJson(mockL1Path, state)
+    },
+    loadMockL1State() {
+      if (!existsSync(mockL1Path)) return null
+      try {
+        return JSON.parse(readFileSync(mockL1Path, 'utf8')) as unknown
+      } catch {
+        return null
+      }
+    },
+    persistTradeState(state) {
+      atomicWriteJson(tradePath, state)
+    },
+    loadTradeState() {
+      if (!existsSync(tradePath)) return null
+      try {
+        return JSON.parse(readFileSync(tradePath, 'utf8')) as unknown
       } catch {
         return null
       }

@@ -28,10 +28,12 @@ import {
 } from './pilotClock.js'
 import { createArchiveBftEngine } from './bft/engine.js'
 import { listenArchiveHttp } from './http.js'
+import { createMockL1Engine } from './mockL1/engine.js'
 import { createNewChainEngine } from './newchain/engine.js'
 import { fetchLabObject } from './hop1.js'
 import { createOnDemandEngine } from './ondemand/engine.js'
 import { openArchiveStore } from './store.js'
+import { createTradeEngine } from './trade/engine.js'
 import { createSyncQualificationEngine } from './syncQualification/index.js'
 import { LAB_HOLD_BFT_AFTER_BOOT_MS, SYNC_ACTIVE_COUNT } from './syncQualification/types.js'
 
@@ -196,6 +198,15 @@ const newchain = createNewChainEngine({
   enableBft,
   officialStandbysReady: () => syncHolder.current?.officialStandbysReady() === true,
 })
+const mockL1 = createMockL1Engine({
+  domainId: config.domainId,
+  store,
+  routeTable,
+})
+const trade = createTradeEngine({
+  domainId: config.domainId,
+  store,
+})
 let bftStarted = false
 let ondemandStarted = false
 let extraHealthCache: { at: number; value: Record<string, unknown> } | null = null
@@ -287,6 +298,8 @@ function extraHealthNow(): Record<string, unknown> {
     bftVoted: bft.voted,
     ...ondemand.health(),
     ...newchain.health(),
+    ...mockL1.health(),
+    ...trade.health(),
     hop1: {
       labOnly: true,
       notProductionDepin: true,
@@ -356,7 +369,12 @@ const server = await listenArchiveHttp({
         rows: sync.roster(),
       }
     }
-    return newchain.get(pathname) ?? ondemand.get(pathname)
+    return (
+      mockL1.get(pathname) ??
+      trade.get(pathname) ??
+      newchain.get(pathname) ??
+      ondemand.get(pathname)
+    )
   },
   onPost(pathname, body) {
     if (pathname === '/bft/message') {
@@ -412,7 +430,12 @@ const server = await listenArchiveHttp({
         },
       }
     }
-    return newchain.post(pathname, body) ?? ondemand.post(pathname, body)
+    return (
+      mockL1.post(pathname, body) ??
+      trade.post(pathname, body) ??
+      newchain.post(pathname, body) ??
+      ondemand.post(pathname, body)
+    )
   },
   hopFetch: async (url, chainNftId, height) => {
     if (sync.hopForbidden()) {

@@ -25,20 +25,34 @@ import {
   ERR_STORAGE_INDEX_MISSING,
   ERR_STORAGE_L1_NOT_FOUND,
   ERR_STORAGE_VIEW_MISMATCH,
+  ERR_TRADE_BAD_PHASE,
+  ERR_TRADE_CERT_QUORUM,
   ERR_TRADE_ESCROW_CUSTODY,
   ERR_TRADE_L1_NOT_FOUND,
+  ERR_TRADE_MATCH_INVALID,
   ERR_TRADE_SELLER_ORDER_MISMATCH,
+  ERR_TRADE_SETTLE_REPLAY,
   EVENT_ASSET_OPENED,
   EVENT_STORAGE_OPENED,
+  EVENT_TRADE_MATCH_CERTIFIED,
+  EVENT_TRADE_MATCH_PROPOSED,
   EVENT_TRADE_OPENED,
+  EVENT_TRADE_SETTLED,
+  EVENT_TRADE_SETTLEMENT_FAILED,
+  EVENT_TRADE_SETTLEMENT_SUBMITTED,
   STORAGE_CLASS_ID,
   STORAGE_STATE_NONE,
   STORAGE_STATE_OPEN,
   STORAGE_STATE_PATHS,
   TRADE_CLASS_ID,
+  TRADE_STATE_MATCH_CERTIFIED,
+  TRADE_STATE_MATCH_PROPOSED,
   TRADE_STATE_NONE,
   TRADE_STATE_OPEN,
   TRADE_STATE_PATHS,
+  TRADE_STATE_SETTLED,
+  TRADE_STATE_SETTLEMENT_FAILED,
+  TRADE_STATE_SETTLEMENT_SUBMITTED,
   type AssetGenesisBundle,
   type AssetOpenedEvent,
   type AssetOpenedFields,
@@ -50,6 +64,8 @@ import {
   type StorageGenesisBundle,
   type StorageOpenedEvent,
   type StorageOpenedFields,
+  type TradeMatchEvent,
+  type TradeMatchFields,
   type TradeOpenedEvent,
   type TradeOpenedFields,
   type TradeParent,
@@ -117,6 +133,11 @@ export function computeTradeTipStateRoot(fields: {
   tradeFeeAmount?: bigint
   paymentAuthHash?: Hex
   l1TxHash?: Hex
+  candidateHash?: Hex
+  certificateHash?: Hex
+  scanner?: Hex
+  clearingPrice?: bigint
+  settlementCalldataHash?: Hex
 }): Hex {
   const values: Record<(typeof TRADE_STATE_PATHS)[number], Uint8Array> = {
     '/state': uintBE(fields.state, 1),
@@ -135,6 +156,11 @@ export function computeTradeTipStateRoot(fields: {
     '/deadline': uintBE(fields.order.deadline, 8),
     '/paymentAuthHash': fromHex(fields.paymentAuthHash ?? ZERO32, 32),
     '/l1TxHash': fromHex(fields.l1TxHash ?? ZERO32, 32),
+    '/candidateHash': fromHex(fields.candidateHash ?? ZERO32, 32),
+    '/certificateHash': fromHex(fields.certificateHash ?? ZERO32, 32),
+    '/scanner': addressBytes(fields.scanner ?? ZERO20),
+    '/clearingPrice': uintBE(fields.clearingPrice ?? 0n, 16),
+    '/settlementCalldataHash': fromHex(fields.settlementCalldataHash ?? ZERO32, 32),
   }
   const leaves = [...TRADE_STATE_PATHS]
     .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
@@ -236,6 +262,169 @@ export function replayDepositBundle(bundle: DepositBundle): ModeAResult {
     ...(bundle.claimedTipStateRoot !== undefined ? { claimedTipStateRoot: bundle.claimedTipStateRoot } : {}),
     ...(bundle.claimedValueHash !== undefined ? { claimedValueHash: bundle.claimedValueHash } : {}),
   })
+}
+
+function encodeTradeMatchPayload(fields: TradeMatchFields): Uint8Array {
+  return concatBytes(
+    fromHex(fields.candidateHash, 32),
+    fromHex(fields.certificateHash, 32),
+    fromHex(fields.sellOrderHash, 32),
+    fromHex(fields.buyOrderHash, 32),
+    addressBytes(fields.scanner),
+    uintBE(fields.clearingPrice, 16),
+    uintBE(fields.feeAmount, 16),
+    uintBE(fields.scannerReward, 16),
+    uintBE(fields.committeeReward, 16),
+    fromHex(fields.feePolicyHash, 32),
+    fromHex(fields.settlementCalldataHash, 32),
+    uintBE(fields.quorum, 1),
+    uintBE(fields.signerCount, 1),
+  )
+}
+
+export function encodeTradeMatchEvent(event: TradeMatchEvent): Uint8Array {
+  return concatBytes(
+    uintBE(event.version, 1),
+    uintBE(event.classId, 1),
+    uintBE(event.eventType, 2),
+    fromHex(event.tipId, 32),
+    uintBE(event.nonce, 8),
+    encodeTradeMatchPayload(event),
+  )
+}
+
+function assertClaimed(
+  tipStateRoot: Hex,
+  valueHash: Hex,
+  claimedTipStateRoot?: Hex,
+  claimedValueHash?: Hex,
+): ModeAResult | null {
+  if (claimedTipStateRoot !== undefined && !sameHex(claimedTipStateRoot, tipStateRoot)) {
+    return fail(ERR_FSM_CLAIMED_MISMATCH, 'claimed tipStateRoot does not match Mode A replay')
+  }
+  if (claimedValueHash !== undefined && !sameHex(claimedValueHash, valueHash)) {
+    return fail(ERR_FSM_CLAIMED_MISMATCH, 'claimed valueHash does not match Mode A replay')
+  }
+  return null
+}
+
+/**
+ * Monotonic match / settlement transitions after TradeOpened.
+ * Open → MatchProposed → MatchCertified → SettlementSubmitted → Settled | SettlementFailed.
+ */
+export function replayTradeMatchModeA(input: {
+  parent: TradeParent
+  order: TradeOpenedFields
+  event: TradeMatchEvent
+  buyer: Hex
+  alreadySettledCertificate?: boolean
+  claimedTipStateRoot?: Hex
+  claimedValueHash?: Hex
+}): ModeAResult {
+  if (input.event.version !== 1 || input.event.classId !== TRADE_CLASS_ID) {
+    return fail(ERR_FSM_DOMAIN, 'event domain or classId is not trade v1')
+  }
+  if (input.event.nonce !== input.parent.nonce + 1n) {
+    return fail(ERR_FSM_BAD_NONCE, 'event nonce must be parent.nonce + 1')
+  }
+  if (!sameHex(input.event.sellOrderHash, input.order.sellerOrderHash)) {
+    return fail(ERR_TRADE_MATCH_INVALID, 'match sellOrderHash must equal open sellerOrderHash')
+  }
+  if (input.event.clearingPrice < input.order.quoteAmount) {
+    return fail(ERR_TRADE_MATCH_INVALID, 'clearingPrice must be >= ask')
+  }
+  const expectedFee = input.event.clearingPrice / 10_000n
+  if (input.event.feeAmount !== expectedFee) {
+    return fail(ERR_TRADE_MATCH_INVALID, 'feeAmount must be clearingPrice / 10000 (1 bps)')
+  }
+  const expectedScanner = expectedFee / 2n
+  const expectedCommittee = expectedFee - expectedScanner
+  if (input.event.scannerReward !== expectedScanner || input.event.committeeReward !== expectedCommittee) {
+    return fail(ERR_TRADE_MATCH_INVALID, 'fee split must be 50/50 scanner/committee')
+  }
+
+  let nextState: number
+  switch (input.event.eventType) {
+    case EVENT_TRADE_MATCH_PROPOSED:
+      if (input.parent.state !== TRADE_STATE_OPEN) {
+        return fail(ERR_TRADE_BAD_PHASE, 'MatchProposed only from Open')
+      }
+      nextState = TRADE_STATE_MATCH_PROPOSED
+      break
+    case EVENT_TRADE_MATCH_CERTIFIED:
+      if (input.parent.state !== TRADE_STATE_MATCH_PROPOSED) {
+        return fail(ERR_TRADE_BAD_PHASE, 'MatchCertified only from MatchProposed')
+      }
+      if (input.event.signerCount < input.event.quorum || input.event.quorum < 1) {
+        return fail(ERR_TRADE_CERT_QUORUM, 'certificate quorum not met')
+      }
+      nextState = TRADE_STATE_MATCH_CERTIFIED
+      break
+    case EVENT_TRADE_SETTLEMENT_SUBMITTED:
+      if (input.parent.state !== TRADE_STATE_MATCH_CERTIFIED) {
+        return fail(ERR_TRADE_BAD_PHASE, 'SettlementSubmitted only from MatchCertified')
+      }
+      nextState = TRADE_STATE_SETTLEMENT_SUBMITTED
+      break
+    case EVENT_TRADE_SETTLED:
+      if (
+        input.parent.state !== TRADE_STATE_MATCH_CERTIFIED &&
+        input.parent.state !== TRADE_STATE_SETTLEMENT_SUBMITTED
+      ) {
+        return fail(ERR_TRADE_BAD_PHASE, 'Settled only from MatchCertified or SettlementSubmitted')
+      }
+      if (input.alreadySettledCertificate) {
+        return fail(ERR_TRADE_SETTLE_REPLAY, 'certificate already settled on mock L1')
+      }
+      nextState = TRADE_STATE_SETTLED
+      break
+    case EVENT_TRADE_SETTLEMENT_FAILED:
+      if (
+        input.parent.state !== TRADE_STATE_MATCH_CERTIFIED &&
+        input.parent.state !== TRADE_STATE_SETTLEMENT_SUBMITTED
+      ) {
+        return fail(ERR_TRADE_BAD_PHASE, 'SettlementFailed only from MatchCertified or SettlementSubmitted')
+      }
+      nextState = TRADE_STATE_SETTLEMENT_FAILED
+      break
+    default:
+      return fail(ERR_FSM_NO_TRANSITION, 'unsupported match/settlement eventType')
+  }
+
+  const eventBytes = encodeTradeMatchEvent(input.event)
+  const tipStateRoot = computeTradeTipStateRoot({
+    state: nextState,
+    nonce: input.event.nonce,
+    order: input.order,
+    buyer: input.buyer,
+    tradeFeeAmount: input.event.feeAmount,
+    candidateHash: input.event.candidateHash,
+    certificateHash: input.event.certificateHash,
+    scanner: input.event.scanner,
+    clearingPrice: input.event.clearingPrice,
+    settlementCalldataHash: input.event.settlementCalldataHash,
+  })
+  const valueHash = computeValueHash({
+    tipStateRoot,
+    eventBytes,
+    parentTipStateRoot: input.parent.tipStateRoot,
+  })
+  const claimed = assertClaimed(
+    tipStateRoot,
+    valueHash,
+    input.claimedTipStateRoot,
+    input.claimedValueHash,
+  )
+  if (claimed !== null) return claimed
+  return {
+    ok: true,
+    nextState,
+    nonce: input.event.nonce,
+    tipStateRoot,
+    valueHash,
+    bodyCommitment: keccak256(eventBytes),
+    eventBytes,
+  }
 }
 
 function encodeAssetOpenedPayload(fields: AssetOpenedFields): Uint8Array {

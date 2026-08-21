@@ -99,6 +99,23 @@ Independent of NFT 42 Tendermint / `bft-state.json`. **Not** an L1 birth certifi
 
 `chainNftId` = `1000 + keccak % 998_999_000`, never `42`. Accept catalogues `tipStateRoot` immediately. **Do not** catalogue `valueHash` as `kind=ac` until the real PrecommitQC (freezer append-only). G1 (`enableBft: true`) forms a **per-`chainNftId`** 4-of-5 AC via `labChainObjectLocator`. G2 (`enableBft: false`) does Mode A + \(Q_V\) only. New-chain AC **must not** update NFT 42 tip / `eth_blockNumber`. Legacy records without P6 fields stay register + tip only; old `DleLabGenesisCertificateV1` stubs keep `notArchiveCertificate: true`.
 
+### Mock-L1 chain registration + Trade EventIngress (2026-08)
+
+**Parallel** to lab `POST /newchain/request` (`notL1Nft: true`). Uses a **real local** ERC-1155 `tokenId` from Hardhat/Anvil `DLEChainRegistry1155V1`. **Do not** upgrade lab requests. **Do not** wire CoNET mainnet `0x100DC8f0…`. **Do not** use WaitingPool / `POST /ondemand/hook` as trade mempool.
+
+| Path | Role |
+|---|---|
+| `POST /mockl1/register` | Accept `MockL1ChainRegistrationV1`; require bound view `assignmentStatus=2` (BOUND); reject `notL1Nft: true` |
+| `GET /mockl1/chains` / `GET /mockl1/queue` | List mock-L1 genesis records |
+| `POST /trade/submit` / `POST /trade/cancel` | EventIngress order pool (EIP-191 signed sell/buy) |
+| `POST /trade/scan` / `POST /trade/candidate` | Scanner proposes `MockL1MatchCandidateV1` only |
+| `POST /trade/check` | Archive legality replay → freeze-then-draw → propose `TradeMatchCertificateV1` |
+| `POST /trade/attest` | Committee signatures (lab keccak beacon; `notProductionBeacon`) |
+| `POST /trade/settle` | Mode A settlement states; mock L1 atomic settle is separate |
+| `GET /trade/orders` / `/trade/matches` / `/trade/timeline` | Read-only status |
+
+Fee: **1 bps** of clearing price; **50% scanner / 50% committee**. Mode A events `0x1302–0x1306` (MatchProposed → … → Settled / SettlementFailed); keep `TradeOpened` (`0x1301`) replay compatible.
+
 Live keep evidence (2026-08-16): `pilot/evidence/conet-dle-p6-genesis-2026-08/p6-live-accept.json` — trade `chainNftId=326990096`, 7/7 `DleLabArchiveCertificateV1` in ~10s, NFT 42 `eth_blockNumber` stayed `0x1`, `liveGroupCount=2`. Completing P6 is **not** 30-day qualification.
 
 Do **not** expose Archive Certificate `height` as a growing tip. After AC, NFT 42 height is `0x1`. Explorer Home no longer shows Tip height; it shows Clusters from these fields.
@@ -484,3 +501,5 @@ See `src/shared/ondemand/RULES.md`. Waiting pool / SelectionLog is **not** \(G_e
 See `src/daemon/RULES.md`. Daemon must not treat `dle_tip.height` as cluster count. **P18 landed** P6 \(Q_V\) EIP-712 and did **not** change daemon hook / new-chain-user HTTP. **P19 landed** on-demand freeze-then-bind and did **not** change gossip wait-hook. **P20 landed** daemon fan-out honesty (`fanoutComplete` / `singleArchiveAcceptNotGroupPool`); new-chain-user HTTP still only `schema === 'DleLabValidatorQuorumV1'`. **P21** binds `hashIndexRoot` into lab BFT and did **not** change daemon hook / new-chain-user HTTP. **P22** lands official standby readiness EIP-712 (`lab-cli` + new-chain accept gate) and did **not** change daemon hook / new-chain-user HTTP. **P24** wires isolated `node.ts` to the same callback and did **not** change daemon hook / new-chain-user HTTP. **P25** lands Explorer overlays and did **not** change daemon hook / new-chain-user HTTP. Do not treat `challengeEip712` / `bftEip712` / `ondemandEip712` / `newchainValidatorQuorumEip712` / `ondemandLabBeaconAfterFreeze` / `ondemandHookNotGossip` / `hashIndexCommittedInAc` / `standbyReadyEip712` / `officialStandbysReady` / `newchainOfficialStandbysReady` / `productionCgAvailable` as production OperatorDomain / L1 wrapper / live CL RANDAO / 30-day qualification / \(C_G\) / production DePIN gossip / production AC commitment / production secp256k1.
 
 Lab random-create user: `src/daemon/newchain-user-cli.ts` on `70.35.205.77:/home/peter/dle-newchain-user` (`npm run lab:deploy-newchain-user`). Genesis smoke is asset + storage + trade; then a `setTimeout` chain (15–45s) posts a random class. Do not mix this process with `dle-ondemand-clients`.
+
+**Mock-L1 auction CLI:** `src/daemon/mock-l1-auction-cli.ts` (`npm run mock-auction-cli`). Signs locally and posts to archive `/mockl1/*` + `/trade/*`. Client must **not** claim Archive legality or certificate quorum itself.

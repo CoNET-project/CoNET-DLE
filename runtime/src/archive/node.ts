@@ -1,8 +1,10 @@
 import { defaultLabRouteTable } from '../shared/labRoute.js'
 import { listenArchiveHttp, type ArchiveHttpServer } from './http.js'
 import { defaultFacadeViews } from './jsonrpcFacade.js'
+import { createMockL1Engine } from './mockL1/engine.js'
 import { createNewChainEngine } from './newchain/engine.js'
 import { createOnDemandEngine } from './ondemand/engine.js'
+import { createTradeEngine } from './trade/engine.js'
 import { createSyncQualificationEngine, type SyncPeer } from './syncQualification/index.js'
 import { openArchiveStore } from './store.js'
 
@@ -38,6 +40,15 @@ export async function startArchiveNode(options: ArchiveNodeOptions): Promise<Arc
     routeTable,
     officialStandbysReady: () => syncHolder.current?.officialStandbysReady() === true,
   })
+  const mockL1 = createMockL1Engine({
+    domainId: 'local-archive',
+    store,
+    routeTable,
+  })
+  const trade = createTradeEngine({
+    domainId: 'local-archive',
+    store,
+  })
   const sync = createSyncQualificationEngine({
     domainId: 'local-archive',
     role: 'active',
@@ -59,18 +70,34 @@ export async function startArchiveNode(options: ArchiveNodeOptions): Promise<Arc
         selectionLog: waiting.selectionLog,
       }
     },
-    extraHealth: () => ({ ...ondemand.health(), ...newchain.health(), ...sync.health() }),
+    extraHealth: () => ({
+      ...ondemand.health(),
+      ...newchain.health(),
+      ...mockL1.health(),
+      ...trade.health(),
+      ...sync.health(),
+    }),
     extraGet(pathname) {
       if (pathname === '/sync/status') return { ...sync.status() }
       if (pathname === '/sync/inventory') return { ...sync.inventory() }
-      return newchain.get(pathname) ?? ondemand.get(pathname)
+      return (
+        mockL1.get(pathname) ??
+        trade.get(pathname) ??
+        newchain.get(pathname) ??
+        ondemand.get(pathname)
+      )
     },
     onPost(pathname, body) {
       if (pathname === '/sync/standby-ready') {
         const result = sync.handleStandbyReady(body)
         return { status: result.ok ? 200 : 400, body: result }
       }
-      return newchain.post(pathname, body) ?? ondemand.post(pathname, body)
+      return (
+        mockL1.post(pathname, body) ??
+        trade.post(pathname, body) ??
+        newchain.post(pathname, body) ??
+        ondemand.post(pathname, body)
+      )
     },
   })
   await ondemand.start()
