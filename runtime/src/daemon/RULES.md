@@ -44,9 +44,9 @@ Local Hardhat/Anvil MVP only. **Not** CoNET 224422 mainnet, **not** production D
 
 ```bash
 npm run mock-auction-cli -- --archive http://127.0.0.1:27101 <command> …
-npm run mock-auction-demo   # in-process: attest → optional Archive /trade/list + /trade/approve → lab settle
-npm run mock-auction-e2e    # attest → Archive /trade/list + /trade/approve → settle() on live local RPC (MOCK_L1_*)
-# monorepo root: npm run dle:mock-auction-e2e  # hardhat node + deploy + e2e
+npm run mock-auction-demo   # in-process: attest → list/approve → lab settle (MOCK_L1_DEMO_MODE=settle|recovery)
+npm run mock-auction-e2e    # MOCK_L1_E2E_MODE=settle|recovery on live local RPC (MOCK_L1_*)
+# monorepo root: npm run dle:mock-auction-e2e  # hardhat node + deploy + recovery e2e then settle e2e
 ```
 
 | Command | Role |
@@ -55,11 +55,11 @@ npm run mock-auction-e2e    # attest → Archive /trade/list + /trade/approve �
 | `submit` / `cancel` | EIP-191 signed sell/buy orders → `POST /trade/submit` / `/trade/cancel` |
 | `scan` / `candidate` | Scanner proposes `MockL1MatchCandidateV1` only — **cannot** settle |
 | `check` / `attest` | Archive legality + freeze-then-draw committee attest → `TradeMatchCertificateV1`. With Archive `MOCK_L1_RPC_URL` + `MOCK_L1_SETTLEMENT`, client custody flags are **ignored** |
-| `list` / `approve` (rounds 5–7) | CLI may POST Archive `/trade/list` / `/trade/approve` with session `--pk`. E2E always POSTs both after attest. Demo POSTs them when `tradeListConfigured` / `tradeApproveConfigured` |
+| `list` / `approve` (rounds 5–7) | CLI may POST Archive `/trade/list` / `/trade/approve` with session `--pk`. E2E settle mode POSTs both after attest. Demo POSTs them when configured |
 | `preflight` (round 8) | Read-only `POST /trade/preflight` — settle readiness + fee split; **no** phase change |
 | `unlist` (round 9) | Seller reclaim: `POST /trade/unlist` with `--candidateHash` + `--pk`. Clears `listTxHash` on success; phase unchanged. Use after list stuck or after `settle … failed` |
 | `settle` (rounds 3 + 7–9) | With `MOCK_L1_SETTLE_ONCHAIN` / authority key / `--executeOnChain`, Archive posts real `settle` tx. Round 7/8: Archive refuses without prior list+approve (unless `--skipSettlePreflight`); optional RPC eth_call preflight. Round 9: `outcome: failed` for lab recovery before unlist |
-| `settle` | Report mock L1 settlement outcome (`submitted` / `settled` / `failed`) |
+| Round 10 e2e/demo | `MOCK_L1_E2E_MODE=recovery` = list → fail → unlist + `ownerOf` assert; `settle` = happy path. One-shot shell runs recovery **then** settle. Demo: `MOCK_L1_DEMO_MODE=recovery` (hook or RPC) |
 | `status` | `GET /mockl1/chains` + `/trade/orders` + `/trade/matches` |
 
 **Forbidden:** elevating `DleLabNewChainRequestV1` / `notL1Nft`; using `POST /ondemand/hook` / WaitingPool as trade ingress; claiming lab beacon = live CL RANDAO; browser holding settlement **authority** private key.

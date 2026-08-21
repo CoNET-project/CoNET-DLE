@@ -95,6 +95,13 @@ CoNET mainnet may already host `DLEChainRegistry1155V1`; this MVP still uses **l
 6. Explorer: **Unlist escrow** / **Mark failed** / **Cancel sell order** CTAs; Settlement summary shows `unlistTxHash` / `unlistError` / `settlementError`; health pill `unlist:`.
 7. `/health`: `tradeUnlistConfigured` / `tradeUnlistMode` (`rpc` | `hook`).
 
+## MVP round 10 (2026-08)
+
+1. **E2E modes** (`MOCK_L1_E2E_MODE`): `settle` (default) = list → approve → on-chain settle; `recovery` = list → `outcome: failed` → unlist → assert NFT `ownerOf` == seller.
+2. **One-shot** `npm run dle:mock-auction-e2e` / `scripts/dle/mockAuctionE2eLocal.sh`: after deploy, runs **recovery then settle** on the same local stack (NFT returned by unlist before happy-path settle).
+3. **Demo modes** (`MOCK_L1_DEMO_MODE`): `settle` (default) or `recovery` (list → fail → unlist). Non-RPC demo injects in-process list/unlist/approve hooks so recovery works without Anvil.
+4. Acceptance: recovery JSON includes `unlistTxHash` + `nftOwner`; settle JSON includes real `settlementTxHash`.
+
 ## Fee
 
 ```
