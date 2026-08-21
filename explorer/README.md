@@ -19,7 +19,7 @@ Do **not** invent additional hostnames, and do **not** write this URL into Solid
 
 The UI uses a dark neon glass theme and the DLE mark in `explorer/public/dle-mark.png`. Events are listed **newest first**. There is no top navigation bar — main pages use a title capsule, detail pages use a circular back button, and section tabs stay in the footer.
 
-**Mock auction (local):** `/mock-auction` is a read-only detail page for the mock-L1 EventIngress / match / certificate / settlement timeline. It is **not** CoNET mainnet and **not** production DePIN. Use the Home pill **Mock auction (local)** or navigate directly. Wallet create-chain / order signing for the MVP is via `npm run mock-auction-cli` against a local archive; the SPA does not self-attest Archive legality.
+**Mock auction (local):** `/mock-auction` is a detail page for the mock-L1 EventIngress / match / certificate / settlement timeline. **MVP round 2:** the page may sign sell/buy/attest with **session-only** lab keys (memory; never localStorage). Hash helpers live in `explorer/src/lib/mockAuctionWire.ts` (no runtime import). It is **not** CoNET mainnet and **not** production DePIN. Archive legality stays Archive-side when `MOCK_L1_*` RPC custody is configured. Use the Home pill **Mock auction (local)** or navigate directly.
 
 ## Run locally
 

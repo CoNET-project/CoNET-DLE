@@ -109,12 +109,14 @@ Independent of NFT 42 Tendermint / `bft-state.json`. **Not** an L1 birth certifi
 | `GET /mockl1/chains` / `GET /mockl1/queue` | List mock-L1 genesis records |
 | `POST /trade/submit` / `POST /trade/cancel` | EventIngress order pool (EIP-191 signed sell/buy) |
 | `POST /trade/scan` / `POST /trade/candidate` | Scanner proposes `MockL1MatchCandidateV1` only |
-| `POST /trade/check` | Archive legality replay → freeze-then-draw → propose `TradeMatchCertificateV1` |
+| `POST /trade/check` | Archive legality: when `MOCK_L1_RPC_URL` + `MOCK_L1_SETTLEMENT` (or `verifyL1Custody` hook) are set, **eth_call / hook custody** — client `l1EscrowCustody` flags are **ignored**. Otherwise lab flags fallback. Then freeze-then-draw → propose `TradeMatchCertificateV1` |
 | `POST /trade/attest` | Committee signatures (lab keccak beacon; `notProductionBeacon`) |
 | `POST /trade/settle` | Mode A settlement states; mock L1 atomic settle is separate |
 | `GET /trade/orders` / `/trade/matches` / `/trade/timeline` | Read-only status |
 
 Fee: **1 bps** of clearing price; **50% scanner / 50% committee**. Mode A events `0x1302–0x1306` (MatchProposed → … → Settled / SettlementFailed); keep `TradeOpened` (`0x1301`) replay compatible.
+
+`/health` may expose `tradeRpcCustodyConfigured` / `tradeRpcCustodyMode` (`rpc` | `hook` | `clientFlags`). **MVP round 2 (2026-08):** Archive-side custody via `shared/mockL1Custody.ts`; in-process demo `npm run mock-auction-demo`.
 
 Live keep evidence (2026-08-16): `pilot/evidence/conet-dle-p6-genesis-2026-08/p6-live-accept.json` — trade `chainNftId=326990096`, 7/7 `DleLabArchiveCertificateV1` in ~10s, NFT 42 `eth_blockNumber` stayed `0x1`, `liveGroupCount=2`. Completing P6 is **not** 30-day qualification.
 
@@ -502,4 +504,4 @@ See `src/daemon/RULES.md`. Daemon must not treat `dle_tip.height` as cluster cou
 
 Lab random-create user: `src/daemon/newchain-user-cli.ts` on `70.35.205.77:/home/peter/dle-newchain-user` (`npm run lab:deploy-newchain-user`). Genesis smoke is asset + storage + trade; then a `setTimeout` chain (15–45s) posts a random class. Do not mix this process with `dle-ondemand-clients`.
 
-**Mock-L1 auction CLI:** `src/daemon/mock-l1-auction-cli.ts` (`npm run mock-auction-cli`). Signs locally and posts to archive `/mockl1/*` + `/trade/*`. Client must **not** claim Archive legality or certificate quorum itself.
+**Mock-L1 auction CLI:** `src/daemon/mock-l1-auction-cli.ts` (`npm run mock-auction-cli`). In-process demo: `npm run mock-auction-demo`. Signs locally and posts to archive `/mockl1/*` + `/trade/*`. Client must **not** claim Archive legality or certificate quorum itself.

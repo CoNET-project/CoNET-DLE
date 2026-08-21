@@ -376,7 +376,7 @@ const server = await listenArchiveHttp({
       ondemand.get(pathname)
     )
   },
-  onPost(pathname, body) {
+  async onPost(pathname, body) {
     if (pathname === '/bft/message') {
       const result = engine.ingest(body)
       return { status: result.ok ? 200 : 400, body: result }
@@ -432,7 +432,7 @@ const server = await listenArchiveHttp({
     }
     return (
       mockL1.post(pathname, body) ??
-      trade.post(pathname, body) ??
+      (await Promise.resolve(trade.post(pathname, body))) ??
       newchain.post(pathname, body) ??
       ondemand.post(pathname, body)
     )

@@ -23,12 +23,14 @@ All payloads below are **`mockL1Only: true`**. HTTP JSON only; Archive validates
 | `POST` | `/trade/cancel` | Cancel by order hash + maker sig |
 | `POST` | `/trade/scan` | Local scan → best match (deterministic tie-break) |
 | `POST` | `/trade/candidate` | Submit `MockL1MatchCandidateV1` |
-| `POST` | `/trade/check` | Archive legality replay |
+| `POST` | `/trade/check` | Archive legality. With `MOCK_L1_RPC_URL` + `MOCK_L1_SETTLEMENT` (or custody hook), **eth_call / hook** — client `l1EscrowCustody` flags **ignored**. Otherwise lab flags fallback |
 | `POST` | `/trade/attest` | Freeze pool → draw → collect → certificate |
 | `POST` | `/trade/settle` | Mode A settlement transition (mock L1 settle separate) |
 | `GET` | `/trade/orders` | Order pool |
 | `GET` | `/trade/matches` | Match / cert timeline |
 | `GET` | `/trade/timeline` | Combined timeline |
+
+`/health` may include `tradeRpcCustodyConfigured` / `tradeRpcCustodyMode` (`rpc` | `hook` | `clientFlags`).
 
 **Forbidden:** using `POST /ondemand/hook` or WaitingPool as this ingress.
 

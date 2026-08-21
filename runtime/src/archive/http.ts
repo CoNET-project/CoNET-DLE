@@ -59,7 +59,13 @@ export interface ArchiveHttpOptions {
           dleNote: 'not seating'
         }
   }
-  onPost?: (pathname: string, body: unknown) => { status: number; body: unknown } | undefined
+  onPost?: (
+    pathname: string,
+    body: unknown,
+  ) =>
+    | { status: number; body: unknown }
+    | undefined
+    | Promise<{ status: number; body: unknown } | undefined>
   routeTable?: LabRouteTable
   hopFetch?: Hop1Fetch
 }
@@ -260,7 +266,7 @@ export async function listenArchiveHttp(options: ArchiveHttpOptions): Promise<Ar
         return
       }
       if (options.onPost !== undefined) {
-        const handled = options.onPost(url.pathname, parsed)
+        const handled = await Promise.resolve(options.onPost(url.pathname, parsed))
         if (handled !== undefined) {
           sendJson(res, handled.status, handled.body)
           return

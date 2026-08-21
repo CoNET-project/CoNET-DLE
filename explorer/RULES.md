@@ -102,14 +102,16 @@ Official Home **Archives** stays the 7-domain roster. Extra joiner `fd-08` is no
 
 ## Mock auction page (`/mock-auction`, 2026-08)
 
-Detail page (footer hidden). Read-only timeline of local mock-L1 `/mockl1/*` + `/trade/*` status from the configured archive endpoint. Home links with a warn pill **Mock auction (local)**.
+Detail page (footer hidden). Local mock-L1 `/mockl1/*` + `/trade/*` against the configured archive endpoint. Home links with a warn pill **Mock auction (local)**.
+
+**MVP round 2:** session-only lab private keys may **sign** sell/buy/attest in the browser (`ethers`); keys are **never** written to localStorage / IndexedDB. Order / candidate hashing is mirrored in `explorer/src/lib/mockAuctionWire.ts` (no runtime import). Archive legality remains Archive-side when RPC custody is configured — the page may pass lab flags only for Archive without `MOCK_L1_*`.
 
 | Rule | Detail |
 |---|---|
 | Scope | Local Hardhat/Anvil mock network only |
-| UI | Signs nothing as Archive; does **not** self-claim legality / quorum |
+| UI | May sign client orders/attests with session keys; does **not** self-claim Archive legality / quorum |
 | Labels | Always show `mockL1Only` / `notProductionDepin` pills |
-| Forbidden | Painting as CoNET mainnet, production DePIN, or live CL RANDAO |
+| Forbidden | Painting as CoNET mainnet, production DePIN, or live CL RANDAO; persisting private keys |
 
 ## Other Explorer invariants
 
@@ -119,7 +121,7 @@ Detail page (footer hidden). Read-only timeline of local mock-L1 `/mockl1/*` + `
 - Failed fetches keep the last trusted snapshot (`beamio-trusted-vs-untrusted-fetch.mdc`).
 - User-visible strings: English.
 - Independent `package.json`. Do not import `runtime`, `archive-a`, or `archive-b`.
-- Cache only archive URL + last trusted snapshot. No wallet keys.
+- Cache only archive URL + last trusted snapshot. No wallet keys on disk. Session keys on `/mock-auction` are memory-only and cleared on reload.
 
 ## Related
 

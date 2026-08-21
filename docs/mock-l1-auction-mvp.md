@@ -25,12 +25,21 @@ CoNET mainnet may already host `DLEChainRegistry1155V1`; this MVP still uses **l
 | --- | --- |
 | Settlement mock | `src/dle/mocks/MockDleAuctionSettlement.sol` |
 | Fixture | `test/dle/fixtures.ts` → `deployAuctionFixture` |
+| Local deploy script | `scripts/dle/deployMockL1AuctionLocal.ts` (`npm run dle:deploy:mock-auction-local`) |
 | Registration wire | `runtime/src/shared/mockL1.ts` |
+| Custody (Archive) | `runtime/src/shared/mockL1Custody.ts` (`MOCK_L1_RPC_URL` + `MOCK_L1_SETTLEMENT`) |
 | Orders / cert wire | `runtime/src/shared/tradeMatch.ts` |
 | HTTP engines | `runtime/src/archive/mockL1/engine.ts`, `…/trade/engine.ts` |
 | Mode A | `runtime/src/archive/bft/modeA.ts` → `replayTradeMatchModeA` |
-| CLI | `runtime/src/daemon/mock-l1-auction-cli.ts` (`npm run mock-auction-cli`) |
-| Web | Explorer `/mock-auction` |
+| CLI / demo | `runtime/src/daemon/mock-l1-auction-cli.ts`, `mock-l1-auction-demo.ts` |
+| Web | Explorer `/mock-auction` (session keys may sign; Archive-side custody when RPC set) |
+
+## MVP round 2 (2026-08)
+
+1. Archive `POST /trade/check` verifies NFT `ownerOf` + `getApproved`/`isApprovedForAll` and ERC-20 `balanceOf` + `allowance` against the mock settlement when RPC env is set (client custody flags ignored).
+2. `npm run mock-auction-demo` runs submit→scan→candidate→check→attest→settle in-process.
+3. Explorer can sign sell/buy with memory-only session keys (no disk persistence).
+4. Root `dle:deploy:mock-auction-local` prints `MOCK_L1_*` for Archive.
 
 ## Fee
 

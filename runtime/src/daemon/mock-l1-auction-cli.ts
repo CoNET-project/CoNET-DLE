@@ -44,6 +44,7 @@ commands:
   scan       [--scanner 0x..]
   candidate  --sellHash 0x.. --buyHash 0x.. --scanner 0x..
   check      --candidateHash 0x.. [--custody true] [--balanceOk true] [--allowanceOk true]
+             (when Archive has MOCK_L1_RPC_URL + MOCK_L1_SETTLEMENT, client flags are ignored)
   attest     --candidateHash 0x.. --pk HEX
   settle     --candidateHash 0x.. --outcome submitted|settled|failed [--txHash 0x..]
   status     (GET /trade/orders + /trade/matches + /mockl1/chains)

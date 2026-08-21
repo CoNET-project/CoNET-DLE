@@ -38,12 +38,13 @@ Separate from the isomorphic daemon. Deploy: `npm run lab:deploy-newchain-user` 
 
 **Not** L1 NFT mint, Treasury burn, Settlement escrow, or 30-day archive qualification. Do not stop `dle-ondemand-clients` when restarting this user.
 
-## Mock-L1 auction CLI (`mock-l1-auction-cli`)
+## Mock-L1 auction CLI (`mock-l1-auction-cli`) + demo
 
 Local Hardhat/Anvil MVP only. **Not** CoNET 224422 mainnet, **not** production DePIN, **not** lab `notL1Nft` newchain.
 
 ```bash
 npm run mock-auction-cli -- --archive http://127.0.0.1:27101 <command> …
+npm run mock-auction-demo   # in-process submit→scan→candidate→check→attest→settle
 ```
 
 | Command | Role |
@@ -51,7 +52,7 @@ npm run mock-auction-cli -- --archive http://127.0.0.1:27101 <command> …
 | `register` | `POST /mockl1/register` with `MockL1ChainRegistrationV1` (real local ERC-1155 `tokenId`, `assignmentStatus=BOUND(2)`) |
 | `submit` / `cancel` | EIP-191 signed sell/buy orders → `POST /trade/submit` / `/trade/cancel` |
 | `scan` / `candidate` | Scanner proposes `MockL1MatchCandidateV1` only — **cannot** settle |
-| `check` / `attest` | Archive legality + freeze-then-draw committee attest → `TradeMatchCertificateV1` |
+| `check` / `attest` | Archive legality + freeze-then-draw committee attest → `TradeMatchCertificateV1`. With Archive `MOCK_L1_RPC_URL` + `MOCK_L1_SETTLEMENT`, client custody flags are **ignored** |
 | `settle` | Report mock L1 settlement outcome (`submitted` / `settled` / `failed`) |
 | `status` | `GET /mockl1/chains` + `/trade/orders` + `/trade/matches` |
 

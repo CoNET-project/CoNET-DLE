@@ -14,6 +14,7 @@ import {
 } from '../../shared/ondemand/index.js'
 import type { Hex } from '../../shared/bytes.js'
 import { mockL1FeePolicyHash } from '../../shared/mockL1.js'
+import { mockL1CustodyEnv, verifyMockL1Custody } from '../../shared/mockL1Custody.js'
 import {
   MATCH_CANDIDATE_SCHEMA,
   ORDER_SIDE_BUY,
@@ -94,12 +95,29 @@ export interface TradeEngineOptions {
   checkerPool?: readonly string[]
   certificateAuthorityHint?: Hex
   nowSec?: () => bigint
+  /**
+   * When set (or via MOCK_L1_RPC_URL + MOCK_L1_SETTLEMENT), Archive verifies
+   * L1 custody with eth_call and ignores client-asserted custody flags.
+   */
+  l1RpcUrl?: string
+  l1SettlementAddress?: Hex
+  /** Test hook — overrides RPC / client flags. */
+  verifyL1Custody?: (args: {
+    sell: MockL1TradeOrderV1
+    buy: MockL1TradeOrderV1
+    clearingPrice: string
+  }) => Promise<{ ok: true } | { ok: false; reason: string }>
 }
+
+export type TradePostResult = { status: number; body: unknown }
 
 export interface TradeEngine {
   health(): Record<string, unknown>
   get(pathname: string): Record<string, unknown> | undefined
-  post(pathname: string, body: unknown): { status: number; body: unknown } | undefined
+  post(
+    pathname: string,
+    body: unknown,
+  ): TradePostResult | undefined | Promise<TradePostResult | undefined>
 }
 
 interface PersistedState {
@@ -141,6 +159,10 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
   const authorityHint = (options.certificateAuthorityHint ??
     ('0x0000000000000000000000000000000000000001' as Hex)).toLowerCase() as Hex
   const nowSec = options.nowSec ?? (() => BigInt(Math.floor(Date.now() / 1000)))
+  const envCustody = mockL1CustodyEnv()
+  const l1RpcUrl = options.l1RpcUrl ?? envCustody.rpcUrl
+  const l1Settlement = options.l1SettlementAddress ?? envCustody.settlement
+  const rpcCustodyConfigured = Boolean(l1RpcUrl && l1Settlement) || options.verifyL1Custody !== undefined
 
   function persist(): void {
     const state: PersistedState = {
@@ -199,6 +221,12 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
       tradeNotWaitingPoolIngress: true,
       tradeNotProductionBeacon: true,
       tradeNotProductionDepin: true,
+      tradeRpcCustodyConfigured: rpcCustodyConfigured,
+      tradeRpcCustodyMode: options.verifyL1Custody !== undefined
+        ? 'hook'
+        : l1RpcUrl && l1Settlement
+          ? 'eth_call'
+          : 'client_assert_fallback',
       tradeOrderCount: orders.size,
       tradeMatchCount: matches.size,
       tradeByPhase: byPhase,
@@ -387,7 +415,7 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
     return { ok: true }
   }
 
-  function archiveCheck(body: unknown): { status: number; body: Record<string, unknown> } {
+  async function archiveCheck(body: unknown): Promise<{ status: number; body: Record<string, unknown> }> {
     if (!isRecord(body) || typeof body.candidateHash !== 'string') {
       return { status: 400, body: { ok: false, error: 'candidateHash required' } }
     }
@@ -415,11 +443,35 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
     if (record.candidate.feePolicyHash.toLowerCase() !== mockL1FeePolicyHash().toLowerCase()) {
       return reject('fee policy mismatch')
     }
-    const custodyOk = body.l1EscrowCustody === true
-    if (!custodyOk) return reject('L1 escrow custody not confirmed')
-    const balanceOk = body.buyerBalanceOk !== false
-    const allowanceOk = body.buyerAllowanceOk !== false
-    if (!balanceOk || !allowanceOk) return reject('buyer balance/allowance check failed')
+
+    if (rpcCustodyConfigured) {
+      const verified =
+        options.verifyL1Custody !== undefined
+          ? await options.verifyL1Custody({
+              sell,
+              buy,
+              clearingPrice: record.candidate.clearingPrice,
+            })
+          : await verifyMockL1Custody({
+              rpcUrl: l1RpcUrl!,
+              settlement: l1Settlement!,
+              seller: sell.maker,
+              subjectNftContract: sell.subjectNftContract,
+              subjectNftId: sell.subjectNftId,
+              buyer: buy.maker,
+              quoteAsset: buy.quoteAsset,
+              clearingPrice: record.candidate.clearingPrice,
+            })
+      if (!verified.ok) return reject(verified.reason)
+    } else {
+      // Lab-only fallback when no local RPC is wired: require explicit client
+      // assertions. Prefer MOCK_L1_RPC_URL + MOCK_L1_SETTLEMENT in demos.
+      const custodyOk = body.l1EscrowCustody === true
+      if (!custodyOk) return reject('L1 escrow custody not confirmed')
+      const balanceOk = body.buyerBalanceOk !== false
+      const allowanceOk = body.buyerAllowanceOk !== false
+      if (!balanceOk || !allowanceOk) return reject('buyer balance/allowance check failed')
+    }
 
     // Freeze then draw — lab beacon only (not production CL RANDAO).
     const poolRoot = poolRootOf(checkers)

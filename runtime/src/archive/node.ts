@@ -87,14 +87,14 @@ export async function startArchiveNode(options: ArchiveNodeOptions): Promise<Arc
         ondemand.get(pathname)
       )
     },
-    onPost(pathname, body) {
+    async onPost(pathname, body) {
       if (pathname === '/sync/standby-ready') {
         const result = sync.handleStandbyReady(body)
         return { status: result.ok ? 200 : 400, body: result }
       }
       return (
         mockL1.post(pathname, body) ??
-        trade.post(pathname, body) ??
+        (await Promise.resolve(trade.post(pathname, body))) ??
         newchain.post(pathname, body) ??
         ondemand.post(pathname, body)
       )
