@@ -54,7 +54,8 @@
     "lab:keep-p11-joiner": "npm run runtime:build && npm --prefix pilot run lab:keep-p11-joiner",
     "lab:deploy-p11-joiner": "npm run runtime:build && npm --prefix pilot run lab:deploy-p11-joiner",
     "lab:accept-p11-join": "npm --prefix pilot run lab:accept-p11-join",
-    "lab:p11-full-open-join": "npm run runtime:build && npm --prefix pilot run lab:p11-full-open-join"
+    "lab:p11-full-open-join": "npm run runtime:build && npm --prefix pilot run lab:p11-full-open-join",
+    "mock-auction-e2e": "tsx runtime/src/daemon/mock-l1-auction-e2e.ts"
   },
   "dependencies": {
     "ethers": "^6.15.0"

@@ -106,10 +106,12 @@ Detail page (footer hidden). Local mock-L1 `/mockl1/*` + `/trade/*` against the 
 
 **MVP round 2:** session-only lab private keys may **sign** sell/buy/attest in the browser (`ethers`); keys are **never** written to localStorage / IndexedDB. Order / candidate hashing is mirrored in `explorer/src/lib/mockAuctionWire.ts` (no runtime import). Archive legality remains Archive-side when RPC custody is configured — the page may pass lab flags only for Archive without `MOCK_L1_*`.
 
+**MVP round 3:** when Archive has on-chain settle configured, match timeline may show a **real** `settlementTxHash` from `MockDleAuctionSettlement.settle` (local Hardhat/Anvil). Do **not** paint lab demo fake hashes as mainnet settles. UI still does **not** call `settle` from the browser — Archive posts the authority tx.
+
 | Rule | Detail |
 |---|---|
 | Scope | Local Hardhat/Anvil mock network only |
-| UI | May sign client orders/attests with session keys; does **not** self-claim Archive legality / quorum |
+| UI | May sign client orders/attests with session keys; does **not** self-claim Archive legality / quorum; does **not** submit settlement txs |
 | Labels | Always show `mockL1Only` / `notProductionDepin` pills |
 | Forbidden | Painting as CoNET mainnet, production DePIN, or live CL RANDAO; persisting private keys |
 

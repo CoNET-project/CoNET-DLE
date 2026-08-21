@@ -28,18 +28,27 @@ CoNET mainnet may already host `DLEChainRegistry1155V1`; this MVP still uses **l
 | Local deploy script | `scripts/dle/deployMockL1AuctionLocal.ts` (`npm run dle:deploy:mock-auction-local`) |
 | Registration wire | `runtime/src/shared/mockL1.ts` |
 | Custody (Archive) | `runtime/src/shared/mockL1Custody.ts` (`MOCK_L1_RPC_URL` + `MOCK_L1_SETTLEMENT`) |
+| On-chain settle | `runtime/src/shared/mockL1Settle.ts` (`MOCK_L1_AUTHORITY_PRIVATE_KEY` + `MOCK_L1_SETTLE_ONCHAIN` / `executeOnChain`) |
 | Orders / cert wire | `runtime/src/shared/tradeMatch.ts` |
 | HTTP engines | `runtime/src/archive/mockL1/engine.ts`, `…/trade/engine.ts` |
 | Mode A | `runtime/src/archive/bft/modeA.ts` → `replayTradeMatchModeA` |
-| CLI / demo | `runtime/src/daemon/mock-l1-auction-cli.ts`, `mock-l1-auction-demo.ts` |
+| CLI / demo / e2e | `runtime/src/daemon/mock-l1-auction-cli.ts`, `mock-l1-auction-demo.ts`, `mock-l1-auction-e2e.ts` |
+| One-shot local | Root `scripts/dle/mockAuctionE2eLocal.sh` → `npm run dle:mock-auction-e2e` |
 | Web | Explorer `/mock-auction` (session keys may sign; Archive-side custody when RPC set) |
 
 ## MVP round 2 (2026-08)
 
 1. Archive `POST /trade/check` verifies NFT `ownerOf` + `getApproved`/`isApprovedForAll` and ERC-20 `balanceOf` + `allowance` against the mock settlement when RPC env is set (client custody flags ignored).
-2. `npm run mock-auction-demo` runs submit→scan→candidate→check→attest→settle in-process.
+2. `npm run mock-auction-demo` runs submit→scan→candidate→check→attest→settle in-process (**lab / optional custody**; settle may use a demo txHash when on-chain settle is off).
 3. Explorer can sign sell/buy with memory-only session keys (no disk persistence).
 4. Root `dle:deploy:mock-auction-local` prints `MOCK_L1_*` for Archive.
+
+## MVP round 3 (2026-08)
+
+1. Seller `list`s NFT into `MockDleAuctionSettlement` escrow before Archive settle.
+2. Archive `POST /trade/settle` with `executeOnChain` / env → `certificateAuthority` calls `settle` on local RPC; phases `match_certified` → `settlement_submitted` → `settled` | `settlement_failed`.
+3. `npm run mock-auction-e2e` (DLE) or root `npm run dle:mock-auction-e2e` (hardhat node → deploy → e2e) produces a **real** `settlementTxHash`.
+4. `/health` may expose `tradeOnChainSettleConfigured` / `tradeOnChainSettleMode`.
 
 ## Fee
 

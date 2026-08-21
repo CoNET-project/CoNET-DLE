@@ -44,7 +44,9 @@ Local Hardhat/Anvil MVP only. **Not** CoNET 224422 mainnet, **not** production D
 
 ```bash
 npm run mock-auction-cli -- --archive http://127.0.0.1:27101 <command> …
-npm run mock-auction-demo   # in-process submit→scan→candidate→check→attest→settle
+npm run mock-auction-demo   # in-process submit→scan→candidate→check→attest→settle (lab / optional custody)
+npm run mock-auction-e2e    # list → match → Archive settle() on live local RPC (MOCK_L1_*)
+# monorepo root: npm run dle:mock-auction-e2e  # hardhat node + deploy + e2e
 ```
 
 | Command | Role |
@@ -53,6 +55,7 @@ npm run mock-auction-demo   # in-process submit→scan→candidate→check→att
 | `submit` / `cancel` | EIP-191 signed sell/buy orders → `POST /trade/submit` / `/trade/cancel` |
 | `scan` / `candidate` | Scanner proposes `MockL1MatchCandidateV1` only — **cannot** settle |
 | `check` / `attest` | Archive legality + freeze-then-draw committee attest → `TradeMatchCertificateV1`. With Archive `MOCK_L1_RPC_URL` + `MOCK_L1_SETTLEMENT`, client custody flags are **ignored** |
+| `settle` (round 3) | With `MOCK_L1_SETTLE_ONCHAIN` / authority key / `executeOnChain`, Archive posts real `settle` tx; seller must `list` first |
 | `settle` | Report mock L1 settlement outcome (`submitted` / `settled` / `failed`) |
 | `status` | `GET /mockl1/chains` + `/trade/orders` + `/trade/matches` |
 

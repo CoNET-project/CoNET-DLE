@@ -15,6 +15,7 @@ import {
 import type { Hex } from '../../shared/bytes.js'
 import { mockL1FeePolicyHash } from '../../shared/mockL1.js'
 import { mockL1CustodyEnv, verifyMockL1Custody } from '../../shared/mockL1Custody.js'
+import { mockL1SettleEnv, settleMockL1Auction } from '../../shared/mockL1Settle.js'
 import {
   MATCH_CANDIDATE_SCHEMA,
   ORDER_SIDE_BUY,
@@ -107,6 +108,20 @@ export interface TradeEngineOptions {
     buy: MockL1TradeOrderV1
     clearingPrice: string
   }) => Promise<{ ok: true } | { ok: false; reason: string }>
+  /**
+   * When set (or via MOCK_L1_AUTHORITY_PRIVATE_KEY + MOCK_L1_SETTLE_ONCHAIN),
+   * Archive may broadcast MockDleAuctionSettlement.settle as certificateAuthority.
+   */
+  l1AuthorityPrivateKey?: string
+  /** Test hook — overrides on-chain settle broadcast. */
+  submitL1SettlementTx?: (args: {
+    certificateHash: Hex
+    sellerOrderHash: Hex
+    buyer: Hex
+    clearingAmount: string
+    scanner: Hex
+    committee: readonly Hex[]
+  }) => Promise<{ ok: true; txHash: Hex } | { ok: false; reason: string }>
 }
 
 export type TradePostResult = { status: number; body: unknown }
@@ -160,9 +175,14 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
     ('0x0000000000000000000000000000000000000001' as Hex)).toLowerCase() as Hex
   const nowSec = options.nowSec ?? (() => BigInt(Math.floor(Date.now() / 1000)))
   const envCustody = mockL1CustodyEnv()
-  const l1RpcUrl = options.l1RpcUrl ?? envCustody.rpcUrl
-  const l1Settlement = options.l1SettlementAddress ?? envCustody.settlement
+  const envSettle = mockL1SettleEnv()
+  const l1RpcUrl = options.l1RpcUrl ?? envCustody.rpcUrl ?? envSettle.rpcUrl
+  const l1Settlement = options.l1SettlementAddress ?? envCustody.settlement ?? envSettle.settlement
+  const l1AuthorityPk = options.l1AuthorityPrivateKey ?? envSettle.authorityPrivateKey
   const rpcCustodyConfigured = Boolean(l1RpcUrl && l1Settlement) || options.verifyL1Custody !== undefined
+  const onChainSettleConfigured =
+    options.submitL1SettlementTx !== undefined ||
+    Boolean(l1RpcUrl && l1Settlement && l1AuthorityPk)
 
   function persist(): void {
     const state: PersistedState = {
@@ -227,6 +247,12 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
         : l1RpcUrl && l1Settlement
           ? 'eth_call'
           : 'client_assert_fallback',
+      tradeOnChainSettleConfigured: onChainSettleConfigured,
+      tradeOnChainSettleMode: options.submitL1SettlementTx !== undefined
+        ? 'hook'
+        : onChainSettleConfigured
+          ? 'rpc'
+          : 'off',
       tradeOrderCount: orders.size,
       tradeMatchCount: matches.size,
       tradeByPhase: byPhase,
@@ -615,7 +641,7 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
     return { status: 200, body: { ok: true, match: record } }
   }
 
-  function settleStatus(body: unknown): { status: number; body: Record<string, unknown> } {
+  async function settleStatus(body: unknown): Promise<{ status: number; body: Record<string, unknown> }> {
     if (!isRecord(body) || typeof body.candidateHash !== 'string') {
       return { status: 400, body: { ok: false, error: 'candidateHash required' } }
     }
@@ -625,16 +651,98 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
       return { status: 400, body: { ok: false, error: 'certificate not ready for settlement' } }
     }
     const outcome = typeof body.outcome === 'string' ? body.outcome : 'submitted'
-    let eventType: number
-    if (outcome === 'submitted') {
-      eventType = EVENT_TRADE_SETTLEMENT_SUBMITTED
-    } else if (outcome === 'settled') {
-      eventType = EVENT_TRADE_SETTLED
-    } else if (outcome === 'failed') {
-      eventType = EVENT_TRADE_SETTLEMENT_FAILED
-    } else {
+    if (outcome !== 'submitted' && outcome !== 'settled' && outcome !== 'failed') {
       return { status: 400, body: { ok: false, error: 'outcome must be submitted|settled|failed' } }
     }
+
+    const executeOnChain =
+      body.executeOnChain === true || envSettle.settleOnChain || options.submitL1SettlementTx !== undefined
+
+    if (
+      executeOnChain &&
+      outcome !== 'failed' &&
+      record.phase === 'match_certified' &&
+      record.certificate !== undefined
+    ) {
+      const cert = record.certificate
+      const committee =
+        cert.signers.length > 0
+          ? cert.signers
+          : (cert.committee ?? record.committee ?? [])
+      const onChain =
+        options.submitL1SettlementTx !== undefined
+          ? await options.submitL1SettlementTx({
+              certificateHash: cert.certificateHash,
+              sellerOrderHash: record.sell.orderHash,
+              buyer: record.buy.maker,
+              clearingAmount: record.candidate.clearingPrice,
+              scanner: record.candidate.scanner,
+              committee,
+            })
+          : l1RpcUrl && l1Settlement && l1AuthorityPk
+            ? await settleMockL1Auction({
+                rpcUrl: l1RpcUrl,
+                settlement: l1Settlement,
+                authorityPrivateKey: l1AuthorityPk,
+                certificateHash: cert.certificateHash,
+                sellerOrderHash: record.sell.orderHash,
+                buyer: record.buy.maker,
+                clearingAmount: record.candidate.clearingPrice,
+                scanner: record.candidate.scanner,
+                committee,
+              })
+            : { ok: false as const, reason: 'on-chain settle not configured (need MOCK_L1_RPC_URL + MOCK_L1_SETTLEMENT + MOCK_L1_AUTHORITY_PRIVATE_KEY)' }
+
+      if (!onChain.ok) {
+        const failTransition = applyMatchTransition(record, EVENT_TRADE_SETTLEMENT_FAILED)
+        if (failTransition.ok) {
+          record.phase = 'settlement_failed'
+          record.settlementError = onChain.reason
+          record.updatedAt = new Date().toISOString()
+          persist()
+          options.store.appendWal({
+            type: 'trade-settlement',
+            candidateHash: record.candidateHash,
+            phase: record.phase,
+            tipStateRoot: record.tipStateRoot,
+            valueHash: record.valueHash,
+          })
+        }
+        return { status: 400, body: { ok: false, error: onChain.reason, match: record } }
+      }
+      record.settlementTxHash = onChain.txHash
+      // Mode A: certified → submitted → settled when caller asked for settled.
+      const submitted = applyMatchTransition(record, EVENT_TRADE_SETTLEMENT_SUBMITTED)
+      if (!submitted.ok) return { status: 400, body: { ok: false, error: submitted.error } }
+      record.phase = 'settlement_submitted'
+      if (outcome === 'settled') {
+        const settled = applyMatchTransition(record, EVENT_TRADE_SETTLED)
+        if (!settled.ok) return { status: 400, body: { ok: false, error: settled.error } }
+        record.phase = 'settled'
+        record.sell.cancelled = true
+        record.buy.cancelled = true
+        orders.set(record.sell.orderHash.toLowerCase(), record.sell)
+        orders.set(record.buy.orderHash.toLowerCase(), record.buy)
+      }
+      record.updatedAt = new Date().toISOString()
+      persist()
+      options.store.appendWal({
+        type: 'trade-settlement',
+        candidateHash: record.candidateHash,
+        phase: record.phase,
+        tipStateRoot: record.tipStateRoot,
+        valueHash: record.valueHash,
+        settlementTxHash: record.settlementTxHash,
+      })
+      return { status: 200, body: { ok: true, match: record, onChain: true, mockL1Only: true } }
+    }
+
+    const eventType =
+      outcome === 'submitted'
+        ? EVENT_TRADE_SETTLEMENT_SUBMITTED
+        : outcome === 'settled'
+          ? EVENT_TRADE_SETTLED
+          : EVENT_TRADE_SETTLEMENT_FAILED
     const transition = applyMatchTransition(record, eventType)
     if (!transition.ok) return { status: 400, body: { ok: false, error: transition.error } }
     if (outcome === 'submitted') {
