@@ -65,6 +65,10 @@ Implementation: `HomePage.tsx` MetricCard `Clusters`; `useArchiveFeed.ts` + `par
 
 Not-found copy: these roots are first-class kinds; a hit returns the typed object, not the AC. Do **not** `../..` import runtime kinds — copy the English labels in `HashLookupPage.tsx`.
 
+### Loading (2026-08-28)
+
+Until lookup / proof returns, `/hash/:hash` must show a spinning `Loader2` and **Loading hash detail…** (`role="status"`, `aria-busy`). Changing the hash must clear the previous detail immediately. Do **not** use an auto-dismiss Toast.
+
 ## Certificates (2026-08-16 P6)
 
 Certificates page may show laboratory **new-chain** counts from trusted `/health`:

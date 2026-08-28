@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { DetailPageShell } from '../components/DetailPageShell'
 import { HashCapsule } from '../components/HashCapsule'
@@ -23,6 +24,7 @@ export function HashLookupPage() {
   const [result, setResult] = useState<unknown>(null)
   const [proof, setProof] = useState<unknown>(null)
   const [untrusted, setUntrusted] = useState(false)
+  const [loading, setLoading] = useState(valid)
 
   useEffect(() => {
     setShowFooter(false)
@@ -30,21 +32,35 @@ export function HashLookupPage() {
   }, [setShowFooter])
 
   useEffect(() => {
-    if (!valid) return
-    let cancelled = false
-    void (async () => {
-      const [next, nextProof] = await Promise.all([
-        fetchHashLookup(archiveUrl, hash),
-        fetchHashIndexProof(archiveUrl, hash),
-      ])
-      if (cancelled) return
-      if (next === null) {
-        setUntrusted(true)
-        return
-      }
+    if (!valid) {
+      setLoading(false)
+      setResult(null)
+      setProof(null)
       setUntrusted(false)
-      setResult(next)
-      if (nextProof !== null) setProof(nextProof)
+      return
+    }
+    let cancelled = false
+    setResult(null)
+    setProof(null)
+    setUntrusted(false)
+    setLoading(true)
+    void (async () => {
+      try {
+        const [next, nextProof] = await Promise.all([
+          fetchHashLookup(archiveUrl, hash),
+          fetchHashIndexProof(archiveUrl, hash),
+        ])
+        if (cancelled) return
+        if (next === null) {
+          setUntrusted(true)
+          return
+        }
+        setUntrusted(false)
+        setResult(next)
+        if (nextProof !== null) setProof(nextProof)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     })()
     return () => {
       cancelled = true
@@ -73,21 +89,22 @@ export function HashLookupPage() {
       onBack={() => navigate('/')}
       pills={
         <>
-          {hit ? <StatusPill label="Hit" tone="ok" /> : null}
-          {kind === 'prevoteQc' ? <StatusPill label="Prevote QC" tone="purple" /> : null}
-          {kind === 'tipStateRoot' ? <StatusPill label="Tip state root" tone="ok" /> : null}
-          {kind === 'membershipRoot' ? <StatusPill label="Membership root" tone="purple" /> : null}
-          {kind === 'ac' ? <StatusPill label="Archive Certificate" tone="blue" /> : null}
-          {notFound ? <StatusPill label="Not found" tone="neutral" /> : null}
-          {row?.status === 'unavailable' ? <StatusPill label="Unavailable" tone="warn" /> : null}
-          {untrusted ? <StatusPill label="Request failed" tone="warn" /> : null}
-          {chainNftId !== '' ? <StatusPill label={`chainNftId ${chainNftId}`} tone="ok" /> : null}
-          {hopTarget !== '' ? <StatusPill label={`hop ${hopTarget}`} tone="ok" /> : null}
-          {hopFallback ? <StatusPill label="Local fallback" tone="warn" /> : null}
-          {hopLabOnly ? <StatusPill label="Lab HTTP hop" tone="warn" /> : null}
-          {proofKind === 'inclusion' ? <StatusPill label="Index inclusion" tone="ok" /> : null}
-          {proofKind === 'non-inclusion' ? <StatusPill label="Index non-inclusion" tone="warn" /> : null}
-          {proofNotHot ? <StatusPill label="Tree is not hot Get" tone="warn" /> : null}
+          {loading ? <StatusPill label="Loading" tone="neutral" /> : null}
+          {!loading && hit ? <StatusPill label="Hit" tone="ok" /> : null}
+          {!loading && kind === 'prevoteQc' ? <StatusPill label="Prevote QC" tone="purple" /> : null}
+          {!loading && kind === 'tipStateRoot' ? <StatusPill label="Tip state root" tone="ok" /> : null}
+          {!loading && kind === 'membershipRoot' ? <StatusPill label="Membership root" tone="purple" /> : null}
+          {!loading && kind === 'ac' ? <StatusPill label="Archive Certificate" tone="blue" /> : null}
+          {!loading && notFound ? <StatusPill label="Not found" tone="neutral" /> : null}
+          {!loading && row?.status === 'unavailable' ? <StatusPill label="Unavailable" tone="warn" /> : null}
+          {!loading && untrusted ? <StatusPill label="Request failed" tone="warn" /> : null}
+          {!loading && chainNftId !== '' ? <StatusPill label={`chainNftId ${chainNftId}`} tone="ok" /> : null}
+          {!loading && hopTarget !== '' ? <StatusPill label={`hop ${hopTarget}`} tone="ok" /> : null}
+          {!loading && hopFallback ? <StatusPill label="Local fallback" tone="warn" /> : null}
+          {!loading && hopLabOnly ? <StatusPill label="Lab HTTP hop" tone="warn" /> : null}
+          {!loading && proofKind === 'inclusion' ? <StatusPill label="Index inclusion" tone="ok" /> : null}
+          {!loading && proofKind === 'non-inclusion' ? <StatusPill label="Index non-inclusion" tone="warn" /> : null}
+          {!loading && proofNotHot ? <StatusPill label="Tree is not hot Get" tone="warn" /> : null}
         </>
       }
     >
@@ -98,12 +115,24 @@ export function HashLookupPage() {
       ) : (
         <p className="text-sm text-slate-400">Enter a 32-byte hash (0x + 64 hex) from Home search.</p>
       )}
-      {untrusted && result === null ? (
+      {loading ? (
+        <div
+          className="flex flex-col items-center justify-center gap-3 py-16"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+          aria-label="Loading hash detail"
+        >
+          <Loader2 className="h-8 w-8 animate-spin text-cyan-300" aria-hidden />
+          <p className="text-sm text-slate-400">Loading hash detail…</p>
+        </div>
+      ) : null}
+      {!loading && untrusted && result === null ? (
         <p className="text-sm text-amber-200">
           Lookup is unavailable because the last request did not complete. This is not a plane-wide not-found.
         </p>
       ) : null}
-      {notFound ? (
+      {!loading && notFound ? (
         <p className="mb-4 text-sm leading-6 text-slate-400">
           This hash is not present in this group’s committed corpus. That is a this-group{' '}
           <span className="text-white">not-found</span>, not a plane-wide null.{' '}
@@ -112,7 +141,7 @@ export function HashLookupPage() {
           typed object, not the Archive Certificate.
         </p>
       ) : null}
-      {row?.status === 'unavailable' ? (
+      {!loading && row?.status === 'unavailable' ? (
         <p className="mb-4 text-sm leading-6 text-slate-400">
           The fact-check did not complete (request, hop, or adapter). That is{' '}
           <span className="text-white">unavailable</span>, not a not-found and not a global null. A successful hit must
@@ -121,11 +150,11 @@ export function HashLookupPage() {
           production DePIN.
         </p>
       ) : null}
-      {hit && chainNftId === '' ? (
+      {!loading && hit && chainNftId === '' ? (
         <p className="mb-4 text-sm text-amber-200">Protocol error: hit is missing chainNftId.</p>
       ) : null}
-      {row ? <JsonBlock value={row} /> : null}
-      {proofRow ? (
+      {!loading && row ? <JsonBlock value={row} /> : null}
+      {!loading && proofRow ? (
         <div className="mt-6">
           <p className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-500">HashIndexTreeV1 proof</p>
           {proofRoot !== '' ? (
