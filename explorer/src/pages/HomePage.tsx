@@ -17,7 +17,6 @@ import {
   CONET_BLOCKSCOUT_TX_URL,
 } from '../config/l1Routing'
 import {
-  CONET_L1_CHAIN_ID,
   DLE_G2_GROUP_REGISTER_TX_HASH,
   DLE_LAB_CHAIN_ID_HEX,
   DLE_LAB_GROUP_ID,
@@ -39,8 +38,7 @@ import { useExplorer } from '../providers/ExplorerProvider'
 
 export function HomePage() {
   const navigate = useNavigate()
-  const { archiveUrl, setArchiveUrl, snapshot, refreshStatus, refreshNow } = useExplorer()
-  const [draftUrl, setDraftUrl] = useState(archiveUrl)
+  const { snapshot, refreshStatus, refreshNow } = useExplorer()
   const [query, setQuery] = useState('')
   const info = snapshot.info
   const tip = snapshot.tip
@@ -314,40 +312,6 @@ export function HomePage() {
           </Link>
         </div>
         <EventTable events={newestEvents} />
-      </section>
-
-      <section className="dle-glass mt-4 rounded-2xl p-4">
-        <h2 className="text-sm font-semibold text-white">
-          <label htmlFor="archive-url">Archive endpoint</label>
-        </h2>
-        <form
-          className="mt-3 flex flex-col gap-2 sm:flex-row"
-          onSubmit={(event) => {
-            event.preventDefault()
-            setArchiveUrl(draftUrl)
-          }}
-        >
-          <input
-            id="archive-url"
-            value={draftUrl}
-            onChange={(event) => setDraftUrl(event.target.value)}
-            autoComplete="off"
-            enterKeyHint="done"
-            className="dle-mono min-w-0 flex-1 rounded-xl border border-cyan-400/20 bg-[#050910] px-3 py-2 text-sm text-cyan-50 outline-none focus:border-[#00b4ff]"
-          />
-          <button type="submit" className="rounded-xl bg-[#00b4ff] px-4 py-2 text-sm font-semibold text-[#041018]">
-            Use endpoint
-          </button>
-        </form>
-      </section>
-
-      <section className="dle-glass mt-4 rounded-2xl p-4 text-sm leading-6 text-slate-400">
-        <p>
-          <span className="font-semibold text-white">Why this is not Blockscout:</span> archive nodes do not produce
-          blocks, there is no tip VM, and {CONET_L1_CHAIN_ID} is the CoNET L1 chain id — {DLE_TESTNET_CHAIN_NAME} uses{' '}
-          <span className="dle-mono text-cyan-300">{DLE_LAB_CHAIN_ID_HEX}</span>. Group ID is the L1 bootstrap
-          register transaction hash.
-        </p>
       </section>
     </MainPageShell>
   )

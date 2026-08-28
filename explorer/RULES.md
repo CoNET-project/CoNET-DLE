@@ -52,6 +52,15 @@ Home hint copy (English):
 
 Implementation: `HomePage.tsx` MetricCard `Clusters`; `useArchiveFeed.ts` + `parseClusterCount` / `parseLiveGroupIds`; default `GENESIS_CLUSTER_COUNT = 1`.
 
+### Home chrome (2026-08-28)
+
+Home **must not** render:
+
+- the **Archive endpoint** form (URL input + Use endpoint)
+- the **Why this is not Blockscout** explainer panel
+
+Public SPA uses same-origin `https://dle.conet.network`. Local default remains `http://127.0.0.1:27101` from explorer config, not a Home form. `setArchiveUrl` may stay in the feed hook for tests / stored URL; it is **not** a Home control.
+
 ## Hash lookup (2026-08-16 M7)
 
 `/hash/:hash` pills must distinguish first-class kinds. A hit on `tipStateRoot` / `membershipRoot` shows **Tip state root** / **Membership root**, not Archive Certificate.
