@@ -16,9 +16,11 @@ import {
   DEFAULT_SYNC_JOIN_EVIDENCE_DIR,
   deployArchiveRuntime,
   deployP11FullOpenJoiner,
+  deploySeoulExtraJoiners,
   liveLabHosts,
   loadLabHosts,
   loadOfficialLabInventory,
+  loadSeoulExtraHosts,
   p11JoinerPeer,
   planeDirectoryFromHosts,
   probeP11Joiner,
@@ -26,6 +28,7 @@ import {
   runScpRetry,
   runSsh,
   runSshRetry,
+  seoulExtraPeers,
   waitOfficialKeepersQualified,
   type AgentConfigExtras,
   type PilotLabHostsV1,
@@ -254,27 +257,78 @@ export async function keepUpdateG1PlaneDirectory(): Promise<{
 
 export async function p11JoinerKeepExtras(): Promise<AgentConfigExtras> {
   const extra = p11JoinerPeer()
+  const seoulJoiners = await loadSeoulExtraHosts()
+  const seoulPeers = seoulExtraPeers(seoulJoiners)
   const g1Inventory = await loadOfficialLabInventory(DEFAULT_INVENTORY_PATH)
   const g1Hosts = await loadLabHosts(DEFAULT_HOSTS_PATH)
   const g2Inventory = await loadM6Inventory()
   const g2Hosts = await loadM6Hosts()
+  let planeDirectory = appendExtraPlaneWallet(
+    mergePlaneDirectories(
+      planeDirectoryFromHosts(DLE_LAB_GROUP_ID, g1Hosts, g1Inventory),
+      planeDirectoryFromHosts(DLE_LAB_M6_GROUP_ID, g2Hosts, g2Inventory),
+    ),
+    DLE_LAB_GROUP_ID,
+    {
+      domainId: extra.domainId,
+      role: extra.role,
+      url: `http://${extra.host}:${extra.port}`,
+      labOnly: true,
+    },
+  )
+  for (const peer of seoulPeers) {
+    planeDirectory = appendExtraPlaneWallet(planeDirectory, DLE_LAB_GROUP_ID, {
+      domainId: peer.domainId,
+      role: peer.role,
+      url: `http://${peer.host}:${peer.port}`,
+      labOnly: true,
+    })
+  }
   return {
     ownGroupId: DLE_LAB_GROUP_ID,
-    extraPeers: [extra],
-    planeDirectory: appendExtraPlaneWallet(
-      mergePlaneDirectories(
-        planeDirectoryFromHosts(DLE_LAB_GROUP_ID, g1Hosts, g1Inventory),
-        planeDirectoryFromHosts(DLE_LAB_M6_GROUP_ID, g2Hosts, g2Inventory),
-      ),
-      DLE_LAB_GROUP_ID,
-      {
-        domainId: extra.domainId,
-        role: extra.role,
-        url: `http://${extra.host}:${extra.port}`,
-        labOnly: true,
-      },
-    ),
+    extraPeers: [extra, ...seoulPeers],
+    planeDirectory,
   }
+}
+
+export async function keepUpdateG1WithSeoulExtras(): Promise<{
+  ok: boolean
+  results: Array<{ domainId: string; host: string; ok: boolean; detail: string }>
+}> {
+  const seoulJoiners = await loadSeoulExtraHosts()
+  const result = await deployArchiveRuntime({
+    keepData: true,
+    extras: await p11JoinerKeepExtras(),
+  })
+  await mkdir(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, { recursive: true })
+  await writeFile(
+    join(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, 'seoul-extra-keep.json'),
+    `${JSON.stringify(
+      {
+        schema: 'DleLabSeoulExtraKeepPeersV1',
+        labOnly: true,
+        keepData: true,
+        neverWipeOfficialSeven: true,
+        extraPeers: seoulExtraPeers(seoulJoiners),
+        officialHostCount: 7,
+        results: result.results.map((row) => ({ domainId: row.domainId, ok: row.ok })),
+        ok: result.ok,
+        at: new Date().toISOString(),
+      },
+      null,
+      2,
+    )}\n`,
+  )
+  return result
+}
+
+export async function deploySeoulExtraStandbyJoiners(options?: {
+  keepData?: boolean
+}): Promise<Awaited<ReturnType<typeof deploySeoulExtraJoiners>>> {
+  return deploySeoulExtraJoiners({
+    keepData: options?.keepData === true,
+    extras: await p11JoinerKeepExtras(),
+  })
 }
 
 export async function keepUpdateG1WithP11Joiner(): Promise<{

@@ -42,6 +42,8 @@ import {
   keepUpdateG1WithP11Joiner,
   p11JoinerKeepExtras,
   runP11FullOpenFromZeroJoin,
+  keepUpdateG1WithSeoulExtras,
+  deploySeoulExtraStandbyJoiners,
 } from './m6.js'
 import type { PilotGateSnapshotV1, PilotInventoryV1 } from './model.js'
 import { runDryRunSimulation } from './simulation.js'
@@ -315,6 +317,18 @@ async function main(): Promise<void> {
       if (!result.ok) process.exitCode = 2
       return
     }
+    case 'lab-keep-seoul-extra': {
+      const result = await keepUpdateG1WithSeoulExtras()
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
+    case 'lab-deploy-seoul-extra': {
+      const result = await deploySeoulExtraStandbyJoiners()
+      process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
+      if (!result.ok) process.exitCode = 2
+      return
+    }
     case 'lab-accept-p11-join': {
       const result = await acceptP11FullOpenJoin()
       process.stdout.write(`${JSON.stringify({ command, ...result }, null, 2)}\n`)
@@ -329,7 +343,7 @@ async function main(): Promise<void> {
     }
     default:
       throw new Error(
-        'usage: cli preflight --inventory FILE | dry-run [--output DIR] | bundle --source DIR --output DIR --pilot-id ID --gate FILE [--simulation-only true] [--redaction-salt SALT] | verify --bundle DIR | lab-preflight [--inventory FILE] | lab-deploy | lab-deploy-archive | lab-deploy-archive-keep | lab-accept-archive | lab-accept-ondemand | lab-deploy-ondemand-http-clients | lab-deploy-newchain-user | lab-deploy-m6 | lab-deploy-g1-keep | lab-accept-m6 | lab-wipe-sync-join | lab-accept-sync-join | lab-smoke-cg-open | lab-smoke-rejected-safety | lab-probe-p11-joiner | lab-keep-p11-peers | lab-keep-remap-l2 | lab-keep-remap-fd06 | lab-keep-refresh-fd06-peers | lab-keep-freeze-inventory | lab-start-pilot-clock | lab-keep-p11-joiner | lab-deploy-p11-joiner | lab-accept-p11-join | lab-p11-full-open-join | lab-status | lab-warmup [--evidence DIR] | lab-inject-crash --domain ID',
+        'usage: cli preflight --inventory FILE | dry-run [--output DIR] | bundle --source DIR --output DIR --pilot-id ID --gate FILE [--simulation-only true] [--redaction-salt SALT] | verify --bundle DIR | lab-preflight [--inventory FILE] | lab-deploy | lab-deploy-archive | lab-deploy-archive-keep | lab-accept-archive | lab-accept-ondemand | lab-deploy-ondemand-http-clients | lab-deploy-newchain-user | lab-deploy-m6 | lab-deploy-g1-keep | lab-accept-m6 | lab-wipe-sync-join | lab-accept-sync-join | lab-smoke-cg-open | lab-smoke-rejected-safety | lab-probe-p11-joiner | lab-keep-p11-peers | lab-keep-remap-l2 | lab-keep-remap-fd06 | lab-keep-refresh-fd06-peers | lab-keep-freeze-inventory | lab-start-pilot-clock | lab-keep-p11-joiner | lab-deploy-p11-joiner | lab-keep-seoul-extra | lab-deploy-seoul-extra | lab-accept-p11-join | lab-p11-full-open-join | lab-status | lab-warmup [--evidence DIR] | lab-inject-crash --domain ID',
       )
   }
 }

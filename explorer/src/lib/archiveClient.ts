@@ -25,7 +25,7 @@ import { parseArchiveSyncPhase } from './archiveSeating'
 import { sortEventsNewestFirst } from './events'
 import { isRecord, parseJsonRpcResponse } from './jsonrpc'
 
-const FETCH_MS = 8_000
+const FETCH_MS = 12_000
 let rpcId = 1
 
 function endpoint(archiveUrl: string): string {

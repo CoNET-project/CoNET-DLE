@@ -262,6 +262,17 @@ Combined: `npm run lab:p11-full-open-join`. Evidence: `pilot/evidence/conet-dle-
 
 **P11 landed 2026-08-17T07:52:17.884Z:** extra joiner `QUALIFIED`; official seven + `fd-05` stayed `QUALIFIED` (never wiped); `membershipRoot` still `0xdeb200a9…e22241` (five seeded actives); joiner `/sync/opening` unique hosted **2249 === opened 2249**, `sampleCount=2250`, `policy=all-hosted`; accept `waitedMs=333122` (~5.6 min); joiner leaf **5673**, official leaf **5674**. Completing P11 **MUST NOT** start `pilotStartedAt`. P11 itself was still HMAC openings. Seating **votes** cut over in **P12**.
 
+### Seoul extra standbys (listed only, 2026-08-21)
+
+Extra Archive hosts outside official G1 / G2 Mode A:
+
+| domainId | public IP | hosts file |
+|---|---|---|
+| `fd-09-seoul-85-155-176-217` | `85.155.176.217` | `pilot/lab/hosts-seoul-extra.json` |
+| `fd-10-seoul-85-155-176-5` | `85.155.176.5` | same |
+
+Deploy: `npm run lab:deploy-seoul-extra` (empty datadir wipe on **only** those two hosts). Refresh G1 `extraPeers` without wipe: `npm run lab:keep-seoul-extra`. **Never** count toward Home Archives (always 7). **Never** add to Explorer nginx Mode A unless product expands the official roster. Explorer `/archives` lists them under Extra with public IP.
+
 ### P12 seating EIP-712 (lab votes)
 
 **Status (2026-08-17):** **P12 landed (engine + unit tests).** `POST /sync/vote` / `POST /sync/reject` accept only EIP-712 `ArchiveSyncQualificationCertificate`. HMAC seating votes return `ERR_SYNC_HMAC_CUTOVER`. Domain `CoNET-DLE-Archive`, version `1`, `chainId` 224422, `verifyingContract` = deployed `ArchiveCertificateVerifierV1` proxy `0xdA06E6d06eB2816795102B18171a079E3bEA948f` (bind only; **no** L1 call, **no** verifier upgrade, **no** MembershipCheckpoint settle). Typed data does **not** include `domainId`; identity is `recoverAddress` + envelope `domainId`.

@@ -360,6 +360,8 @@ export const P11_JOINER_DOMAIN_ID = 'fd-08-hosthatch-hk1'
 export const P11_JOINER_SSH_HOST = '167.104.98.104'
 export const P11_JOINER_ROLE = 'standby' as const
 export const DEFAULT_P11_JOINER_HOSTS_PATH = resolve(here, '../../lab/hosts-p11-joiner.json')
+export const DEFAULT_SEOUL_EXTRA_HOSTS_PATH = resolve(here, '../../lab/hosts-seoul-extra.json')
+export const SEOUL_EXTRA_JOINER_ROLE = 'standby' as const
 
 export function pickRandomWipeJoiners(options?: {
   count?: number
@@ -695,6 +697,75 @@ export function assertP11JoinerOutsideOfficial(
   if (hosts.hosts.length !== 7 || inventory.domains.length !== 7) {
     throw new Error('official G1 roster must stay exactly 7')
   }
+}
+
+export async function loadSeoulExtraHosts(
+  path = DEFAULT_SEOUL_EXTRA_HOSTS_PATH,
+): Promise<PilotLabHostV1[]> {
+  const file = JSON.parse(await readFile(path, 'utf8')) as {
+    schema?: string
+    joiners?: PilotLabHostV1[]
+  }
+  if (file.schema !== 'PilotLabExtraJoinersV1' || !Array.isArray(file.joiners) || file.joiners.length === 0) {
+    throw new Error('seoul extra joiners schema is invalid')
+  }
+  return file.joiners
+}
+
+export function assertExtraJoinerOutsideOfficial(
+  inventory: PilotInventoryV1,
+  hosts: PilotLabHostsV1,
+  joiner: PilotLabHostV1,
+): void {
+  if (inventory.domains.some((domain) => domain.domainId === joiner.domainId)) {
+    throw new Error(`extra joiner ${joiner.domainId} must not be in official inventory`)
+  }
+  if (hosts.hosts.some((host) => host.domainId === joiner.domainId || host.sshHost === joiner.sshHost)) {
+    throw new Error(`extra joiner ${joiner.domainId} must not be in official hosts.json`)
+  }
+  if (hosts.hosts.length !== 7 || inventory.domains.length !== 7) {
+    throw new Error('official G1 roster must stay exactly 7')
+  }
+}
+
+export function seoulExtraPeers(joiners: PilotLabHostV1[]): LabPeerSpec[] {
+  return joiners.map((joiner) => ({
+    domainId: joiner.domainId,
+    host: joiner.sshHost,
+    port: LAB_PORT,
+    role: SEOUL_EXTRA_JOINER_ROLE,
+  }))
+}
+
+export function agentConfigForExtraJoiner(
+  inventory: PilotInventoryV1,
+  hosts: PilotLabHostsV1,
+  joiner: PilotLabHostV1,
+  extras?: AgentConfigExtras,
+): Record<string, unknown> {
+  assertExtraJoinerOutsideOfficial(inventory, hosts, joiner)
+  const officialPeers = liveLabHosts(hosts).map((item) => {
+    const peerDomain = inventory.domains.find((row) => row.domainId === item.domainId)
+    return {
+      domainId: item.domainId,
+      host: item.sshHost,
+      port: hosts.labPort,
+      role: peerDomain?.role ?? 'standby',
+    }
+  })
+  const config: Record<string, unknown> = {
+    schema: 'DleLabAgentConfigV1',
+    agent: 'dle-30d-lab',
+    domainId: joiner.domainId,
+    role: SEOUL_EXTRA_JOINER_ROLE,
+    port: hosts.labPort,
+    isolatedFromElCl: true,
+    doNotStartValidator: true,
+    protectedProcessNames: hosts.protectedProcessNames,
+    peers: mergeAgentPeers(officialPeers, extras?.extraPeers, joiner.domainId),
+  }
+  applyAgentConfigExtras(config, extras)
+  return config
 }
 
 function mergeAgentPeers(
@@ -2844,6 +2915,155 @@ export async function deployP11FullOpenJoiner(options?: {
     )
   }
   return { ok, joiner, reachableFromKeeper, results }
+}
+
+export async function deploySeoulExtraJoiners(options?: {
+  extras?: AgentConfigExtras
+  archiveDistDir?: string
+  daemonProbePath?: string
+  keepData?: boolean
+  writeEvidence?: boolean
+  skipStop?: boolean
+}): Promise<{
+  ok: boolean
+  joiners: PilotLabHostV1[]
+  reachableFromKeeper: boolean
+  results: Array<{ domainId: string; host: string; ok: boolean; detail: string }>
+}> {
+  const inventory = await loadOfficialLabInventory()
+  const hosts = await loadLabHosts()
+  const joiners = await loadSeoulExtraHosts()
+  for (const joiner of joiners) {
+    assertExtraJoinerOutsideOfficial(inventory, hosts, joiner)
+  }
+  const archiveDistDir = options?.archiveDistDir ?? DEFAULT_ARCHIVE_DIST_DIR
+  const daemonProbePath = options?.daemonProbePath ?? DEFAULT_DAEMON_PROBE_PATH
+  const bundlePath = '/tmp/dle-archive-runtime.tgz'
+  await runLocal('tar', ['-czf', bundlePath, '--exclude', '._*', '-C', archiveDistDir, '.'], {
+    env: { ...process.env, COPYFILE_DISABLE: '1' },
+  })
+  const results: Array<{ domainId: string; host: string; ok: boolean; detail: string }> = []
+  const mutualSeoulPeers = seoulExtraPeers(joiners)
+  const baseExtras: AgentConfigExtras = {
+    ...(options?.extras ?? {}),
+    extraPeers: mergeAgentPeers(options?.extras?.extraPeers ?? [], mutualSeoulPeers, ''),
+  }
+  for (const joiner of joiners) {
+    const ensure = await runSshRetry(joiner.sshHost, ENSURE_NODE)
+    if (ensure.code !== 0) {
+      results.push({
+        domainId: joiner.domainId,
+        host: joiner.sshHost,
+        ok: false,
+        detail: ensure.stderr || ensure.stdout || `ssh exit ${ensure.code}`,
+      })
+      continue
+    }
+    const config = agentConfigForExtraJoiner(inventory, hosts, joiner, {
+      ...baseExtras,
+      extraPeers: mergeAgentPeers(baseExtras.extraPeers ?? [], [p11JoinerPeer()], joiner.domainId),
+    })
+    const tmpConfig = `/tmp/dle-lab-${joiner.domainId}.json`
+    await writeFile(tmpConfig, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
+    try {
+      await runSshRetry(
+        joiner.sshHost,
+        `mkdir -p '${LAB_DIR}/app' '${LAB_DIR}/data' '${LAB_DIR}/daemon' '${LAB_DIR}/wal'`,
+      )
+      await runScpRetry(bundlePath, joiner.sshHost, '/tmp/dle-archive-runtime.tgz')
+      await runScpRetry(tmpConfig, joiner.sshHost, `${LAB_DIR}/config.json`)
+      await runScpRetry(daemonProbePath, joiner.sshHost, REMOTE_DAEMON_PROBE)
+      const unpacked = await runSshRetry(
+        joiner.sshHost,
+        `rm -rf '${LAB_DIR}/app' && mkdir -p '${LAB_DIR}/app' && tar -xzf /tmp/dle-archive-runtime.tgz -C '${LAB_DIR}/app'`,
+      )
+      if (unpacked.code !== 0) {
+        results.push({
+          domainId: joiner.domainId,
+          host: joiner.sshHost,
+          ok: false,
+          detail: unpacked.stderr || unpacked.stdout,
+        })
+        continue
+      }
+      let stoppedOut = 'skip-stop'
+      if (options?.skipStop !== true) {
+        const stopped = await runSshRetry(joiner.sshHost, STOP_LAB_ONLY)
+        if (stopped.code !== 0) {
+          results.push({
+            domainId: joiner.domainId,
+            host: joiner.sshHost,
+            ok: false,
+            detail: stopped.stderr || stopped.stdout || 'refused to stop protected process',
+          })
+          continue
+        }
+        stoppedOut = stopped.stdout.trim()
+      }
+      const started = await runSshRetry(
+        joiner.sshHost,
+        options?.keepData === true ? START_ARCHIVE_KEEP_ALL : START_ARCHIVE,
+      )
+      const healthOk = started.stdout.includes('LIVE_OK') || started.stdout.includes('"command":"archive"')
+      results.push({
+        domainId: joiner.domainId,
+        host: joiner.sshHost,
+        ok: started.code === 0 && healthOk,
+        detail: `${stoppedOut}\n${started.stdout.trim() || started.stderr.trim()}`.trim(),
+      })
+    } catch (error) {
+      results.push({
+        domainId: joiner.domainId,
+        host: joiner.sshHost,
+        ok: false,
+        detail: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+  const keeper = liveLabHosts(hosts).find((host) =>
+    (G1_SYNC_JOIN_KEEPER_DOMAIN_IDS as readonly string[]).includes(host.domainId),
+  )
+  let reachableFromKeeper = false
+  if (keeper && results.length > 0 && results.every((row) => row.ok)) {
+    reachableFromKeeper = true
+    for (const joiner of joiners) {
+      const reach = await runSshRetry(
+        keeper.sshHost,
+        `curl -fsS --max-time 8 http://${joiner.sshHost}:${LAB_PORT}/liveness 2>/dev/null || echo REACH=down`,
+      )
+      if (!(reach.code === 0 && reach.stdout.includes('"ok":true'))) {
+        reachableFromKeeper = false
+        break
+      }
+    }
+  }
+  const ok = results.length === joiners.length && results.every((row) => row.ok) && reachableFromKeeper
+  if (options?.writeEvidence !== false) {
+    await mkdir(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, { recursive: true })
+    await writeFile(
+      join(DEFAULT_SYNC_JOIN_EVIDENCE_DIR, 'seoul-extra-deploy.json'),
+      `${JSON.stringify(
+        {
+          schema: 'DleLabSeoulExtraJoinerDeployV1',
+          labOnly: true,
+          notOfficialFivePlusTwo: true,
+          neverWipeOfficialSeven: true,
+          keepData: options?.keepData === true,
+          wipedOnly: options?.keepData === true ? [] : joiners.map((row) => row.domainId),
+          dataDir: `${LAB_DIR}/data`,
+          neverGethBeacon: true,
+          reachableFromKeeper,
+          joiners,
+          results: results.map((row) => ({ domainId: row.domainId, host: row.host, ok: row.ok })),
+          ok,
+          at: new Date().toISOString(),
+        },
+        null,
+        2,
+      )}\n`,
+    )
+  }
+  return { ok, joiners, reachableFromKeeper, results }
 }
 
 export async function acceptP11FullOpenJoin(): Promise<{

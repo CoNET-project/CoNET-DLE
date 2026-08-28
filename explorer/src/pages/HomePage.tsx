@@ -44,14 +44,16 @@ export function HomePage() {
   const [query, setQuery] = useState('')
   const info = snapshot.info
   const tip = snapshot.tip
-  const active = snapshot.archives.filter((row) => row.role === 'active').length
-  const standby = snapshot.archives.filter((row) => row.role === 'standby').length
-  const liveCount = snapshot.archives.filter((row) => row.health === 'live').length
-  const seatedCount = snapshot.archives.filter((row) => row.seatingQualified === true).length
+  // Home Archives = official G1 voting seats only (never inflate with G2 / extras).
+  const votingArchives = snapshot.archives.filter((row) => row.officialVoting === true)
+  const active = votingArchives.filter((row) => row.role === 'active').length
+  const standby = votingArchives.filter((row) => row.role === 'standby').length
+  const liveCount = votingArchives.filter((row) => row.health === 'live').length
+  const seatedCount = votingArchives.filter((row) => row.seatingQualified === true).length
   const newestEvents = sortEventsNewestFirst(snapshot.events).slice(0, 8)
   const quorumOk = snapshot.health && snapshot.health.lastQuorumOk === true
-  const archiveShare = snapshot.archives.length > 0 ? (liveCount / snapshot.archives.length) * 100 : 0
-  const seatingShare = snapshot.archives.length > 0 ? (seatedCount / snapshot.archives.length) * 100 : 0
+  const archiveShare = votingArchives.length > 0 ? (liveCount / votingArchives.length) * 100 : 0
+  const seatingShare = votingArchives.length > 0 ? (seatedCount / votingArchives.length) * 100 : 0
   const pool = snapshot.waitingPool
   const selection = snapshot.selection
   const selectionReady = selection?.available === true
@@ -126,6 +128,12 @@ export function HomePage() {
         >
           Mock auction (local)
         </Link>
+        <Link
+          to="/lab-newchain"
+          className="inline-flex items-center rounded-full border border-cyan-300/35 bg-cyan-300/10 px-2.5 py-0.5 text-xs font-semibold text-cyan-100"
+        >
+          Lab new-chain (Web3)
+        </Link>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -191,7 +199,7 @@ export function HomePage() {
         />
         <MetricCard
           label="Archives"
-          value={`${formatInteger(snapshot.archives.length)} · 5+2`}
+          value={`${formatInteger(votingArchives.length)} · 5+2`}
           hint={`${formatInteger(active)} active / ${formatInteger(standby)} standby · ${formatInteger(liveCount)} live from this endpoint`}
         />
         <MetricCard
@@ -255,7 +263,7 @@ export function HomePage() {
         <section className="dle-glass rounded-2xl p-4">
           <h2 className="text-sm font-semibold text-white">DLE cluster status</h2>
           <p className="mt-1 text-xs text-slate-400">
-            {formatInteger(liveCount)} live of {formatInteger(snapshot.archives.length)} rostered archives
+            {formatInteger(liveCount)} live of {formatInteger(votingArchives.length)} official voting archives
             {' · '}
             {formatInteger(seatedCount)} lab-seated (P12 EIP-712; not 30-day)
           </p>

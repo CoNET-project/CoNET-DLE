@@ -1,0 +1,24 @@
+{
+  "schema": "PilotLabExtraJoinersV1",
+  "pilotId": "conet-dle-30d-lab-2026-08",
+  "notOfficialFivePlusTwo": true,
+  "role": "standby",
+  "joiners": [
+    {
+      "domainId": "fd-09-seoul-85-155-176-217",
+      "sshHost": "85.155.176.217",
+      "class": "greenfield-lab",
+      "leftoverElCl": false,
+      "doNotStartValidator": true,
+      "notes": "Seoul extra standby. Empty datadir only. Never official 5+2 / G2. Never wipe fd-01..08. Listed on /archives only."
+    },
+    {
+      "domainId": "fd-10-seoul-85-155-176-5",
+      "sshHost": "85.155.176.5",
+      "class": "greenfield-lab",
+      "leftoverElCl": false,
+      "doNotStartValidator": true,
+      "notes": "Seoul1 extra standby. Empty datadir only. Never official 5+2 / G2. Never wipe fd-01..08. Listed on /archives only."
+    }
+  ]
+}

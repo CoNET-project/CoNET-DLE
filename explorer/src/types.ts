@@ -122,12 +122,24 @@ export type ArchiveSyncPhase =
   | 'QUALIFIED'
   | 'REJECTED'
 
+/** Lab roster group. Home Archives voting seats = `g1` only (`officialVoting`). */
+export type LabArchiveGroup = 'g1' | 'g2' | 'extra'
+
 export interface LabArchiveRow {
   domainId: string
   operatorDomainId: string
   hostId: string
   provider: string
   region: string
+  /** Public SSH / archive listen IP (TCP 27101). Always shown on /archives. */
+  publicIp: string
+  /** Which lab group this node belongs to. */
+  labGroup: LabArchiveGroup
+  /**
+   * When true, counts toward Home Archives (official G1 5+2).
+   * G2 / P11 / Seoul extras are listed on /archives but do not inflate Home.
+   */
+  officialVoting: boolean
   role: ArchiveRole
   health: 'live' | 'unknown' | 'unreachable'
   lastQuorumOk: boolean | null

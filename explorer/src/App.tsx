@@ -7,6 +7,7 @@ import { EventDetailPage } from './pages/EventDetailPage'
 import { EventsPage } from './pages/EventsPage'
 import { HashLookupPage } from './pages/HashLookupPage'
 import { HomePage } from './pages/HomePage'
+import { LabNewchainPage } from './pages/LabNewchainPage'
 import { MockAuctionPage } from './pages/MockAuctionPage'
 import { RpcPage } from './pages/RpcPage'
 import { ExplorerChromeProvider, useExplorerChrome } from './providers/ExplorerChrome'
@@ -27,6 +28,7 @@ function Shell() {
         <Route path="/hash/:hash" element={<HashLookupPage />} />
         <Route path="/rpc" element={<RpcPage />} />
         <Route path="/mock-auction" element={<MockAuctionPage />} />
+        <Route path="/lab-newchain" element={<LabNewchainPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       </div>

@@ -1,0 +1,53 @@
+{
+  "schema": "DleLabSeoulExtraKeepPeersV1",
+  "labOnly": true,
+  "keepData": true,
+  "neverWipeOfficialSeven": true,
+  "extraPeers": [
+    {
+      "domainId": "fd-09-seoul-85-155-176-217",
+      "host": "85.155.176.217",
+      "port": 27101,
+      "role": "standby"
+    },
+    {
+      "domainId": "fd-10-seoul-85-155-176-5",
+      "host": "85.155.176.5",
+      "port": 27101,
+      "role": "standby"
+    }
+  ],
+  "officialHostCount": 7,
+  "results": [
+    {
+      "domainId": "fd-01-ionos-45",
+      "ok": true
+    },
+    {
+      "domainId": "fd-02-ionos-189",
+      "ok": true
+    },
+    {
+      "domainId": "fd-03-ionos-98",
+      "ok": true
+    },
+    {
+      "domainId": "fd-04-hosthatch-tokyo1",
+      "ok": true
+    },
+    {
+      "domainId": "fd-05-hosthatch-tokyo2",
+      "ok": true
+    },
+    {
+      "domainId": "fd-06-ionos-174",
+      "ok": true
+    },
+    {
+      "domainId": "fd-07-ionos-207",
+      "ok": true
+    }
+  ],
+  "ok": true,
+  "at": "2026-08-21T23:59:01.408Z"
+}

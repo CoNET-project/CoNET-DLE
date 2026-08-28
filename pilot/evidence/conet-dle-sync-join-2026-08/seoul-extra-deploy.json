@@ -1,0 +1,46 @@
+{
+  "schema": "DleLabSeoulExtraJoinerDeployV1",
+  "labOnly": true,
+  "notOfficialFivePlusTwo": true,
+  "neverWipeOfficialSeven": true,
+  "keepData": false,
+  "wipedOnly": [
+    "fd-09-seoul-85-155-176-217",
+    "fd-10-seoul-85-155-176-5"
+  ],
+  "dataDir": "/home/peter/dle-30d-lab/data",
+  "neverGethBeacon": true,
+  "reachableFromKeeper": true,
+  "joiners": [
+    {
+      "domainId": "fd-09-seoul-85-155-176-217",
+      "sshHost": "85.155.176.217",
+      "class": "greenfield-lab",
+      "leftoverElCl": false,
+      "doNotStartValidator": true,
+      "notes": "Seoul extra standby. Empty datadir only. Never official 5+2 / G2. Never wipe fd-01..08. Listed on /archives only."
+    },
+    {
+      "domainId": "fd-10-seoul-85-155-176-5",
+      "sshHost": "85.155.176.5",
+      "class": "greenfield-lab",
+      "leftoverElCl": false,
+      "doNotStartValidator": true,
+      "notes": "Seoul1 extra standby. Empty datadir only. Never official 5+2 / G2. Never wipe fd-01..08. Listed on /archives only."
+    }
+  ],
+  "results": [
+    {
+      "domainId": "fd-09-seoul-85-155-176-217",
+      "host": "85.155.176.217",
+      "ok": true
+    },
+    {
+      "domainId": "fd-10-seoul-85-155-176-5",
+      "host": "85.155.176.5",
+      "ok": true
+    }
+  ],
+  "ok": true,
+  "at": "2026-08-21T23:55:09.840Z"
+}

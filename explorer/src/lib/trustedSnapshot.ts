@@ -27,22 +27,31 @@ function isParticipantWallet(value: unknown): value is string {
 }
 
 function hydrateArchiveWallets(rows: unknown): LabArchiveRow[] {
-  if (!Array.isArray(rows)) return LAB_ARCHIVE_FIXTURES
-  const fixtureWallet = new Map(LAB_ARCHIVE_FIXTURES.map((row) => [row.domainId, row.participantWallet]))
-  return rows.map((row) => {
-    if (!isRecord(row) || typeof row.domainId !== 'string') return null
-    const fixture = LAB_ARCHIVE_FIXTURES.find((item) => item.domainId === row.domainId)
-    const cachedWallet = isParticipantWallet(row.participantWallet) ? row.participantWallet : ''
-    const wallet = cachedWallet || fixtureWallet.get(row.domainId) || ''
+  const cachedById = new Map<string, Record<string, unknown>>()
+  if (Array.isArray(rows)) {
+    for (const row of rows) {
+      if (!isRecord(row) || typeof row.domainId !== 'string') continue
+      cachedById.set(row.domainId, row)
+    }
+  }
+  // Always start from the full fixture roster (G1+G2+extras) so a stale localStorage
+  // snapshot that only had the old 7 G1 rows cannot hide later groups.
+  return LAB_ARCHIVE_FIXTURES.map((fixture) => {
+    const cached = cachedById.get(fixture.domainId)
+    if (!cached) return { ...fixture }
+    const cachedWallet = isParticipantWallet(cached.participantWallet) ? cached.participantWallet : ''
     return {
-      ...(fixture ?? LAB_ARCHIVE_FIXTURES[0]),
-      ...row,
-      domainId: row.domainId,
-      participantWallet: wallet,
-      syncPhase: parseArchiveSyncPhase(row.syncPhase) ?? fixture?.syncPhase ?? null,
-      seatingQualified: row.seatingQualified === true,
+      ...fixture,
+      ...cached,
+      domainId: fixture.domainId,
+      publicIp: fixture.publicIp,
+      labGroup: fixture.labGroup,
+      officialVoting: fixture.officialVoting,
+      participantWallet: cachedWallet || fixture.participantWallet,
+      syncPhase: parseArchiveSyncPhase(cached.syncPhase) ?? fixture.syncPhase,
+      seatingQualified: cached.seatingQualified === true,
     } as LabArchiveRow
-  }).filter((row): row is LabArchiveRow => row !== null)
+  })
 }
 
 export function defaultSnapshot(archiveUrl: string): TrustedExplorerSnapshot {
