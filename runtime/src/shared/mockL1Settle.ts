@@ -131,7 +131,7 @@ export async function listMockL1Auction(input: MockL1ListInput): Promise<MockL1T
     const nft = new Contract(subjectNft, ERC721_ABI, seller)
     const settlementC = new Contract(settlement, SETTLEMENT_ABI, seller)
 
-    const owner = String(await nft.ownerOf(tokenId)).toLowerCase()
+    const owner = String(await nft.ownerOf!(tokenId)).toLowerCase()
     if (owner === settlement.toLowerCase()) {
       // Already escrowed for a prior list — treat as success (idempotent demo path).
       return { ok: true, txHash: '0x' + '0'.repeat(64) as Hex, mockL1Only: true }
@@ -140,14 +140,14 @@ export async function listMockL1Auction(input: MockL1ListInput): Promise<MockL1T
       return { ok: false, reason: 'seller does not own subject NFT', mockL1Only: true }
     }
 
-    const approved = String(await nft.getApproved(tokenId)).toLowerCase()
-    const approvedAll = Boolean(await nft.isApprovedForAll(seller.address, settlement))
+    const approved = String(await nft.getApproved!(tokenId)).toLowerCase()
+    const approvedAll = Boolean(await nft.isApprovedForAll!(seller.address, settlement))
     if (approved !== settlement.toLowerCase() && !approvedAll) {
-      const approveTx = await nft.approve(settlement, tokenId)
+      const approveTx = await nft.approve!(settlement, tokenId)
       await approveTx.wait()
     }
 
-    const tx = await settlementC.list(orderHash, subjectNft, tokenId, quoteAsset, ask, deadline)
+    const tx = await settlementC.list!(orderHash, subjectNft, tokenId, quoteAsset, ask, deadline)
     const receipt = await tx.wait()
     const txHash = String(receipt?.hash ?? tx.hash) as Hex
     return { ok: true, txHash, mockL1Only: true }
@@ -176,7 +176,7 @@ export async function unlistMockL1Auction(input: MockL1UnlistInput): Promise<Moc
   try {
     const seller = new Wallet(input.sellerPrivateKey, provider)
     const settlementC = new Contract(settlement, SETTLEMENT_ABI, seller)
-    const row = await settlementC.listings(orderHash)
+    const row = await settlementC.listings!(orderHash)
     const listingSeller = String(row.seller ?? row[0] ?? '')
     if (!listingSeller || listingSeller === '0x0000000000000000000000000000000000000000') {
       return { ok: false, reason: 'listing missing — nothing to unlist', mockL1Only: true }
@@ -187,7 +187,7 @@ export async function unlistMockL1Auction(input: MockL1UnlistInput): Promise<Moc
     if (Boolean(row.settled ?? row[6])) {
       return { ok: false, reason: 'listing already settled — cannot unlist', mockL1Only: true }
     }
-    const tx = await settlementC.unlist(orderHash)
+    const tx = await settlementC.unlist!(orderHash)
     const receipt = await tx.wait()
     const txHash = String(receipt?.hash ?? tx.hash) as Hex
     return { ok: true, txHash, mockL1Only: true }
@@ -219,11 +219,11 @@ export async function approveMockL1AuctionQuote(input: MockL1ApproveInput): Prom
   try {
     const buyer = new Wallet(input.buyerPrivateKey, provider)
     const quote = new Contract(quoteAsset, ERC20_ABI, buyer)
-    const current = BigInt(await quote.allowance(buyer.address, settlement))
+    const current = BigInt(await quote.allowance!(buyer.address, settlement))
     if (current >= amount) {
       return { ok: true, txHash: ('0x' + '0'.repeat(64)) as Hex, mockL1Only: true }
     }
-    const tx = await quote.approve(settlement, amount)
+    const tx = await quote.approve!(settlement, amount)
     const receipt = await tx.wait()
     const txHash = String(receipt?.hash ?? tx.hash) as Hex
     return { ok: true, txHash, mockL1Only: true }
@@ -260,7 +260,7 @@ export async function preflightMockL1AuctionSettle(
   try {
     const settlementC = new Contract(settlement, SETTLEMENT_ABI, provider)
     const quote = new Contract(quoteAsset, ERC20_ABI, provider)
-    const row = await settlementC.listings(sellerOrderHash)
+    const row = await settlementC.listings!(sellerOrderHash)
     const listingSeller = String(row.seller ?? row[0] ?? '')
     const askAmount = BigInt(row.askAmount ?? row[4] ?? 0)
     const deadline = BigInt(row.deadline ?? row[5] ?? 0)
@@ -282,7 +282,7 @@ export async function preflightMockL1AuctionSettle(
         mockL1Only: true,
       }
     }
-    const allowance = BigInt(await quote.allowance(buyer, settlement))
+    const allowance = BigInt(await quote.allowance!(buyer, settlement))
     if (allowance < clearingAmount) {
       return {
         ok: false,
@@ -334,7 +334,7 @@ export async function settleMockL1Auction(input: MockL1SettleInput): Promise<Moc
   try {
     const authority = new Wallet(input.authorityPrivateKey, provider)
     const settlementC = new Contract(settlement, SETTLEMENT_ABI, authority)
-    const tx = await settlementC.settle(
+    const tx = await settlementC.settle!(
       certificateHash,
       sellerOrderHash,
       buyer,
@@ -354,9 +354,9 @@ export async function settleMockL1Auction(input: MockL1SettleInput): Promise<Moc
 }
 
 export function mockL1SettleEnv(): {
-  rpcUrl?: string
-  settlement?: Hex
-  authorityPrivateKey?: string
+  rpcUrl?: string | undefined
+  settlement?: Hex | undefined
+  authorityPrivateKey?: string | undefined
   settleOnChain: boolean
 } {
   const rpcUrl = process.env.MOCK_L1_RPC_URL?.trim()

@@ -1,4 +1,5 @@
 import { isHashObjectKind, sameGroupId, type HashLocatorV1 } from '../../shared/hashLookup.js'
+import { keccak256Utf8 } from '../../shared/bytes.js'
 import type { LabRouteTable } from '../../shared/labRoute.js'
 import { isFreezerSlot, projectHashObject } from '../hashStore.js'
 import type { ArchiveStore } from '../store.js'
@@ -56,6 +57,7 @@ import {
   SYNC_QUORUM,
   SYNC_STATUS_TIMEOUT_MS,
   SYNC_TICK_MS,
+  canonicalStandbyDomainId,
   isOfficialStandbyRole,
   type ArchiveStandbyReadinessEnvelope,
   type ArchiveStateChallengeV1,
@@ -177,6 +179,20 @@ export function createSyncQualificationEngine(options: SyncEngineOptions): SyncQ
   let voteCursor = 0
   let lastQualifiedCatchUpAt = 0
   let standbyReady: Record<string, ArchiveStandbyReadinessEnvelope> = {}
+  const canonicalRoster = [
+    { domainId: options.domainId, role: options.role },
+    ...options.peers.map((peer) => ({ domainId: peer.domainId, role: peer.role })),
+  ]
+    .sort((a, b) => a.domainId.localeCompare(b.domainId))
+    .filter((row, index, rows) => index === 0 || rows[index - 1]?.domainId !== row.domainId)
+  const rosterHash = keccak256Utf8(JSON.stringify(canonicalRoster))
+  const officialRosterHash = keccak256Utf8(
+    JSON.stringify(
+      canonicalRoster
+        .filter((row) => canonicalStandbyDomainId(row.domainId) !== null || row.role === 'active')
+        .map((row) => ({ domainId: row.domainId, role: row.role })),
+    ),
+  )
 
   const persisted = options.store.loadSyncQualificationState() as PersistedSync | null
   if (persisted?.schema === 'DleLabSyncQualificationStateV1') {
@@ -471,16 +487,28 @@ export function createSyncQualificationEngine(options: SyncEngineOptions): SyncQ
 
   function officialStandbyReadyCount(): number {
     const inventory = inventoryNow()
-    let count = 0
+    const readySeats = new Set<string>()
     for (const [domainId, envelope] of Object.entries(standbyReady)) {
       if (!isOfficialStandbyRole(domainId, peerRole(domainId))) continue
       if (isHmacStandbyReady(envelope)) continue
       if (!verifyEip712StandbyReady(envelope).ok) continue
       if (envelope.ready !== true) continue
       if (!standbyRootsMatch(envelope, inventory)) continue
-      count += 1
+      const seat = canonicalStandbyDomainId(domainId)
+      if (seat !== null) readySeats.add(seat)
     }
-    return count
+    return Math.min(OFFICIAL_STANDBY_COUNT, readySeats.size)
+  }
+
+  function classificationDrift(): boolean {
+    const observed = new Set(rosterRows.map((row) => row.domainId))
+    return [...observed].some(
+      (domainId) =>
+        canonicalStandbyDomainId(domainId) === null &&
+        domainId.toLowerCase().startsWith('fd-') &&
+        domainId !== options.domainId &&
+        options.peers.every((peer) => peer.domainId !== domainId),
+    )
   }
 
   function officialStandbysReady(): boolean {
@@ -891,6 +919,13 @@ export function createSyncQualificationEngine(options: SyncEngineOptions): SyncQ
         rejectReason,
         certificate,
         pendingChallenge,
+        rosterHash,
+        rosterFrozen: false,
+        classificationDrift: classificationDrift(),
+        heartbeatQuorumOk: false,
+        inventoryFreezeOk: !inventoryShouldFreeze(),
+        pilotQualificationGatePassed: false,
+        productionReadiness: false,
       }
     },
     inventory: inventoryNow,
@@ -973,8 +1008,19 @@ export function createSyncQualificationEngine(options: SyncEngineOptions): SyncQ
           nonce,
           holdClaimed,
           rejectReason,
+          rosterHash,
+          rosterFrozen: false,
+          classificationDrift: classificationDrift(),
+          heartbeatQuorumOk: false,
+          inventoryFreezeOk: !inventoryShouldFreeze(),
+          pilotQualificationGatePassed: false,
+          productionReadiness: false,
         },
         syncRoster: rosterRows,
+        rosterHash,
+        officialRosterHash,
+        rosterFrozen: true,
+        classificationDrift: classificationDrift(),
       }
     },
     handleChallenge(body) {

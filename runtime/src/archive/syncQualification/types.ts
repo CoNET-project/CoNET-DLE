@@ -19,9 +19,18 @@ export const ERR_SYNC_CHALLENGE_HMAC_CUTOVER = 'ERR_SYNC_CHALLENGE_HMAC_CUTOVER'
 export const ERR_SYNC_CHALLENGE_SIG = 'ERR_SYNC_CHALLENGE_SIG'
 export const ERR_SYNC_CHALLENGE_SAMPLES = 'ERR_SYNC_CHALLENGE_SAMPLES'
 
-/** Official G1 standbys that count toward readiness (not extra `fd-08`). */
+/** Official G1 standby seats. Extra standby domains must never count. */
 export const OFFICIAL_STANDBY_COUNT = 2
 export const EXTRA_STANDBY_DOMAIN_ID = 'fd-08-hosthatch-hk1'
+export const OFFICIAL_STANDBY_DOMAIN_IDS = ['fd-06', 'fd-07'] as const
+
+/** Collapse deployment aliases to the two canonical standby seats. */
+export function canonicalStandbyDomainId(domainId: string): string | null {
+  const normalized = domainId.toLowerCase()
+  if (normalized === OFFICIAL_STANDBY_DOMAIN_IDS[0]) return OFFICIAL_STANDBY_DOMAIN_IDS[0]
+  if (normalized === OFFICIAL_STANDBY_DOMAIN_IDS[1]) return OFFICIAL_STANDBY_DOMAIN_IDS[1]
+  return null
+}
 
 export const ERR_SYNC_STANDBY = 'ERR_SYNC_STANDBY'
 export const ERR_SYNC_STANDBY_HMAC_CUTOVER = 'ERR_SYNC_STANDBY_HMAC_CUTOVER'
@@ -35,7 +44,7 @@ export function isExtraStandby(domainId: string): boolean {
 }
 
 export function isOfficialStandbyRole(domainId: string, role: string): boolean {
-  return role === 'standby' && !isExtraStandby(domainId)
+  return role === 'standby' && canonicalStandbyDomainId(domainId) !== null
 }
 
 export type SyncPhase =
@@ -259,7 +268,6 @@ export interface SyncStatusV1 {
   domainId: string
   role: string
   phase: SyncPhase
-  seatingQualified: boolean
   groupId: string
   hostedChainSetRoot: Hex
   lastACRef: Hex
@@ -275,6 +283,17 @@ export interface SyncStatusV1 {
   officialStandbyReadyCount: number
   officialStandbysReady: boolean
   extraStandbyReadyDoesNotCount: true
+  /** Hash of the roster used to produce this view. */
+  rosterHash?: Hex
+  /** Hash committed by the operator when the roster was frozen. */
+  officialRosterHash?: Hex
+  rosterFrozen?: boolean
+  classificationDrift?: boolean
+  seatingQualified: boolean
+  heartbeatQuorumOk?: boolean
+  inventoryFreezeOk?: boolean
+  pilotQualificationGatePassed?: boolean
+  productionReadiness?: boolean
 }
 
 export interface ArchiveStandbyReadinessV1 {

@@ -64,13 +64,13 @@ export async function verifyMockL1Custody(input: MockL1CustodyCheckInput): Promi
   const erc20 = new Contract(quote, ERC20_ABI, provider)
 
   try {
-    const owner = String(await nftC.ownerOf(tokenId)).toLowerCase()
+    const owner = String(await nftC.ownerOf!(tokenId)).toLowerCase()
     const settlementLc = settlement.toLowerCase()
     if (owner === settlementLc) {
       // NFT already in escrow — OK
     } else if (owner === seller.toLowerCase()) {
-      const approved = String(await nftC.getApproved(tokenId)).toLowerCase()
-      const approvedAll = Boolean(await nftC.isApprovedForAll(seller, settlement))
+      const approved = String(await nftC.getApproved!(tokenId)).toLowerCase()
+      const approvedAll = Boolean(await nftC.isApprovedForAll!(seller, settlement))
       if (approved !== settlementLc && !approvedAll) {
         return { ok: false, reason: 'L1 escrow custody not confirmed (NFT not held/approved)', mockL1Only: true }
       }
@@ -78,11 +78,11 @@ export async function verifyMockL1Custody(input: MockL1CustodyCheckInput): Promi
       return { ok: false, reason: 'L1 escrow custody not confirmed (unexpected NFT owner)', mockL1Only: true }
     }
 
-    const bal = BigInt(await erc20.balanceOf(buyer))
+    const bal = BigInt(await erc20.balanceOf!(buyer))
     if (bal < price) {
       return { ok: false, reason: 'buyer balance/allowance check failed (balance)', mockL1Only: true }
     }
-    const allow = BigInt(await erc20.allowance(buyer, settlement))
+    const allow = BigInt(await erc20.allowance!(buyer, settlement))
     if (allow < price) {
       return { ok: false, reason: 'buyer balance/allowance check failed (allowance)', mockL1Only: true }
     }
@@ -95,7 +95,10 @@ export async function verifyMockL1Custody(input: MockL1CustodyCheckInput): Promi
   }
 }
 
-export function mockL1CustodyEnv(): { rpcUrl?: string; settlement?: Hex } {
+export function mockL1CustodyEnv(): {
+  rpcUrl?: string | undefined
+  settlement?: Hex | undefined
+} {
   const rpcUrl = process.env.MOCK_L1_RPC_URL?.trim()
   const settlement = process.env.MOCK_L1_SETTLEMENT?.trim() as Hex | undefined
   return {

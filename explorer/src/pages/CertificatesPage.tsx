@@ -55,6 +55,10 @@ export function CertificatesPage() {
   const pilotStartedAt = parsePilotStartedAt(snapshot.health)
   const clockIsNotQualification = parseClockIsNotQualification(snapshot.health)
   const pilotQualified = parsePilotQualified(snapshot.health)
+  const rosterFrozen = healthFlag(snapshot.health, 'rosterFrozen')
+  const classificationDrift = healthFlag(snapshot.health, 'classificationDrift')
+  const inventoryFreezeOk = healthFlag(snapshot.health, 'inventoryFreezeOk')
+  const productionReadiness = healthFlag(snapshot.health, 'productionReadiness')
 
   return (
     <MainPageShell title="Certificates">
@@ -77,6 +81,18 @@ export function CertificatesPage() {
         {officialReadyPill ? <StatusPill label={officialReadyPill.label} tone={officialReadyPill.tone} /> : null}
         {hashIndexPill ? <StatusPill label={hashIndexPill.label} tone={hashIndexPill.tone} /> : null}
         {clockPill ? <StatusPill label={clockPill.label} tone={clockPill.tone} /> : null}
+        <StatusPill
+          label={rosterFrozen === true && classificationDrift !== true ? 'Roster frozen' : 'Roster drift'}
+          tone={rosterFrozen === true && classificationDrift !== true ? 'ok' : 'warn'}
+        />
+        <StatusPill
+          label={inventoryFreezeOk === true ? 'Inventory freeze ok' : 'Inventory freeze pending'}
+          tone={inventoryFreezeOk === true ? 'ok' : 'warn'}
+        />
+        <StatusPill
+          label={productionReadiness === true ? 'Production ready' : 'Production not ready'}
+          tone={productionReadiness === true ? 'ok' : 'warn'}
+        />
       </div>
 
       <section className="mb-6">
@@ -133,6 +149,10 @@ export function CertificatesPage() {
               pilotStartedAt,
               clockIsNotQualification,
               pilotQualified,
+              rosterFrozen,
+              classificationDrift,
+              inventoryFreezeOk,
+              productionReadiness,
             }}
           />
         </div>

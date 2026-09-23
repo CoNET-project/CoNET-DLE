@@ -92,14 +92,14 @@ export interface TradeMatchRecordV1 {
   valueHash?: Hex
   l2Nonce?: string
   /** Seller `list()` escrow tx (required before on-chain settle). */
-  listTxHash?: Hex
-  listError?: string
+  listTxHash?: Hex | undefined
+  listError?: string | undefined
   /** Seller `unlist()` reclaim tx (lab recovery after settlement_failed). */
   unlistTxHash?: Hex
-  unlistError?: string
+  unlistError?: string | undefined
   /** Buyer ERC-20 `approve` tx (required before settle transferFrom). */
   approveTxHash?: Hex
-  approveError?: string
+  approveError?: string | undefined
   settlementTxHash?: Hex
   settlementError?: string
   updatedAt: string
@@ -993,7 +993,7 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
    */
   async function evaluateSettlePreflight(record: TradeMatchRecordV1): Promise<{
     ok: boolean
-    error?: string
+    error?: string | undefined
     checks: {
       phaseOk: boolean
       hasListTx: boolean
@@ -1001,7 +1001,7 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
       rpcConfigured: boolean
       rpcOk: boolean | null
     }
-    onChain?: Awaited<ReturnType<typeof preflightMockL1AuctionSettle>>
+    onChain?: Awaited<ReturnType<typeof preflightMockL1AuctionSettle>> | undefined
     fees?: {
       clearingPrice: string
       feeBps: number
@@ -1009,7 +1009,7 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
       scannerReward: string
       committeeReward: string
       feePolicyHash: Hex
-    }
+    } | undefined
   }> {
     const cert = record.certificate
     const fees =
