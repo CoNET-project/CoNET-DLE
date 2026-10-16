@@ -3724,3 +3724,51 @@ Archive / indexer cross-check: TxA exists & matches → books accepted
 Optional: trade settle of #S ownership → another journal row + trade tip id + payment asset tip(s)
 Fork child #B sale may emit royalty row on #S linking #B’s asset TxB (§4.9–§4.10)
 ```
+
+## Appendix H — Freeze qualification boundary (2026-09-23)
+
+The 30-day wall-clock is an observation window, not a qualification proof.
+Promotion remains fail-closed until all seven official nodes present one
+consistent release, commit, roster, snapshot, freeze, and standby
+classification. The Archive Certificate must be formally committed together
+with its hash-index root and independently verifiable signer evidence.
+
+Production qualification additionally requires the current production BFT
+path: a networked production process, operator-key evidence, prevote quorum,
+precommit quorum, a fresh production certificate, and matching Archive
+Certificate/BFT signer sets. A laboratory certificate, a single-node
+certificate, seating qualification, heartbeat quorum, or on-demand/lab
+DePIN gossip cannot satisfy this gate.
+
+Production \(C_G\) requires an independently verifiable L1 archive group-id
+view covering the hosted set. On-demand opening remains laboratory-only until
+that production boundary exists. Trade is explicitly excluded from this
+qualification round; retained Trade mocks are not production readiness
+evidence. The captured result is
+`PARTIAL_SUCCESS_NOT_QUALIFIED`; see the structured report
+`pilot/evidence/conet-dle-p23-live-2026-08/qualification-report-2026-09-23.json`.
+
+### Appendix H.1 — Production qualification MVP acceptance contract
+
+The implementation-level acceptance contract is fail-closed and is not a
+replacement for the protocol boundary above. It requires exactly five active
+operators and two standby operators, with signed operator identity and
+signing-key evidence, one deterministic roster manifest, and identical
+release/commit/snapshot and epoch bindings across all evidence.
+
+The production heartbeat quorum is 5/7 over signed consecutive windows and
+must include explicit disconnect evidence. Production BFT must complete
+prevote and precommit, persist lock and WAL-replay state, prove no double
+sign, and issue a fresh certificate. The Archive Certificate must bind the
+snapshot, freeze configuration, `hashIndexRoot`, both QC references, and
+independently verifiable signatures.
+
+Production \(C_G\) is valid only when the L1 archive registry address equals
+the verifier registry address, every declared chain maps to the same archive
+group id, and the required L1 views are verifiable. Production DePIN/on-demand
+must show complete fan-out to active archives, retry/timeout and deduplication
+evidence, freeze-before-beacon ordering, and finalized CL randomness; lab HTTP
+hooks, injected RPC values, or unsigned envelopes are not production evidence.
+The 30-day window checks continuity, roster drift, and outage evidence after
+freeze. Missing, stale, or inconsistent evidence produces a blocking reason
+code and cannot promote the pilot.

@@ -1,0 +1,120 @@
+{
+  "schema": "DleSevenNodeProductionQualificationReportV1",
+  "version": 1,
+  "capturedAt": "2026-09-23T15:16:45.701Z",
+  "sourceReport": "runtime-review-2026-09-23Tpostwindow.json",
+  "pilotQualified": false,
+  "productionReadiness": false,
+  "qualification": {
+    "requiredOfficialNodes": 7,
+    "officialNodeCount": 7,
+    "wallClockElapsed": true,
+    "wallClockIsQualification": false,
+    "statement": "The 30-day wall-clock window is evidence of elapsed time only. It does not qualify the pilot.",
+    "reasonCodes": [
+      "INCONSISTENT_ROSTER",
+      "STANDBY_CLASSIFICATION_DRIFT",
+      "AC_NOT_COMMITTED",
+      "BFT_NOT_STARTED",
+      "BFT_PREVOTE_INSUFFICIENT",
+      "BFT_PRECOMMIT_INSUFFICIENT",
+      "BFT_CERTIFICATE_UNAVAILABLE",
+      "BFT_CERTIFICATE_STALE",
+      "PRODUCTION_CG_UNAVAILABLE",
+      "LAB_BEACON_ONLY",
+      "NON_PRODUCTION_DEPIN_GOSSIP"
+    ]
+  },
+  "release": {
+    "consistent": null,
+    "releaseId": null,
+    "commit": null,
+    "note": "The post-window health report did not provide independently verifiable release/commit evidence."
+  },
+  "roster": {
+    "consistent": false,
+    "observedEntryCountRange": [9, 10],
+    "officialRoster": [
+      "fd-01-ionos-45",
+      "fd-02-ionos-189",
+      "fd-03-ionos-98",
+      "fd-04-hosthatch-tokyo1",
+      "fd-05-hosthatch-tokyo2",
+      "fd-06-ionos-174",
+      "fd-07-ionos-207"
+    ],
+    "note": "Runtime roster includes additional standby entries; it is not a frozen seven-seat production roster."
+  },
+  "snapshot": {
+    "consistent": null,
+    "snapshotId": null,
+    "freezeConfigHash": null,
+    "note": "The source report exposes health fields but not a separately verifiable snapshot/hash-index certificate."
+  },
+  "archiveCertificate": {
+    "committed": false,
+    "pending": null,
+    "snapshotAligned": null,
+    "hashIndexCommittedInAc": false,
+    "signerEvidence": "unavailable"
+  },
+  "bft": {
+    "productionProcessStarted": false,
+    "productionOperatorKey": false,
+    "networked": false,
+    "prevote": {
+      "count": null,
+      "quorum": null,
+      "qualified": false
+    },
+    "precommit": {
+      "count": null,
+      "quorum": null,
+      "qualified": false
+    },
+    "productionCertificateAvailable": false,
+    "productionCertificateFresh": false,
+    "signerSetAlignedWithArchiveCertificate": false,
+    "note": "Observed certificate/heartbeat signals are not accepted as production BFT certificate evidence."
+  },
+  "productionCg": {
+    "available": false,
+    "production": false,
+    "groupId": null,
+    "reason": "no_l1_archive_group_id_view",
+    "publicRpcAcceptedAsProductionCg": false,
+    "labHostedSetAcceptedAsProductionCg": false
+  },
+  "onDemand": {
+    "productionQualified": false,
+    "labBeaconOnly": true,
+    "productionDepinGossip": false,
+    "openingSmokeCanQualifyProduction": false
+  },
+  "trade": {
+    "inQualificationScope": false,
+    "excludedFromThisRound": true,
+    "mockImplementationPresent": true,
+    "mockRepresentsProductionReadiness": false,
+    "blockingReasonCode": false,
+    "statement": "Trade is explicitly excluded from this archive/BFT freeze qualification round. The mock remains laboratory functionality and is not a production claim."
+  },
+  "nodes": [
+    {"domainId":"fd-01-ionos-45","host":"45.132.74.220","official":true,"httpOk":true,"clockAligned":true,"inventoryFrozen":true,"seatingQualified":true,"lastQuorumOk":true,"lastPeerOk":6,"leafCount":9750,"standbyReadyCount":4,"bftProcessStarted":false,"hashIndexCommittedInAc":false,"productionCgAvailable":false},
+    {"domainId":"fd-02-ionos-189","host":"216.225.197.189","official":true,"httpOk":true,"clockAligned":true,"inventoryFrozen":true,"seatingQualified":true,"lastQuorumOk":false,"lastPeerOk":3,"leafCount":9750,"standbyReadyCount":4,"bftProcessStarted":false,"hashIndexCommittedInAc":false,"productionCgAvailable":false},
+    {"domainId":"fd-03-ionos-98","host":"45.132.74.221","official":true,"httpOk":true,"clockAligned":true,"inventoryFrozen":true,"seatingQualified":true,"lastQuorumOk":false,"lastPeerOk":5,"leafCount":9750,"standbyReadyCount":4,"bftProcessStarted":false,"hashIndexCommittedInAc":false,"productionCgAvailable":false},
+    {"domainId":"fd-04-hosthatch-tokyo1","host":"167.254.243.38","official":true,"httpOk":true,"clockAligned":true,"inventoryFrozen":true,"seatingQualified":true,"lastQuorumOk":true,"lastPeerOk":9,"leafCount":9750,"standbyReadyCount":4,"bftProcessStarted":false,"hashIndexCommittedInAc":false,"productionCgAvailable":false},
+    {"domainId":"fd-05-hosthatch-tokyo2","host":"170.205.39.67","official":true,"httpOk":true,"clockAligned":true,"inventoryFrozen":true,"seatingQualified":true,"lastQuorumOk":false,"lastPeerOk":0,"leafCount":9750,"standbyReadyCount":4,"bftProcessStarted":false,"hashIndexCommittedInAc":false,"productionCgAvailable":false},
+    {"domainId":"fd-06-ionos-174","host":"70.35.205.77","official":true,"httpOk":true,"clockAligned":true,"inventoryFrozen":true,"seatingQualified":true,"lastQuorumOk":true,"lastPeerOk":9,"leafCount":9750,"standbyReadyCount":4,"bftProcessStarted":false,"hashIndexCommittedInAc":false,"productionCgAvailable":false},
+    {"domainId":"fd-07-ionos-207","host":"212.227.242.207","official":true,"httpOk":true,"clockAligned":true,"inventoryFrozen":true,"seatingQualified":true,"lastQuorumOk":false,"lastPeerOk":1,"leafCount":9750,"standbyReadyCount":4,"bftProcessStarted":false,"hashIndexCommittedInAc":false,"productionCgAvailable":false}
+  ],
+  "verdict": "PARTIAL_SUCCESS_NOT_QUALIFIED",
+  "actionsRequiredBeforePromotion": [
+    "Publish one consistent seven-seat release/commit/roster/snapshot/freeze evidence set.",
+    "Commit archive certificates and hash-index roots with independently verifiable signer evidence.",
+    "Start production BFT and prove current prevote/precommit quorum plus fresh production certificate.",
+    "Expose and verify the production L1 archive group-id view for C_G.",
+    "Replace lab-only beacon and DePIN gossip evidence with production evidence.",
+    "Do not treat the elapsed 30-day clock, heartbeat quorum, or Trade mock as qualification."
+  ]
+}

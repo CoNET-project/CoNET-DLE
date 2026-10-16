@@ -1,7 +1,7 @@
 {
   "schema": "OnDemandHttpQueue30V1",
   "pilotId": "conet-dle-30d-lab-2026-08",
-  "acceptedAt": "2026-08-15T18:37:17.196Z",
+  "acceptedAt": "2026-09-24T20:18:38.955Z",
   "clientHost": "70.35.205.77",
   "clientDir": "/home/peter/dle-ondemand-clients",
   "clientCount": 30,
@@ -12,12 +12,12 @@
   "opened": true,
   "queued": true,
   "frozen": true,
-  "endorsed": true,
+  "endorsed": false,
   "poolRoot": "0xafdf42e9625961ce16f2403f509835d79bba94b144bba9606346c9adf0c3c2c4",
-  "start": "STARTED=49335\nFLEET_PIDS=49335 49343 49351 49359 49367 49375 49383 49391 49399 49407 49415 49423 49431 49439 49447 49455 49463 49471 49479 49487 49495",
+  "start": "STARTED=1124693\nFLEET_PIDS=1124693 1124701 1124709 1124718 1124727 1124735 1124743 1124751 1124760 1124768 1124776 1124784 1124792 1124800 1124809 1124817 1124825 1124834 1124842 1124850 1124858",
   "lastPools": [
     {
-      "url": "http://74.208.224.45:27101",
+      "url": "http://45.132.74.220:27101",
       "frozen": true,
       "minerCount": 30,
       "present": true,
@@ -31,7 +31,7 @@
       "poolRoot": "0xafdf42e9625961ce16f2403f509835d79bba94b144bba9606346c9adf0c3c2c4"
     },
     {
-      "url": "http://198.251.77.98:27101",
+      "url": "http://45.132.74.221:27101",
       "frozen": true,
       "minerCount": 30,
       "present": true,
@@ -52,7 +52,7 @@
       "poolRoot": "0xafdf42e9625961ce16f2403f509835d79bba94b144bba9606346c9adf0c3c2c4"
     },
     {
-      "url": "http://216.225.193.174:27101",
+      "url": "http://70.35.205.77:27101",
       "frozen": true,
       "minerCount": 30,
       "present": true,

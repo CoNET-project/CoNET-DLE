@@ -6,6 +6,8 @@ import { createNewChainEngine } from './newchain/engine.js'
 import { createOnDemandEngine } from './ondemand/engine.js'
 import { createTradeEngine } from './trade/engine.js'
 import { createSyncQualificationEngine, type SyncPeer } from './syncQualification/index.js'
+import { evaluatePilotQualification, snapshotIdOf } from './syncQualification/qualificationGate.js'
+import { createArchiveBftEngine } from './bft/engine.js'
 import { openArchiveStore } from './store.js'
 
 export interface ArchiveNodeOptions {
@@ -57,6 +59,12 @@ export async function startArchiveNode(options: ArchiveNodeOptions): Promise<Arc
     table: routeTable,
   })
   syncHolder.current = sync
+  const bft = createArchiveBftEngine({
+    domainId: 'local-archive',
+    role: 'active',
+    peers: [],
+    store,
+  })
   const server = await listenArchiveHttp({
     port: options.port,
     store,
@@ -76,6 +84,59 @@ export async function startArchiveNode(options: ArchiveNodeOptions): Promise<Arc
       ...mockL1.health(),
       ...trade.health(),
       ...sync.health(),
+      bft: bft.status(),
+      qualification: evaluatePilotQualification([
+        (() => {
+          const syncStatus = sync.status()
+          const syncHealth = sync.health()
+          const snapshotId = snapshotIdOf({
+            rosterHash: typeof syncHealth.rosterHash === 'string' ? syncHealth.rosterHash : 'unbound-roster',
+            groupId: syncStatus.groupId,
+            hostedChainSetRoot: syncStatus.hostedChainSetRoot,
+            lastACRef: syncStatus.lastACRef,
+            membershipRoot: syncStatus.membershipRoot,
+            hashIndexRoot: syncStatus.hashIndexRoot,
+            leafCount: syncStatus.leafCount,
+          })
+          const bftStatus = bft.status()
+          const productionCg = syncHealth.productionCg as { available?: boolean; source?: string } | undefined
+          return {
+            domainId: syncStatus.domainId,
+            role: syncStatus.role === 'standby' ? 'standby' : 'active',
+            releaseId: syncStatus.releaseId ?? 'unbound-release',
+            commit: syncStatus.commit ?? 'unbound-commit',
+            rosterHash: typeof syncHealth.rosterHash === 'string' ? syncHealth.rosterHash : 'unbound-roster',
+            snapshotId,
+            freezeConfigHash: syncStatus.freezeConfigHash ?? 'unbound-freeze',
+            officialStandby: false,
+            extraStandby: false,
+            ac: {
+              committed: syncStatus.hashIndexRoot !== '0x' + '00'.repeat(32) && newchain.health().newchainArchiveCertified as number > 0,
+              pending: (newchain.health().newchainArchivePending as number) > 0,
+            },
+            bft: {
+              productionCertificate: bftStatus.productionCertificate,
+              productionOperatorKey: bftStatus.productionOperatorKey,
+              processStarted: bftStatus.processStarted,
+              networked: bftStatus.networked,
+              certificateAvailable: bftStatus.certificateAvailable,
+              prevoteCount: bftStatus.prevoteCount,
+              precommitCount: bftStatus.precommitCount,
+              quorum: bftStatus.quorum,
+              certificateFresh: false,
+              signerSet: [],
+              snapshotId,
+            },
+            cg: {
+              available: productionCg?.available === true,
+              production: false,
+              labBeaconOnly: true,
+              productionDepin: false,
+            },
+            trade: { inScope: false, production: false },
+          }
+        })(),
+      ]),
     }),
     extraGet(pathname) {
       if (pathname === '/sync/status') return { ...sync.status() }
@@ -101,6 +162,7 @@ export async function startArchiveNode(options: ArchiveNodeOptions): Promise<Arc
     },
   })
   await ondemand.start()
+  await bft.start()
   return {
     get port() {
       return server.port
@@ -110,6 +172,7 @@ export async function startArchiveNode(options: ArchiveNodeOptions): Promise<Arc
     },
     close() {
       sync.stop()
+      bft.stop()
       ondemand.stop()
       newchain.stop()
       return server.close()

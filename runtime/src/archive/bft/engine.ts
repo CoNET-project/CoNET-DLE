@@ -498,6 +498,8 @@ export function createArchiveBftEngine(options: ArchiveBftOptions): ArchiveBftEn
   function status(): BftStatus {
     const row: BftStatus = {
       schema: 'DleLabBftStatusV1',
+      productionCertificate: false,
+      productionOperatorKey: false,
       networked: true,
       processStarted,
       modeA: true,

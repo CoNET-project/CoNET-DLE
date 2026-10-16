@@ -14,6 +14,20 @@ This is **not** an L1 Blockscout clone and **not** an `eth_call` browser.
 | No tip VM — `eth_call` is rejected | EVM browser |
 
 Public hostname (user-authorized): **`https://dle.conet.network`** on `70.35.205.77`.
+
+## Freeze qualification status (2026-09-23)
+
+The Explorer's clock and lab evidence are informational only. A completed
+30-day wall-clock does not qualify the pilot. The current structured result is
+`PARTIAL_SUCCESS_NOT_QUALIFIED`; it records seven reachable/frozen seats but
+no production BFT process/certificate, no committed Archive Certificate
+hash-index proof, and no production \(C_G\) L1 archive group-id view. Lab-only
+on-demand or DePIN gossip and the local Trade mock are not production
+readiness evidence. Trade is explicitly excluded from this qualification
+round.
+
+Report:
+`pilot/evidence/conet-dle-p23-live-2026-08/qualification-report-2026-09-23.json`.
 The SPA is same-origin; nginx **must listen on 443** (Let’s Encrypt already on that host) and proxy `/liveness`, `/health`, `/rpc`, `/api/v2/dle`, read-only `/ondemand/pool` + `/ondemand/selection`, and lab Mode A **`GET /newchain/chains`**, **`GET /newchain/queue`**, **`POST /newchain/request`** to archives on TCP **27101**. It does **not** expose `POST /ondemand/hook`, freeze, or **`/newchain/bft`**.
 HTTP bootstrap (`listen 80` + SPA `try_files`) is **first-issue only**. If the cert exists, `deployDleExplorer.sh` must install the full HTTPS vhost — never leave bootstrap live (2026-08-21 / 2026-08-28: public HTTPS connect-timeout while `:80` served SPA HTML for `/health`). Host nginx is **`nginx.service` enabled** plus drop-in `dle-persist.conf` (`Restart=always`) so it comes back after reboot. Uptime probes use **`GET /liveness`**; `/health` is the full archive snapshot (`proxy_read_timeout 12s`, one upstream try).
 Do **not** invent additional hostnames, and do **not** write this URL into Solidity constants.

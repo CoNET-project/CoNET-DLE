@@ -132,6 +132,36 @@ Whitepaper §5.2.0f. **IdentityEligible ≠ SyncQualified.** Catch-up `SYNCING` 
 
 A pass is **seating-grade possession of the committed inventory**, not a linear scan of every historical byte. Three layers: (1) byte-exact `lastAC` / `membershipRoot` / `hashIndexRoot`; (2) unpredictable local-freezer openings — hop-1 / `historyProviders` / remote parrot during the challenge is `REJECTED` (`dle_getObject` only); (3) stratified samples on **every** hosted `chainNftId` (lab P9). Post-seat availability remains `UnavailableChallenge`.
 
+#### ProductionQualificationResultV1 (fail-closed evaluator)
+
+`runtime/src/archive/syncQualification/productionQualification.ts` is the
+decision boundary for the 30-day production freeze. It is an evidence
+evaluator only: it never manufactures operator signatures, BFT votes, Archive
+Certificates, L1 `C_G` views, finalized CL randomness, or DePIN receipts.
+Every input must bind to the same canonical five-active/two-standby roster,
+release, snapshot, manifest, group, and roots.
+
+The evaluator rejects, rather than downgrades, evidence when any of these is
+missing or inconsistent:
+
+- heartbeat windows have fewer than 5/7 unique roster signers, missing
+  continuity/disconnect evidence, or broken sequence coverage;
+- production prevote and precommit QC, lock/WAL replay, double-sign check, or
+  fresh certificate evidence is absent;
+- an Archive Certificate is not bound to the current snapshot/release,
+  `hashIndexRoot`, freeze configuration, QC references, non-zero L1 context,
+  and a unique active signer set;
+- `C_G` is not production-backed, its verifier registry differs, its chain
+  set is incomplete, or any chain lacks a non-zero `lastAC` and view proof;
+- DePIN/on-demand fan-out, deduplication, retry/timeout receipts, freeze
+  ordering, or finalized CL randomness proof is absent;
+- the observation timestamps do not cover 30 full days, or report drift/outage.
+
+The returned `reasonCodes` are normative fail-closed output. `pilotQualified`
+and `productionReadiness` are true only when the reason-code list is empty;
+lab `endorsed`, lab EIP-712 attestations, and wall-clock duration alone never
+set either flag.
+
 Laboratory honesty (2026-08-16):
 
 | Signal | Meaning | Seating? |
@@ -228,6 +258,12 @@ After P10: EIP-712 / CL RANDAO / 30-day gate. A **full-open from-zero join** nee
 ### Official G1 live SSH hosts (2026-08-17)
 
 Seat identity is `domainId` + `participantWallet`, **not** the IP. Official roster stays **7**. **`fd-01-ionos-45` stays live**; only old IONOS `74.208.224.45` is excluded. Live `sshHost` is `45.132.74.220`. **`fd-03-ionos-98` stays live**; only old IONOS `198.251.77.98` is excluded. Live `sshHost` is `45.132.74.221`. Keep-data L2 is running on both remapped hosts after authorized `lab:keep-remap-l2` (2026-08-17). Do **not** use official-seven keep (`lab:keep-p11-peers` / `lab:deploy-archive-keep` / `lab:deploy-g1-keep`) just to refresh these two seats — that would also start standby `fd-06` / `fd-07`. Peer refresh after remap is only `fd-02` / `fd-04` / `fd-05`.
+
+Standby classification must normalize deployment-qualified IDs such as
+`fd-06-ionos-174` and `fd-07-ionos-207` to the canonical seats `fd-06` and
+`fd-07`. Only an exact canonical ID or its `fd-0N-...` deployment-qualified
+form is official; `fd-08` and every other standby remain extra and cannot
+increase the official standby count or qualify a production roster.
 
 **MVP exclude:** `74.208.224.45`, `198.251.77.98`, and leftover `216.225.193.174`. Do **not** SSH, keep-deploy, `extraPeers`, on-demand hook, newchain-user, or nginx-upstream those IPs. `loadLabHosts` / `runSsh` / `runScp` must refuse them. `agentConfigFor(fd-01)` / `fd-03` / `fd-06` must succeed; peers must use `45.132.74.220`, `45.132.74.221`, and `70.35.205.77`. Historical `pilot/evidence/**` may still name the old IPs — do **not** rewrite evidence. This exclude is **not** an L1 health-check delist.
 
@@ -503,6 +539,23 @@ Parked (later tracks, not the next gate): IdentityEligible / OperatorDomain / \(
 
 **Must not:** treat `pilotStartedAt` as 30-day qualification; reset warmup; invent P26; wipe keepers / `fd-05`; promote `fd-08` to an official 8th voter; live-inject a missing object; restart EL/CL.
 
+### Freeze qualification gate (2026-09-23)
+
+The 30-day wall-clock is elapsed-time evidence only. It is not a qualification
+signal and must never promote a pilot by itself. The production gate is fail
+closed unless one consistent seven-seat release/commit/roster/snapshot/freeze
+set is available, the Archive Certificate and hash-index root have independently
+verifiable commit/signature evidence, production BFT has current prevote and
+precommit quorum plus a fresh production certificate, and production \(C_G\)
+exposes a verifiable L1 archive group-id view. Lab certificates, heartbeat
+quorum, seating readiness, and lab-only on-demand/DePIN gossip are insufficient.
+
+Trade is explicitly excluded from this round. A mock Trade implementation may
+remain available for laboratory testing, but it is not production readiness and
+must not emit a blocking qualification reason. The structured acceptance result
+and captured evidence are recorded in
+`pilot/evidence/conet-dle-p23-live-2026-08/qualification-report-2026-09-23.json`.
+
 ### Other archive invariants
 
 - `command: archive`, `runtime: nodejs`, `producesBlocks: false`, `hasTipVm: false`
@@ -510,6 +563,49 @@ Parked (later tracks, not the next gate): IdentityEligible / OperatorDomain / \(
 - `dle_info.chainName` = `CoNET-DLE Testnet`
 - Reject `eth_call` / `eth_getBalance` / writes
 - Deploy: keep-data only (`lab:deploy-g1-keep` / `lab:deploy-archive-keep` / `lab:deploy-m6`). **`lab:deploy-archive-keep` 会重写 G1 `config.json` 且不带 `planeDirectory`** — 恢复 \(G_e=2\) 必须再跑 `lab:deploy-g1-keep`（只动 G1）或 `lab:deploy-m6`（会重启 G2）。Never restart geth / beacon / validator。停 archive 时若 SIGTERM 8s 后仍活（事件循环饿死），仅对 `dle-30d-lab` / `dle-m6-g2` 的 `lab-cli`/`agent` 补 SIGKILL；protect 命中 geth/beacon/validator 则 abort
+
+### Production qualification MVP (2026-09)
+
+Production qualification is a separate, fail-closed evidence plane; lab
+readiness, the elapsed 30-day clock, and a single `/health` response are not
+production evidence. The production roster is exactly **5 active + 2
+standby** seats. Each seat must carry an operator identity reference and a
+signing-key reference, and all evidence must bind the same roster manifest,
+release, commit, snapshot, membership epoch, and key epoch.
+
+The MVP acceptance contract is implemented in
+`runtime/src/archive/syncQualification/productionQualification.ts`:
+
+- heartbeat evidence requires signed, consecutive windows and a **5/7**
+  quorum, with explicit disconnected-seat evidence;
+- production BFT requires the explicit `PREVOTE_QC → PRECOMMIT_QC →
+  CERTIFIED` state machine: both QCs must bind the same value, the lock round
+  cannot exceed the certificate round, and persisted lock/WAL replay plus
+  double-sign evidence are mandatory;
+- an Archive Certificate must independently bind `hashIndexRoot`, non-empty
+  snapshot/release identifiers, the BFT commit hash, freeze configuration,
+  both prevote and precommit QC references, and a one-to-one active-seat
+  signature set;
+- production \(C_G\) must expose the same L1 registry address as the verifier,
+  the same group id for every declared chain, and verifiable L1 views;
+  `GlobalArchiveRoutingRegistry` is the source of truth for production
+  `archiveGroupId`; an `ArchiveCertificateVerifier` still bound to the legacy
+  `ArchiveGroupRegistry` is an explicit fail-closed mismatch, not something
+  the evaluator may reconcile or infer;
+- production DePIN/on-demand evidence must prove complete fan-out, retry/
+  timeout handling, deduplication, freeze-before-beacon, and finalized CL
+  randomness. Lab HTTP hooks, injected public RPC values, and unsigned
+  envelopes cannot qualify;
+- the 30-day observation window only passes when freeze, continuity, no roster
+  drift, and outage evidence are all present. Any missing or inconsistent
+  evidence returns structured reason codes and keeps `pilotQualified=false`.
+
+The current live deployment remains non-production: the 2026-09-23 report
+records a 9–10 entry roster, 3/7 heartbeat quorum, no production BFT/QC,
+missing Archive Certificate hash-index commitment, verifier/Global registry
+mismatch, and lab-only on-demand evidence. Do not start a production signer,
+promote extras, unfreeze inventory, or claim qualification from this module
+alone.
 
 ---
 

@@ -297,6 +297,8 @@ export interface BftPeer {
 
 export interface BftStatus {
   schema: 'DleLabBftStatusV1'
+  productionCertificate: false
+  productionOperatorKey: false
   networked: true
   processStarted: boolean
   modeA: true

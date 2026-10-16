@@ -294,6 +294,8 @@ export function createTradeEngine(options: TradeEngineOptions): TradeEngine {
       tradeNotWaitingPoolIngress: true,
       tradeNotProductionBeacon: true,
       tradeNotProductionDepin: true,
+      tradeInQualificationScope: false,
+      tradeQualificationExcluded: true,
       tradeRpcCustodyConfigured: rpcCustodyConfigured,
       tradeRpcCustodyMode: options.verifyL1Custody !== undefined
         ? 'hook'

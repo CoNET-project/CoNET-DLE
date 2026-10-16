@@ -6,6 +6,21 @@ Public host: `https://dle.conet.network` (authorized). Do not invent extra `dle.
 
 After any Explorer programming or display-spec change, **update this file in the same task** (`conet-dle-write-back-subproject.mdc`).
 
+## Freeze qualification display boundary (2026-09-23)
+
+Explorer may display the 30-day clock, seating, heartbeat, lab certificate, and
+on-demand overlays as non-green evidence, but must not present any of them as
+production qualification. The production result is fail-closed until the
+structured seven-node report proves consistent release/roster/snapshot/freeze
+state, committed Archive Certificate/hash-index evidence, current production
+BFT prevote/precommit/certificate evidence, and production \(C_G\) with an L1
+archive group-id view. Trade is out of scope for this round; a mock Trade flow
+must remain explicitly laboratory-only.
+
+The current captured result is
+`pilot/evidence/conet-dle-p23-live-2026-08/qualification-report-2026-09-23.json`
+with verdict `PARTIAL_SUCCESS_NOT_QUALIFIED`.
+
 ## Home metrics (2026-08-16)
 
 The first metric row is:

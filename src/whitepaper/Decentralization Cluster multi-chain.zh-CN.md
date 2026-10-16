@@ -3793,3 +3793,43 @@ CoNET-DLE 以去中心化集群维护大量并行、事件驱动的原子链：�
 子 tip #B 销售可在 #S 上发出版税行，关联 #B 的资产 TxB（§4.9–§4.10）
 ```
 
+## 附录 H — 冻结资格边界（2026-09-23）
+
+30 天墙钟只是观察窗口，不是资格证明。在七个正式节点的 release、
+commit、roster、snapshot、freeze 与 standby 分类全部一致之前，提升必须
+fail-closed。Archive Certificate 必须与 hash-index root 正式提交，并具备
+可独立验证的逐签名证据。
+
+生产资格还要求当前生产 BFT 路径：生产进程已联网运行、存在 operator key
+证据、prevote quorum、precommit quorum、最新生产 certificate，以及与
+Archive Certificate 对齐的 BFT signer set。实验室 certificate、单节点
+certificate、seating qualification、heartbeat quorum，以及实验室
+on-demand / DePIN gossip 均不能满足该闸门。
+
+生产 \(C_G\) 必须具备可独立验证的 L1 archive group-id view，并覆盖该组
+托管集合。在达到该生产边界之前，on-demand opening 仍仅限实验室。Trade
+明确排除在本轮资格范围之外；保留的 Trade mock 不代表生产就绪。当前现场
+结论为 `PARTIAL_SUCCESS_NOT_QUALIFIED`；结构化报告见
+`pilot/evidence/conet-dle-p23-live-2026-08/qualification-report-2026-09-23.json`。
+
+### 附录 H.1 — 生产资格 MVP 验收契约
+
+实现层验收契约采用 fail-closed，不能替代上述协议边界。它要求严格为
+5 个 active operator 与 2 个 standby operator，并提供带签名的 operator
+身份和签名密钥证据、唯一确定性的 roster manifest，以及所有证据一致的
+release/commit/snapshot 与 epoch 绑定。
+
+生产 heartbeat quorum 要求在连续签名窗口中达到 5/7，并包含明确的失联
+证据。生产 BFT 必须完成 prevote 与 precommit，持久化 lock 和 WAL replay
+状态，证明无双签，并生成新鲜的生产 certificate。Archive Certificate
+必须绑定 snapshot、freeze 配置、`hashIndexRoot`、两个 QC 引用和可独立
+验证的逐签名证据。
+
+只有在 L1 archive registry 地址与 verifier registry 地址一致、每条声明
+链都映射到同一 archive group id、且所需 L1 view 可验证时，生产 \(C_G\)
+才有效。生产 DePIN/on-demand 必须提供向 active archives 完整 fan-out、
+重试/超时与去重证据、freeze-before-beacon 顺序和 finalized CL randomness；
+实验室 HTTP hook、注入的 RPC 值或无签名 envelope 都不是生产证据。30 天
+窗口只检查冻结后的连续性、roster drift 与失联证据。缺失、过期或不一致
+证据必须产生阻塞 reason code，不能提升 pilot。
+

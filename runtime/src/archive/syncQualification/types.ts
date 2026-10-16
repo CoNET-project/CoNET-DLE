@@ -27,8 +27,14 @@ export const OFFICIAL_STANDBY_DOMAIN_IDS = ['fd-06', 'fd-07'] as const
 /** Collapse deployment aliases to the two canonical standby seats. */
 export function canonicalStandbyDomainId(domainId: string): string | null {
   const normalized = domainId.toLowerCase()
-  if (normalized === OFFICIAL_STANDBY_DOMAIN_IDS[0]) return OFFICIAL_STANDBY_DOMAIN_IDS[0]
-  if (normalized === OFFICIAL_STANDBY_DOMAIN_IDS[1]) return OFFICIAL_STANDBY_DOMAIN_IDS[1]
+  for (const officialId of OFFICIAL_STANDBY_DOMAIN_IDS) {
+    // Runtime rosters may carry deployment-qualified IDs such as
+    // `fd-06-ionos-174`, while the frozen roster uses the short seat ID.
+    // Accept only the canonical seat or its deployment-qualified form.
+    if (normalized === officialId || normalized.startsWith(`${officialId}-`)) {
+      return officialId
+    }
+  }
   return null
 }
 
@@ -294,6 +300,13 @@ export interface SyncStatusV1 {
   inventoryFreezeOk?: boolean
   pilotQualificationGatePassed?: boolean
   productionReadiness?: boolean
+  /** Release evidence is mandatory input to any production qualification. */
+  releaseId?: string
+  commit?: string
+  snapshotId?: string
+  capturedAt?: string
+  freezeConfigHash?: Hex
+  reasonCodes?: string[]
 }
 
 export interface ArchiveStandbyReadinessV1 {
@@ -347,6 +360,13 @@ export interface SyncRosterRowV1 {
   lastACRef?: Hex
   membershipRoot?: Hex
   hashIndexRoot?: Hex
+  releaseId?: string
+  commit?: string
+  snapshotId?: string
+  capturedAt?: string
+  freezeConfigHash?: Hex
+  officialStandby?: boolean
+  extraStandby?: boolean
 }
 
 export interface SyncPeer {

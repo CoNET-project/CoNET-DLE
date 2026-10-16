@@ -58,6 +58,7 @@ import {
   SYNC_STATUS_TIMEOUT_MS,
   SYNC_TICK_MS,
   canonicalStandbyDomainId,
+  isExtraStandby,
   isOfficialStandbyRole,
   type ArchiveStandbyReadinessEnvelope,
   type ArchiveStateChallengeV1,
@@ -70,6 +71,7 @@ import {
   type SyncRosterRowV1,
   type SyncStatusV1,
 } from './types.js'
+import { snapshotIdOf } from './qualificationGate.js'
 
 export interface SyncEngineOptions {
   domainId: string
@@ -417,7 +419,16 @@ export function createSyncQualificationEngine(options: SyncEngineOptions): SyncQ
       ...(typeof value.hashIndexRoot === 'string'
         ? { hashIndexRoot: value.hashIndexRoot as SyncInventoryV1['hashIndexRoot'] }
         : {}),
-    }
+      ...(typeof value.releaseId === 'string' ? { releaseId: value.releaseId } : {}),
+      ...(typeof value.commit === 'string' ? { commit: value.commit } : {}),
+      ...(typeof value.snapshotId === 'string' ? { snapshotId: value.snapshotId } : {}),
+      ...(typeof value.capturedAt === 'string' ? { capturedAt: value.capturedAt } : {}),
+      ...(typeof value.freezeConfigHash === 'string'
+        ? { freezeConfigHash: value.freezeConfigHash as SyncRosterRowV1['freezeConfigHash'] }
+        : {}),
+      officialStandby: value.officialStandby === true,
+      extraStandby: value.extraStandby === true,
+    } as SyncRosterRowV1
   }
 
   function parseInventory(value: unknown): SyncInventoryV1 | null {
@@ -437,6 +448,17 @@ export function createSyncQualificationEngine(options: SyncEngineOptions): SyncQ
 
   function localRosterRow(): SyncRosterRowV1 {
     const inventory = inventoryNow()
+    const releaseId = process.env.DLE_ARCHIVE_RELEASE_ID ?? 'unbound-release'
+    const commit = process.env.DLE_ARCHIVE_COMMIT ?? 'unbound-commit'
+    const snapshotId = snapshotIdOf({
+      rosterHash,
+      groupId: inventory.groupId,
+      hostedChainSetRoot: inventory.hostedChainSetRoot,
+      lastACRef: inventory.lastACRef,
+      membershipRoot: inventory.membershipRoot,
+      hashIndexRoot: inventory.hashIndexRoot,
+      leafCount: inventory.leafCount,
+    })
     return {
       domainId: options.domainId,
       role: options.role,
@@ -449,6 +471,13 @@ export function createSyncQualificationEngine(options: SyncEngineOptions): SyncQ
       lastACRef: inventory.lastACRef,
       membershipRoot: inventory.membershipRoot,
       hashIndexRoot: inventory.hashIndexRoot,
+      releaseId,
+      commit,
+      snapshotId,
+      capturedAt: new Date().toISOString(),
+      freezeConfigHash: rosterHash,
+      officialStandby: isOfficialStandbyRole(options.domainId, options.role),
+      extraStandby: isExtraStandby(options.domainId),
     }
   }
 
@@ -926,6 +955,20 @@ export function createSyncQualificationEngine(options: SyncEngineOptions): SyncQ
         inventoryFreezeOk: !inventoryShouldFreeze(),
         pilotQualificationGatePassed: false,
         productionReadiness: false,
+        releaseId: process.env.DLE_ARCHIVE_RELEASE_ID ?? 'unbound-release',
+        commit: process.env.DLE_ARCHIVE_COMMIT ?? 'unbound-commit',
+        snapshotId: snapshotIdOf({
+          rosterHash,
+          groupId: inventory.groupId,
+          hostedChainSetRoot: inventory.hostedChainSetRoot,
+          lastACRef: inventory.lastACRef,
+          membershipRoot: inventory.membershipRoot,
+          hashIndexRoot: inventory.hashIndexRoot,
+          leafCount: inventory.leafCount,
+        }),
+        capturedAt: new Date().toISOString(),
+        freezeConfigHash: rosterHash,
+        reasonCodes: ['LAB_BEACON_ONLY', 'PRODUCTION_CG_UNAVAILABLE'],
       }
     },
     inventory: inventoryNow,

@@ -13,6 +13,7 @@ import {
 import { replayLabNewChainRequest } from '../bft/labCandidate.js'
 import type { ArchiveCertificate, ArchivePrevoteQc, ArchiveVote, BftPeer } from '../bft/types.js'
 import { indexLabCertificateRoots } from '../hashPipe.js'
+import { hashIndexCommittedInAc } from '../../shared/hashIndexTree.js'
 import { ERR_INVENTORY_FROZEN, inventoryCatalogFrozen } from '../inventoryFreeze.js'
 import type { ArchiveStore } from '../store.js'
 import {
@@ -228,6 +229,26 @@ export function createNewChainEngine(options: NewChainEngineOptions): NewChainEn
       if (record.archiveCertificate !== undefined) certified += 1
       else if (record.archiveCertificatePending === true) pending += 1
     }
+    const latest = [...records.values()]
+      .filter((record) => record.archiveCertificate !== undefined)
+      .sort((left, right) => left.acceptedAt.localeCompare(right.acceptedAt))
+      .at(-1)
+    const archiveCertificate = latest === undefined
+      ? null
+      : parseArchiveCertificate(latest.archiveCertificate)
+    const signerEvidence = archiveCertificate === null
+      ? []
+      : archiveCertificate.signers.map((signer) => {
+          const vote = (latest?.genesisVotes ?? [])
+            .map(parseArchiveVote)
+            .find((candidate) => candidate?.signer?.toLowerCase() === signer.toLowerCase())
+          return {
+            signer,
+            signature: vote?.signature ?? null,
+            signed: vote?.signature !== undefined,
+          }
+        })
+    const hashIndexCommitted = hashIndexCommittedInAc(archiveCertificate)
     return {
       newchainLabOnly: true,
       newchainNotL1Nft: true,
@@ -238,6 +259,17 @@ export function createNewChainEngine(options: NewChainEngineOptions): NewChainEn
       newchainHmacForgeable: false,
       newchainArchivePending: pending,
       newchainArchiveCertified: certified,
+      archiveCertificateProductionCommitted: false,
+      archiveCertificateActiveRoot: archiveCertificate?.tipStateRoot ?? null,
+      archiveCertificateHashIndexRoot: archiveCertificate?.hashIndexRoot ?? null,
+      archiveCertificateLeafCount: null,
+      archiveCertificateRosterHash: archiveCertificate?.membershipRoot ?? null,
+      archiveCertificateSnapshotHash: archiveCertificate?.valueHash ?? null,
+      archiveCertificateHashIndexCommittedInAc: hashIndexCommitted,
+      archiveCertificatePendingZero: pending === 0,
+      archiveCertificateSignerEvidence: signerEvidence,
+      archiveCertificateLabOnly: true,
+      archiveCertificateQualificationEligible: false,
       ...(options.officialStandbysReady !== undefined
         ? {
             newchainOfficialStandbysReady: options.officialStandbysReady(),

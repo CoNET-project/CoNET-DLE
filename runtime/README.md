@@ -29,6 +29,49 @@ npm run daemon -- --archive http://127.0.0.1:27101 --wait
 
 `eth_chainId` 返回 **CoNET-DLE Testnet** EIP-155 id（`0x44c45` / `281669`），用来和 CoNET L1 `224422`、Base `8453` 区分；**不是** Group ID。用户可见 Group ID 是引导组 L1 登记交易 hash。`/rpc` **从不**代理 `publicrpc` / `rpc1` / `base-rpc`。`eth_call` / `eth_getBalance` / `eth_sendRawTransaction` 返回 method-not-found（无 tip VM、无 EVM 账户模型）。支持 JSON-RPC 2.0 **batch**（最多 32）。`lab-cli` 联网后 `dle_getArchiveCertificate` 返回实验室 4-of-5 PrecommitQC（**P16** 新票为 EIP-712 `ArchiveBftVote`，`hmacForgeable: false`；磁盘旧 HMAC 证书 keep-only 可恢复；**P21** 把 live/bound `hashIndexRoot` 写入实验室 BFT 票 / QC / AC；树视图 `committedInAc` 仍为 false；AC 携带非零 bound root 时 overlay `hashIndexCommittedInAc` — **不是**生产 AC 承诺 / 冻结 L1 wrapper / corpus SSZ）。无 roster 的 `startArchiveNode` 仍诚实空。
 
+## Freeze qualification (production boundary)
+
+The 30-day wall-clock is not a qualification gate. Promotion remains fail
+closed until the seven-seat release/roster/snapshot/freeze evidence is
+consistent, Archive Certificate and hash-index commit evidence is independently
+verifiable, production BFT proves current prevote/precommit quorum and a fresh
+production certificate, and production \(C_G\) exposes an L1 archive group-id
+view. Lab certificates, heartbeat quorum, seating readiness, and lab-only
+on-demand/DePIN gossip do not satisfy this boundary. Trade is out of scope for
+this round; its mock may be used in the lab but is not production-ready.
+Standby IDs are normalized by canonical seat: `fd-06-ionos-174` and
+`fd-07-ionos-207` map to official seats `fd-06` and `fd-07`; `fd-08` and
+other extras never count toward the seven-seat roster.
+
+See the captured structured result:
+`pilot/evidence/conet-dle-p23-live-2026-08/qualification-report-2026-09-23.json`.
+
+The production MVP evaluator is
+`runtime/src/archive/syncQualification/productionQualification.ts`. It
+accepts only one canonical **5 active + 2 standby** roster, with operator and
+signing-key identity evidence and a deterministic manifest hash. Its
+fail-closed checks require signed consecutive heartbeat windows (5/7),
+production prevote/precommit plus lock/WAL/double-sign evidence, a fresh
+Archive Certificate bound to `hashIndexRoot` and freeze state, an L1-backed
+`C_G` whose registry matches the verifier, and real DePIN/on-demand fan-out
+with finalized CL randomness. The 30-day observation window validates
+continuity and drift/outage evidence; it does not replace any of these
+checks. The current report remains non-qualified until the live deployment
+supplies those production proofs; lab evidence must not be promoted.
+
+The evaluator is fail-closed. It requires the evidence to be mutually bound
+to one five-active/two-standby roster, release, snapshot, manifest, group, and
+root set. Heartbeat signatures must cover consecutive windows with 5/7 unique
+roster seats; BFT evidence must include production prevote/precommit QC,
+lock/WAL replay and double-sign checks; and a fresh Archive Certificate must
+carry the current hash-index root, freeze state, QC references, active signer
+set, and non-zero L1 context. Production `C_G` must independently expose the
+L1 archive group-id view for every chain, including `lastAC` and view proofs.
+DePIN/on-demand must show complete fan-out with retry/timeout and deduplication
+receipts plus finalized CL randomness. Invalid timestamps, roster drift, and
+outage evidence remain disqualifying. `reasonCodes` are the authoritative
+failure output; an empty list is the only path to `pilotQualified=true`.
+
 P3 on-demand（`runtime/src/shared/ondemand` + `runtime/src/archive/ondemand`；守则 [`src/shared/ondemand/RULES.md`](./src/shared/ondemand/RULES.md)）：实验室自动 seed 9 个 miner 并 freeze `poolRoot`，再按白皮书 \(R_e\) 抽 **7+2**。等待池 **不是** cluster 数 \(G_e\)。`dle_getWaitingPool` / `dle_getSelectionLog`、`GET /ondemand/pool`、`GET /ondemand/selection`、`POST /ondemand/hook`。七主机 ≥4 个 active EIP-712 attest（**P17** `ArchiveOnDemandAttest`）同一 `poolRoot`/`roulette` 后 `endorsed=true`。磁盘旧 HMAC attest keep-only 仍可恢复。单节点本地可复算 committee，但 **诚实 `endorsed=false`**。实验室 beacon = **先冻后绑**（默认 honest-wait `labOnDemandBeaconAfterFreeze`，或注入 CL view；即时 `labBeaconAfterFreeze(poolRoot)` 仅 contrast），**不是** CoNET L1 CL RANDAO（**P19**；P17 当时未换 beacon）。等待钩 **不** intra-group gossip（**P20**）：`ingest` 拒绝 `miners` / `hooks` / `hook`（`ERR_ONDEMAND_HOOK_NOT_GOSSIP`）；miner / daemon 必须对组内每一台活跃归档 POST 同一钩；一台 accept ≠ 组等待池一致。实验室 `POST /ondemand/hook`（TCP **27101**）**不是** 生产 DePIN gossip。Explorer nginx **不得**暴露 hook。SelectionLog **不是** AC，也 **不**改 P1 Mode A `valueHash`。重复钩拒绝（anti-hoard）。**不得**把 `endorsed` / `ondemandEip712` / `ondemandHookNotGossip` 画成 30 天资格或生产 gossip。
 
 ## 源码边界

@@ -1687,9 +1687,13 @@ export async function openOnDemandHttpQueue(options?: {
       frozen = undefined
       minerCount = undefined
     }
+    // START_ARCHIVE_KEEP_BFT reports LIVE_OK after the HTTP health probe.
+    // The older JSON marker is not emitted by that launcher, so requiring it
+    // incorrectly aborts before the fleet is deployed even when the archive
+    // is healthy and its waiting pool is empty.
     const healthOk =
       started.code === 0 &&
-      started.stdout.includes('"command":"archive"') &&
+      (started.stdout.includes('LIVE_OK') || started.stdout.includes('"command":"archive"')) &&
       frozen === false &&
       minerCount === 0
     const row: {
